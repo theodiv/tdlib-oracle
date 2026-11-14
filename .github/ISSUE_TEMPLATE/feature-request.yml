@@ -25,6 +25,16 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: feature-area
+    attributes:
+      label: Feature area
+      description: The part of TDLib Oracle the feature concerns.
+      options:
+        - Plain text
+    validations:
+      required: true
+
   - type: textarea
     id: problem-statement
     attributes:

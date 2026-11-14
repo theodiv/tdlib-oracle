@@ -30,6 +30,7 @@ classifiers = [
   "Topic :: Software Development :: Testing",
   "Topic :: Text Processing :: Markup :: HTML",
   "Topic :: Text Processing :: Markup :: Markdown",
+  "Typing :: Typed",
 ]
 dependencies = []
 dynamic = ["version"]
@@ -37,6 +38,7 @@ dynamic = ["version"]
 [project.urls]
 "Bug Tracker" = "https://github.com/theodiv/tdlib-oracle/issues"
 Changelog = "https://github.com/theodiv/tdlib-oracle/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/theodiv/tdlib-oracle/tree/main/docs"
 Repository = "https://github.com/theodiv/tdlib-oracle"
 
 [dependency-groups]
