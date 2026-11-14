@@ -24,6 +24,15 @@ Report vulnerabilities privately; never open a public issue for one.
 5. The patched release and the advisory are published together.
 6. The advisory credits the reporter unless anonymity is requested.
 
+## Threat Model
+
+- **Unbounded work** — `check` takes text of any size. Each step runs in time
+  and memory linear in the text, and a text over 32,768 bytes is refused before
+  TDLib's steps run.
+- **Malformed input** — invalid UTF-8, lone surrogates, and control characters
+  get a verdict, never an exception, so a hostile text cannot make
+  `check` raise.
+
 ## Out of Scope
 
 - The behavior of the Telegram Bot API server itself: the requests it accepts

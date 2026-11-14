@@ -14,6 +14,49 @@ Pre-release: TDLib Oracle is in development and nothing is published. The first
 release is `0.1.0`; the [changelog](https://github.com/theodiv/tdlib-oracle/blob/main/CHANGELOG.md)
 records every change until then.
 
+## Overview
+
+TDLib Oracle tells a test whether the Telegram Bot API server would accept a
+bot's plain message text and what it would keep, by running the text through the
+server's own checks and TDLib's processing, ported from their code at a pinned
+Bot API release. It serves the test suites of Telegram bots and of the libraries
+that build their messages, with no token and no network request. Sending the
+message stays with the caller.
+
+## Features
+
+- **The server's own refusals** — a refused text gets the Bot API's error
+  description, word for word, such as `Bad Request: message is too long`.
+- **The text Telegram keeps** — an accepted text comes back as the pinned code
+  keeps it: `\r` dropped, other control characters turned into spaces, both
+  ends trimmed.
+- **Pinned to a Bot API release** — each step is ported from the code of the Bot
+  API server and TDLib at the commits that `BOT_API_COMMIT` and
+  `TDLIB_COMMIT` name.
+
+## Example
+
+```pycon
+>>> from tdlib_oracle import check
+>>> check("Total:\t42 \r\n").text
+'Total: 42'
+>>> check("\N{ZERO WIDTH SPACE}").refusal
+Refusal(description='Bad Request: text must be non-empty', offset=None)
+```
+
+## Requirements
+
+Python 3.11 or later. No runtime dependencies.
+
+## Documentation
+
+- [Library](https://github.com/theodiv/tdlib-oracle/blob/main/docs/library.md) —
+  every public name, with its parameters, return value, and exceptions.
+- [Behavior](https://github.com/theodiv/tdlib-oracle/blob/main/docs/behavior.md) —
+  what happens to the input, step by step, and the limits on it.
+- [Compatibility](https://github.com/theodiv/tdlib-oracle/blob/main/docs/compatibility.md) —
+  what a release may change, and what stays stable.
+
 ## Contributing
 
 Development setup, coding standards, and the pull request process are documented
