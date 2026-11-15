@@ -8,12 +8,6 @@ Catch Telegram's refusals and silent edits before sending.
 
 ---
 
-## Status
-
-Pre-release: TDLib Oracle is in development and nothing is published. The first
-release is `0.1.0`; the [changelog](https://github.com/theodiv/tdlib-oracle/blob/main/CHANGELOG.md)
-records every change until then.
-
 ## Overview
 
 TDLib Oracle tells a test whether the Telegram Bot API server would accept a
@@ -47,6 +41,12 @@ Refusal(description='Bad Request: text must be non-empty', offset=None)
 ## Requirements
 
 Python 3.11 or later. No runtime dependencies.
+
+## Installation
+
+```console
+$ pip install tdlib-oracle
+```
 
 ## Documentation
 
