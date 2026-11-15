@@ -8,7 +8,7 @@ on:
 permissions:
   contents: read
 
-cache-mode: none  # no poisoned cache reaches a release, ci.yml's jobs included
+cache-mode: none
 
 jobs:
   check:
