@@ -19,8 +19,8 @@ pre-commit install
 Activate `.venv` in each new terminal; the commands below assume it is active.
 
 The pre-commit hooks call the tools in `.venv`; a different environment name
-leaves them unable to run. `--upgrade-deps` provides pip 25.1 or later, which
-`--group` needs.
+leaves them unable to run. `--upgrade-deps` provides a pip that
+knows `--group`.
 
 ## Toolchain
 
@@ -48,11 +48,15 @@ mypy src/ tests/
 zizmor --offline .github/
 pre-commit run --all-files
 pytest --cov
+pytest -m differential
 ```
 
 The test gate requires 90% branch coverage (`fail_under` in
 `[tool.coverage.report]`). `pre-commit run --all-files` reads tracked files
-only; pass a file not yet staged with `--files`.
+only; pass a file not yet staged with `--files`. `pytest -m differential`
+compiles TDLib's sources in `tests/data/` and compares their results with TDLib
+Oracle's, so it needs a C++17 compiler as `c++` on Linux; a plain `pytest`
+leaves those tests out.
 
 Apply the fixes with:
 
@@ -64,7 +68,9 @@ ruff format .
 ## Testing Standards
 
 - Tests must mirror `src/`: `tests/<domain>/test_<module>.py` for a domain
-  module, `tests/test_<module>.py` for a top-level module.
+  module, `tests/test_<module>.py` for a top-level module. Test code that
+  several test modules share, or that runs an external program or a server, must
+  live in `tests/support/`, with its tests beside it.
 - Every bug fix must add a regression test that fails on the unfixed code.
 - Tests must assert outcomes (outputs, lengths, exit codes, stderr lines), not
   that an internal call happened.

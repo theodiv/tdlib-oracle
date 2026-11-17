@@ -75,10 +75,37 @@ jobs:
       - name: Run test suite
         run: .venv/bin/pytest -v --cov
 
+  differential:
+    name: Compare with compiled TDLib
+    runs-on: ubuntu-latest
+    needs: hooks
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.15
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.15"
+          cache: pip
+
+      - name: Create virtual environment
+        run: python -m venv --upgrade-deps .venv
+
+      - name: Install dev dependencies
+        run: .venv/bin/pip install -e . --group dev
+
+      - name: Run differential tests
+        run: .venv/bin/pytest -m differential
+
   all-passed:
     name: Confirm all jobs passed
     runs-on: ubuntu-latest
-    needs: [hooks, tests]
+    needs: [hooks, tests, differential]
     if: always()
     timeout-minutes: 5
 
