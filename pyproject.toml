@@ -86,8 +86,9 @@ warn_return_any = false
 disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
-addopts = "--cov-report=term-missing"
+addopts = "-m 'not differential' --cov-report=term-missing"
 filterwarnings = ["error"]
+markers = ["differential: compiles the pinned TDLib sources; needs c++ on Linux"]
 strict = true
 testpaths = ["tests"]
 
@@ -139,6 +140,7 @@ ban-relative-imports = "all"
 
 [tool.ruff.lint.flake8-tidy-imports.banned-api]
 "os.chmod".msg = "Use os.fchmod on the open descriptor."
+"unicodedata".msg = "Use TDLib's Unicode tables from the pin, not the running Python's."
 
 [tool.ruff.lint.pylint]
 max-returns = 8
