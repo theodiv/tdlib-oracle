@@ -9,6 +9,9 @@ Every participant follows the [code of conduct](CODE_OF_CONDUCT.md).
 
 ## Development Setup
 
+Work from a clone of the repository: the sdist on PyPI holds the package alone,
+without the tests.
+
 ```bash
 python3 -m venv --upgrade-deps .venv
 source .venv/bin/activate
