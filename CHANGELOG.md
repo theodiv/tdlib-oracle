@@ -9,8 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Include in the sdist the TDLib sources that the differential tests compile,
-  under BSL-1.0.
+- Ship the package alone in the sdist, with `pyproject.toml`, `README.md`, and
+  the license texts. Previously, it carried every file of the repository, the
+  tests included.
 
 ## [0.1.0] - 2026-11-15
 
