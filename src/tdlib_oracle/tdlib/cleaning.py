@@ -64,24 +64,29 @@ def _trim(text: bytes) -> bytes:
 
 
 # Ported from td/telegram/misc.cpp, replace_offending_characters().
-def _replace_offending_characters(text: bytearray) -> None:
-    """Turn each U+200E or U+200F mark that another follows into U+200C, in place."""
+def replace_offending_characters(text: bytes) -> bytes:
+    """Return `text` with each U+200E or U+200F mark that another follows as U+200C.
+
+    Each mark and its replacement take 3 bytes, so the text keeps its length.
+    """
+    result = bytearray(text)
     pos = 0
-    while pos < len(text):
+    while pos < len(result):
         if (
-            text[pos] == 0xE2
-            and _byte_at(text, pos + 1) == 0x80
-            and _byte_at(text, pos + 2) in (0x8E, 0x8F)
+            result[pos] == 0xE2
+            and _byte_at(result, pos + 1) == 0x80
+            and _byte_at(result, pos + 2) in (0x8E, 0x8F)
         ):
             while (
-                _byte_at(text, pos + 3) == 0xE2
-                and _byte_at(text, pos + 4) == 0x80
-                and _byte_at(text, pos + 5) in (0x8E, 0x8F)
+                _byte_at(result, pos + 3) == 0xE2
+                and _byte_at(result, pos + 4) == 0x80
+                and _byte_at(result, pos + 5) in (0x8E, 0x8F)
             ):
-                text[pos + 2] = 0x8C
+                result[pos + 2] = 0x8C
                 pos += 3
             pos += 2
         pos += 1
+    return bytes(result)
 
 
 # Ported from td/telegram/misc.cpp, clean_input_string().
@@ -124,8 +129,7 @@ def clean_input_string(text: bytes) -> bytes | None:
             break
         pos += 1
 
-    _replace_offending_characters(result)
-    return bytes(result)
+    return replace_offending_characters(bytes(result))
 
 
 # Ported from td/telegram/misc.cpp, strip_empty_characters().

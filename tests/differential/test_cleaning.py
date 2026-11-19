@@ -6,6 +6,7 @@ import pytest
 from tdlib_oracle.tdlib.cleaning import (
     clean_input_string,
     is_empty_string,
+    replace_offending_characters,
     strip_empty_characters,
 )
 from tests.support.texts import (
@@ -64,6 +65,32 @@ def test_clean_input_string_gives_the_pinned_result_around_its_cut(
 ) -> None:
     cases = [(text, ()) for text in texts_around(_CUT, _CUT_UNITS)]
     compare("clean_input_string", _clean, cases, seed=None, by_bytes=False)
+
+
+def test_replace_offending_characters_gives_the_pinned_result(
+    compare: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        texts = draw_texts(seed, count, PLAIN_UNITS + INVALID_UNITS)
+        compare(
+            "replace_offending_characters",
+            lambda text, args: (replace_offending_characters(text),),
+            [(text, ()) for text in texts],
+            seed=seed,
+            by_bytes=True,
+        )
+
+
+def test_replace_offending_characters_gives_the_pinned_result_for_a_mark_at_the_end(
+    compare: Compare,
+) -> None:
+    compare(
+        "replace_offending_characters",
+        lambda text, args: (replace_offending_characters(text),),
+        [(text, ()) for text in MARK_ENDINGS],
+        seed=None,
+        by_bytes=True,
+    )
 
 
 def test_strip_empty_characters_gives_the_pinned_result(

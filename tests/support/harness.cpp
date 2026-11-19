@@ -3,12 +3,21 @@
 // A request and a response are each a field count followed by that many fields, and a
 // field is a 32-bit little-endian length followed by that many bytes. Each response is
 // flushed before the next request is read, so a crash names the request that caused it.
+//
+// MessageEntity.cpp is compiled here, as part of this file, instead of on its own, so
+// that the functions it keeps static are in reach.
 
+#include "td/telegram/MessageEntity.cpp"
+
+#include "td/telegram/CustomEmojiId.h"
+#include "td/telegram/FormattedDate.h"
 #include "td/telegram/MessageEntity.h"
 #include "td/telegram/misc.h"
+#include "td/telegram/UserId.h"
 
 #include "td/utils/logging.h"
 #include "td/utils/Slice.h"
+#include "td/utils/SliceBuilder.h"
 #include "td/utils/Status.h"
 #include "td/utils/utf8.h"
 
@@ -16,6 +25,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <limits>
 #include <string>
 #include <vector>
 
@@ -99,6 +109,26 @@ std::size_t to_size(const std::string &field) {
   return value;
 }
 
+// Reads a decimal number with an optional minus sign, which must lie within [min, max].
+td::int64 to_integer(const std::string &field, td::int64 min, td::int64 max) {
+  bool is_negative = !field.empty() && field[0] == '-';
+  auto magnitude = static_cast<td::int64>(to_size(is_negative ? field.substr(1) : field));
+  auto value = is_negative ? -magnitude : magnitude;
+  if (value < min || value > max) {
+    fail("a number field holds a number out of range");
+  }
+  return value;
+}
+
+td::int32 to_int32(const std::string &field) {
+  return static_cast<td::int32>(
+      to_integer(field, std::numeric_limits<td::int32>::min(), std::numeric_limits<td::int32>::max()));
+}
+
+td::int64 to_int64(const std::string &field) {
+  return to_integer(field, std::numeric_limits<td::int64>::min(), std::numeric_limits<td::int64>::max());
+}
+
 bool to_flag(const std::string &field) {
   if (field != "0" && field != "1") {
     fail("a flag field holds neither 0 nor 1");
@@ -113,6 +143,39 @@ std::string from_flag(bool value) {
 void expect_fields(const Fields &request, std::size_t count) {
   if (request.size() != count) {
     fail("a request holds the wrong number of fields");
+  }
+}
+
+// Reads the entities that fill a request from field `first` on, 8 fields each: the type,
+// offset, length, argument, user ID, custom emoji ID, date, and date flags.
+td::vector<td::MessageEntity> read_entities(const Fields &request, std::size_t first) {
+  if (request.size() < first || (request.size() - first) % 8 != 0) {
+    fail("a request holds the wrong number of fields");
+  }
+  td::vector<td::MessageEntity> entities;
+  for (auto i = first; i < request.size(); i += 8) {
+    auto type = to_integer(request[i], 0, static_cast<td::int64>(td::MessageEntity::Type::Size) - 1);
+    td::MessageEntity entity(static_cast<td::MessageEntity::Type>(type), to_int32(request[i + 1]),
+                             to_int32(request[i + 2]), request[i + 3]);
+    entity.user_id = td::UserId(to_int64(request[i + 4]));
+    entity.custom_emoji_id = td::CustomEmojiId(to_int64(request[i + 5]));
+    entity.date = td::FormattedDate(to_int32(request[i + 6]), to_int32(request[i + 7]));
+    entities.push_back(std::move(entity));
+  }
+  return entities;
+}
+
+// Writes each entity as 7 fields: the type, offset, length, argument, user ID, custom
+// emoji ID, and the date as FormattedDate prints it, since it keeps its flags private.
+void write_entities(Fields &response, const td::vector<td::MessageEntity> &entities) {
+  for (auto &entity : entities) {
+    response.push_back(std::to_string(static_cast<td::int32>(entity.type)));
+    response.push_back(std::to_string(entity.offset));
+    response.push_back(std::to_string(entity.length));
+    response.push_back(entity.argument);
+    response.push_back(std::to_string(entity.user_id.get()));
+    response.push_back(std::to_string(entity.custom_emoji_id.get()));
+    response.push_back(PSTRING() << entity.date);
   }
 }
 
@@ -137,6 +200,16 @@ Fields run(const std::string &function, const Fields &request) {
     auto c = static_cast<unsigned char>(request[0][0]);
     return {from_flag(td::is_utf8_character_first_code_unit(c))};
   }
+  if (function == "utf8_utf16_length") {
+    expect_fields(request, 1);
+    return {std::to_string(td::utf8_utf16_length(request[0]))};
+  }
+  if (function == "replace_offending_characters") {
+    expect_fields(request, 1);
+    auto text = request[0];
+    td::replace_offending_characters(text);
+    return {text};
+  }
   if (function == "clean_input_string") {
     expect_fields(request, 1);
     auto text = request[0];
@@ -154,23 +227,33 @@ Fields run(const std::string &function, const Fields &request) {
     expect_fields(request, 1);
     return {from_flag(td::is_empty_string(request[0]))};
   }
+  if (function == "sort_entities") {
+    auto entities = read_entities(request, 1);
+    if (!request[0].empty()) {
+      fail("sort_entities takes no text");
+    }
+    td::sort_entities(entities);
+    Fields response;
+    write_entities(response, entities);
+    return response;
+  }
   if (function == "fix_formatted_text") {
-    expect_fields(request, 4);
+    auto entities = read_entities(request, 4);
     auto text = request[0];
-    td::vector<td::MessageEntity> entities;
     auto allow_empty = to_flag(request[1]);
     auto allow_empty_string = to_flag(request[2]);
     auto skip_trim = to_flag(request[3]);
     // A bot skips media timestamps (td/telegram/MessageEntity.cpp,
     // get_formatted_text()). New entities are skipped too, as for a bot with more
-    // than one session: they change no text, and a plain text has no entity for them
-    // to split.
+    // than one session, since the port finds no entities in the text.
     auto status = td::fix_formatted_text(
         text, entities, allow_empty, allow_empty_string, true, true, true, skip_trim);
     if (status.is_error()) {
       return {std::to_string(status.code()), status.message().str(), std::string()};
     }
-    return {"0", std::string(), text};
+    Fields response{"0", std::string(), text};
+    write_entities(response, entities);
+    return response;
   }
   fail("no such function");
 }

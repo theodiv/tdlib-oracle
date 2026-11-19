@@ -5,6 +5,7 @@ from tdlib_oracle.text.utf8 import (
     is_utf8_character_first_code_unit,
     utf8_length,
     utf8_truncate,
+    utf8_utf16_length,
 )
 
 
@@ -69,6 +70,22 @@ def test_is_utf8_character_first_code_unit(c: int, expected: bool) -> None:
 )
 def test_utf8_length_counts_code_points(text: bytes, length: int) -> None:
     assert utf8_length(text) == length
+
+
+@pytest.mark.parametrize(
+    ("text", "length"),
+    [
+        (b"", 0),
+        (b"abc", 3),
+        ("caf\N{LATIN SMALL LETTER E WITH ACUTE}\N{EURO SIGN}".encode(), 5),
+        ("a\U0001f600b".encode(), 4),
+        (b"\x80", 0),  # a continuation byte alone
+        (b"\xf5", 2),  # a lead byte no code point uses, read as one of 4 bytes
+        (b"\xf8", 1),
+    ],
+)
+def test_utf8_utf16_length_counts_utf16_code_units(text: bytes, length: int) -> None:
+    assert utf8_utf16_length(text) == length
 
 
 @pytest.mark.parametrize(

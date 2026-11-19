@@ -1,9 +1,12 @@
 import shlex
 from collections.abc import Callable, Sequence
+from dataclasses import replace
 from pathlib import Path
+from typing import TypeVar
 
 import pytest
 
+from tdlib_oracle.tdlib.entities import MessageEntity
 from tests.support.harness import cached_build, run
 from tests.support.texts import shrink
 
@@ -14,11 +17,29 @@ Port = Callable[[bytes, tuple[int, ...]], tuple[bytes, ...]]
 # A text, as a tuple of units, and the function's other arguments.
 Case = tuple[tuple[bytes, ...], tuple[int, ...]]
 
+# The port's result for a text, the function's numeric arguments, and its entities: the
+# fields the harness answers with before the entities, and the entities.
+EntityPort = Callable[
+    [bytes, tuple[int, ...], tuple[MessageEntity, ...]],
+    tuple[tuple[bytes, ...], tuple[MessageEntity, ...]],
+]
+
+# A text, as a tuple of units, the function's numeric arguments, and its entities.
+EntityCase = tuple[tuple[bytes, ...], tuple[int, ...], tuple[MessageEntity, ...]]
+
+# A text, the function's numeric arguments, and its entities, as a request carries them.
+_Request = tuple[bytes, tuple[int, ...], tuple[MessageEntity, ...]]
+
+# The fields the harness answers an entity with.
+_ENTITY_FIELDS = 7
+
 _FIXED_SEEDS = (20261116, 20261117)
 
 # Generous enough for a build with --coverage or the sanitizers; a run of the plain
 # build takes seconds.
 _TIMEOUT = 300.0
+
+_Result = TypeVar("_Result")
 
 
 @pytest.fixture(scope="session")
@@ -34,8 +55,10 @@ def harness(
     root = pytestconfig.rootpath
     td = root / "tests" / "data" / "td"
     tl = root / "tests" / "data" / "tl"
+    # harness.cpp includes MessageEntity.cpp, to reach the functions it keeps static.
+    included = td / "td" / "telegram" / "MessageEntity.cpp"
     sources = [
-        *sorted(td.rglob("*.cpp")),
+        *(path for path in sorted(td.rglob("*.cpp")) if path != included),
         *sorted(tl.rglob("*.cpp")),
         root / "tests" / "support" / "harness.cpp",
     ]
@@ -65,48 +88,161 @@ def count(pytestconfig: pytest.Config) -> int:
     return value
 
 
+def _entity_request(entity: MessageEntity) -> list[bytes]:
+    head = (entity.type, entity.offset, entity.length)
+    tail = (entity.user_id, entity.custom_emoji_id, entity.date, entity.date_flags)
+    return [
+        *(str(number).encode() for number in head),
+        entity.argument,
+        *(str(number).encode() for number in tail),
+    ]
+
+
+def _entity_response(entity: MessageEntity) -> tuple[bytes, ...]:
+    head = (entity.type, entity.offset, entity.length)
+    tail = (entity.user_id, entity.custom_emoji_id)
+    return (
+        *(str(number).encode() for number in head),
+        entity.argument,
+        *(str(number).encode() for number in tail),
+        f"date {entity.date} with flags {entity.date_flags}".encode(),
+    )
+
+
 def _pinned(
-    harness: Path, function: str, cases: Sequence[tuple[bytes, tuple[int, ...]]]
+    harness: Path, function: str, requests: Sequence[_Request]
 ) -> list[tuple[bytes, ...]]:
-    requests = [[text, *(str(arg).encode() for arg in args)] for text, args in cases]
-    return run(harness, function, requests, timeout=_TIMEOUT)
+    fields = [
+        [
+            text,
+            *(str(arg).encode() for arg in args),
+            *(field for entity in entities for field in _entity_request(entity)),
+        ]
+        for text, args, entities in requests
+    ]
+    return run(harness, function, fields, timeout=_TIMEOUT)
+
+
+def _matches_entities(
+    ours: tuple[tuple[bytes, ...], tuple[MessageEntity, ...]],
+    theirs: tuple[bytes, ...],
+) -> bool:
+    """Return whether the harness answered as the port did, ties allowed for."""
+    fields, entities = ours
+    size = len(fields) + _ENTITY_FIELDS * len(entities)
+    if theirs[: len(fields)] != fields or len(theirs) != size:
+        return False
+    for index, entity in enumerate(entities):
+        start = len(fields) + _ENTITY_FIELDS * index
+        answer = theirs[start : start + _ENTITY_FIELDS]
+        candidates = [entity] + [
+            replace(
+                entity,
+                type=tie.type,
+                argument=tie.argument,
+                user_id=tie.user_id,
+                custom_emoji_id=tie.custom_emoji_id,
+                date=tie.date,
+                date_flags=tie.date_flags,
+            )
+            for tie in entity.ties
+        ]
+        if all(_entity_response(candidate) != answer for candidate in candidates):
+            return False
+    return True
 
 
 def _shrink_case(
     harness: Path,
     function: str,
-    port: Port,
-    units: tuple[bytes, ...],
-    args: tuple[int, ...],
+    port: Callable[[bytes, tuple[int, ...], tuple[MessageEntity, ...]], _Result],
+    matches: Callable[[_Result, tuple[bytes, ...]], bool],
+    case: EntityCase,
     *,
     by_bytes: bool,
-) -> Case:
-    def fails(candidates: list[tuple[bytes, ...]]) -> list[bool]:
-        texts = [b"".join(candidate) for candidate in candidates]
-        pinned = _pinned(harness, function, [(text, args) for text in texts])
+) -> EntityCase:
+    def differs(requests: list[_Request]) -> list[bool]:
+        pinned = _pinned(harness, function, requests)
         return [
-            port(text, args) != result
-            for text, result in zip(texts, pinned, strict=True)
+            not matches(port(*request), result)
+            for request, result in zip(requests, pinned, strict=True)
         ]
 
-    units = shrink(units, fails, by_bytes=by_bytes)
+    units, args, entities = case
+    units = shrink(
+        units,
+        lambda candidates: differs(
+            [(b"".join(candidate), args, entities) for candidate in candidates]
+        ),
+        by_bytes=by_bytes,
+    )
     text = b"".join(units)
+
+    while entities:
+        removals = [
+            entities[:index] + entities[index + 1 :] for index in range(len(entities))
+        ]
+        flagged = [
+            removal
+            for removal, failed in zip(
+                removals,
+                differs([(text, args, removal) for removal in removals]),
+                strict=True,
+            )
+            if failed
+        ]
+        if not flagged:
+            break
+        entities = flagged[0]
+
     for position in range(len(args)):
         while args[position] > 0:
             values = sorted({0, args[position] // 2, args[position] - 1})
             candidates = [
                 (*args[:position], value, *args[position + 1 :]) for value in values
             ]
-            pinned = _pinned(harness, function, [(text, other) for other in candidates])
             smaller = [
                 other
-                for other, result in zip(candidates, pinned, strict=True)
-                if port(text, other) != result
+                for other, failed in zip(
+                    candidates,
+                    differs([(text, other, entities) for other in candidates]),
+                    strict=True,
+                )
+                if failed
             ]
             if not smaller:
                 break
             args = smaller[0]
-    return units, args
+    return units, args, entities
+
+
+def _check(
+    harness: Path,
+    function: str,
+    port: Callable[[bytes, tuple[int, ...], tuple[MessageEntity, ...]], _Result],
+    matches: Callable[[_Result, tuple[bytes, ...]], bool],
+    cases: Sequence[EntityCase],
+    *,
+    seed: int | None,
+    by_bytes: bool,
+) -> None:
+    requests = [(b"".join(units), args, entities) for units, args, entities in cases]
+    pinned = _pinned(harness, function, requests)
+    for index, (request, result) in enumerate(zip(requests, pinned, strict=True)):
+        if matches(port(*request), result):
+            continue
+        small_units, small_args, small_entities = _shrink_case(
+            harness, function, port, matches, cases[index], by_bytes=by_bytes
+        )
+        text = b"".join(small_units)
+        (shrunk,) = _pinned(harness, function, [(text, small_args, small_entities)])
+        origin = "a fixed case" if seed is None else f"seed {seed}"
+        shown = f" and entities {small_entities!r}" if small_entities else ""
+        pytest.fail(
+            f"{function} differs on {origin}, case {index}, shrunk to {text!r}"
+            f" with arguments {small_args}{shown}: the port gives"
+            f" {port(text, small_args, small_entities)!r}, the pinned code {shrunk!r}"
+        )
 
 
 @pytest.fixture
@@ -125,23 +261,44 @@ def compare(harness: Path) -> Callable[..., None]:
         seed: int | None,
         by_bytes: bool,
     ) -> None:
-        texts = [(b"".join(units), args) for units, args in cases]
-        pinned = _pinned(harness, function, texts)
-        for index, ((units, args), result) in enumerate(
-            zip(cases, pinned, strict=True)
-        ):
-            if port(b"".join(units), args) == result:
-                continue
-            small_units, small_args = _shrink_case(
-                harness, function, port, units, args, by_bytes=by_bytes
-            )
-            text = b"".join(small_units)
-            (shrunk,) = _pinned(harness, function, [(text, small_args)])
-            origin = "a fixed case" if seed is None else f"seed {seed}"
-            pytest.fail(
-                f"{function} differs on {origin}, case {index}, shrunk to {text!r}"
-                f" with arguments {small_args}: the port gives"
-                f" {port(text, small_args)!r}, the pinned code {shrunk!r}"
-            )
+        _check(
+            harness,
+            function,
+            lambda text, args, entities: port(text, args),
+            lambda ours, theirs: ours == theirs,
+            [(units, args, ()) for units, args in cases],
+            seed=seed,
+            by_bytes=by_bytes,
+        )
+
+    return check
+
+
+@pytest.fixture
+def compare_entities(harness: Path) -> Callable[..., None]:
+    """Return a check that the port matches the pinned code on cases with entities.
+
+    At an entity the port marks as tied, any entity of its tie matches, since
+    `std::sort` leaves their order to the C++ library. A differing case is shrunk
+    before it fails the test: its text, its entities, and then its numeric arguments.
+    """
+
+    def check(
+        function: str,
+        port: EntityPort,
+        cases: Sequence[EntityCase],
+        *,
+        seed: int | None,
+        by_bytes: bool,
+    ) -> None:
+        _check(
+            harness,
+            function,
+            port,
+            _matches_entities,
+            cases,
+            seed=seed,
+            by_bytes=by_bytes,
+        )
 
     return check

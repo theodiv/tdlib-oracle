@@ -9,6 +9,7 @@ from tdlib_oracle.text.utf8 import (
     is_utf8_character_first_code_unit,
     utf8_length,
     utf8_truncate,
+    utf8_utf16_length,
 )
 from tests.support.harness import run
 from tests.support.texts import INVALID_UNITS, PLAIN_UNITS, draw_texts
@@ -46,6 +47,20 @@ def test_utf8_length_gives_the_pinned_result(
         compare(
             "utf8_length",
             lambda text, args: (str(utf8_length(text)).encode(),),
+            cases,
+            seed=seed,
+            by_bytes=True,
+        )
+
+
+def test_utf8_utf16_length_gives_the_pinned_result(
+    compare: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        cases = [(text, ()) for text in draw_texts(seed, count, _UNITS)]
+        compare(
+            "utf8_utf16_length",
+            lambda text, args: (str(utf8_utf16_length(text)).encode(),),
             cases,
             seed=seed,
             by_bytes=True,
