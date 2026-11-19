@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.harness import build, run
+from tests.support.harness import cached_build, run
 from tests.support.texts import shrink
 
 # The port's result for a text and the function's other arguments, in the fields the
@@ -25,7 +25,12 @@ _TIMEOUT = 300.0
 def harness(
     pytestconfig: pytest.Config, tmp_path_factory: pytest.TempPathFactory
 ) -> Path:
-    """Return the compiled pinned TDLib functions, built once per session."""
+    """Return the compiled pinned TDLib functions.
+
+    A build without `--harness-flags` is kept in `.pytest_cache/` until one of its
+    inputs changes or `pytest --cache-clear` empties the cache, so later sessions
+    skip it.
+    """
     root = pytestconfig.rootpath
     td = root / "tests" / "data" / "td"
     tl = root / "tests" / "data" / "tl"
@@ -37,9 +42,10 @@ def harness(
     # Each component of td other than td itself keeps its headers in a td/ directory.
     components = sorted(path for path in td.iterdir() if (path / "td").is_dir())
     flags = shlex.split(pytestconfig.getoption("harness_flags"))
-    return build(
+    return cached_build(
         sources,
         [td, *components, tl],
+        pytestconfig.cache.mkdir("harness"),
         tmp_path_factory.mktemp("harness"),
         flags=flags,
     )
