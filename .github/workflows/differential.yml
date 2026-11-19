@@ -1,4 +1,4 @@
-name: Differential Testing
+name: Differential Fuzzing
 
 on:
   schedule:
