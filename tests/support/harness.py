@@ -7,7 +7,9 @@ undefined data symbol gets the value upstream gives it, from `DATA_SYMBOLS`, and
 missing there stops the build.
 """
 
+import hashlib
 import os
+import platform
 import re
 import shutil
 import struct
@@ -257,6 +259,106 @@ def build(
     result = _link(compiler, [*compiled, objects / "stubs.o"], program, flags, env)
     if result.returncode != 0:
         raise HarnessError(f"the harness does not link:\n{result.stderr}")
+    return program
+
+
+def _fingerprint(
+    compiler: str, sources: Sequence[Path], include_dirs: Sequence[Path]
+) -> str:
+    """Return the key that `cached_build` names the program after.
+
+    The tools run with `PATH` alone, as `build` runs the compiler, so a version text
+    translated for the caller's locale leaves the key as it is.
+
+    Raises:
+        HarnessError: If `ld` or `ldd` is not on `PATH`.
+    """
+    digest = hashlib.sha256()
+
+    def add(label: str, data: bytes) -> None:
+        digest.update(f"{label}\0{len(data)}\0".encode())
+        digest.update(data)
+
+    add("harness.py", Path(__file__).read_bytes())
+    add("machine", platform.machine().encode())
+
+    # The first include directory that holds a header wins, and the objects link in
+    # the order of the sources.
+    add("sources", "\0".join(map(str, sources)).encode())
+    add("include_dirs", "\0".join(map(str, include_dirs)).encode())
+
+    linker = shutil.which("ld")
+    if linker is None:
+        raise HarnessError("no ld on PATH; the compiler links the harness with it")
+
+    # ldd reports the version of the C library, whose headers the sources include.
+    libc = shutil.which("ldd")
+    if libc is None:
+        raise HarnessError(
+            "no ldd on PATH; the harness reads the C library's version with it"
+        )
+
+    env = {"PATH": os.environ.get("PATH", os.defpath)}
+    for tool in (compiler, linker, libc):
+        version = subprocess.run(
+            [tool, "--version"], capture_output=True, check=True, env=env
+        )
+        add(tool, version.stdout)
+
+    files = set(sources)
+    for directory in include_dirs:
+        files.update(path for path in directory.rglob("*") if path.is_file())
+    for path in sorted(files):
+        add(str(path), path.read_bytes())
+
+    return digest.hexdigest()[:16]
+
+
+def cached_build(
+    sources: Sequence[Path],
+    include_dirs: Sequence[Path],
+    cache: Path,
+    scratch: Path,
+    *,
+    flags: Sequence[str] = (),
+) -> Path:
+    """Return the program `build` makes of `sources`, from `cache` when it holds one.
+
+    A build takes minutes, yet the program changes only with its inputs, so `cache`
+    keeps it under a key over this module, the machine, the versions of `c++`, `ld`, and
+    the C library, the order of `sources` and of `include_dirs`, and the path and bytes
+    of each source and of each file under `include_dirs`. A miss builds in `scratch` and
+    moves the program into `cache`, replacing the one there. A build with `flags` is
+    always fresh and leaves `cache` alone, since a coverage build writes its counts
+    beside its objects, which a cached program no longer has.
+
+    Raises:
+        HarnessError: If the system is not Linux, `c++`, `ld`, or `ldd` is not on
+            `PATH`, or the build fails.
+    """
+    if flags:
+        return build(sources, include_dirs, scratch, flags=flags)
+
+    key = _fingerprint(_find_compiler(), sources, include_dirs)
+    program = cache / f"harness-{key}"
+    if program.is_file():
+        return program
+
+    built = build(sources, include_dirs, scratch)
+
+    # The copy takes a temporary name, so a half-copied program never carries the
+    # key's name, and a failed copy leaves nothing behind.
+    partial = cache / f"partial-{os.getpid()}"
+    try:
+        shutil.copy2(built, partial)
+        partial.replace(program)
+    finally:
+        partial.unlink(missing_ok=True)
+
+    for old in cache.glob("harness-*"):
+        if old != program:
+            old.unlink(missing_ok=True)
+
     return program
 
 

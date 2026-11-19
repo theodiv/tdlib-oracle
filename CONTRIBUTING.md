@@ -59,7 +59,9 @@ The test gate requires 90% branch coverage (`fail_under` in
 only; pass a file not yet staged with `--files`. `pytest -m differential`
 compiles TDLib's sources in `tests/data/` and compares their results with TDLib
 Oracle's, so it needs a C++17 compiler as `c++` on Linux; a plain `pytest`
-leaves those tests out.
+leaves those tests out. The compiled program stays in `.pytest_cache/` until the
+sources, the harness, the compiler, the linker, or the C library change;
+`pytest --cache-clear` rebuilds it.
 
 Apply the fixes with:
 
@@ -78,7 +80,8 @@ ruff format .
 - Tests must assert outcomes (outputs, lengths, exit codes, stderr lines), not
   that an internal call happened.
 - Tests must not reach the network beyond `127.0.0.1`, use real credentials, or
-  write outside pytest's temporary directories.
+  write outside pytest's temporary directories, except for the compiled harness
+  in `.pytest_cache/`.
 - Test code must be annotated as fully as `src/`.
 
 Run one test file while working:
