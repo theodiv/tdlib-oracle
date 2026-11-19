@@ -3,6 +3,7 @@ import pytest
 from tdlib_oracle.tdlib.cleaning import (
     clean_input_string,
     is_empty_string,
+    replace_offending_characters,
     strip_empty_characters,
 )
 
@@ -72,6 +73,18 @@ def test_clean_input_string_cuts_before_the_character_at_offset_34996(
 ) -> None:
     text = (character * (36000 // len(character.encode()))).encode()
     assert clean_input_string(text) == (character * kept).encode()
+
+
+def test_replace_offending_characters_changes_all_but_the_last_mark_of_a_run() -> None:
+    text = "\U0000200e\U0000200f\U0000200ex\U0000200f".encode()
+    assert replace_offending_characters(text) == (
+        "\U0000200c\U0000200c\U0000200ex\U0000200f".encode()
+    )
+
+
+def test_replace_offending_characters_leaves_a_mark_before_a_cut_one() -> None:
+    text = "\U0000200e".encode() + b"\xe2\x80"
+    assert replace_offending_characters(text) == text
 
 
 def test_strip_empty_characters_turns_space_characters_into_spaces() -> None:

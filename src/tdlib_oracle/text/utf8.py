@@ -4,7 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""UTF-8 helpers of tdutils: validity, length in code points, and truncation."""
+"""UTF-8 helpers of tdutils: validity, length, and truncation."""
 
 # Ported from tdutils/td/utils/utf8.cpp, the enum that opens with UTF8_REJECT: the
 # states of the shift-based DFA that checks UTF-8 validity. The transitions by one byte
@@ -94,6 +94,18 @@ def is_utf8_character_first_code_unit(c: int) -> bool:
 def utf8_length(text: bytes) -> int:
     """Return the length of `text` in code points."""
     return sum(is_utf8_character_first_code_unit(c) for c in text)
+
+
+# Ported from tdutils/td/utils/utf8.cpp, utf8_utf16_length().
+def utf8_utf16_length(text: bytes) -> int:
+    """Return the length of `text` in UTF-16 code units.
+
+    A byte from 0xF0 to 0xF7, which leads a 4-byte sequence, counts twice, for the
+    surrogate pair that sequence takes in UTF-16.
+    """
+    return sum(
+        is_utf8_character_first_code_unit(c) + ((c & 0xF8) == 0xF0) for c in text
+    )
 
 
 # Ported from tdutils/td/utils/utf8.h, utf8_truncate().
