@@ -71,13 +71,19 @@ _FLAGS = (
 _CONFIG_H = """\
 #pragma once
 
-#define TD_HAVE_OPENSSL 1
+#define TD_HAVE_OPENSSL {openssl}
 #define TD_HAVE_ZLIB 0
 #define TD_HAVE_CRC32C 0
 #define TD_HAVE_COROUTINES 0
 #define TD_HAVE_ABSL 0
 #define TD_FD_DEBUG 0
 """
+
+# tdutils builds without OpenSSL when CMake finds none (tdutils/CMakeLists.txt). Built
+# so, crypto.cpp needs no OpenSSL headers and still defines crc16(), which lies outside
+# its OpenSSL code; every other source needs no more than tdutils' declarations of that
+# code.
+_WITHOUT_OPENSSL = "/tdutils/td/utils/crypto.cpp"
 
 _STUBS_HEADER = """\
 #include <cstdio>
@@ -208,10 +214,10 @@ def build(
     """Compile `sources` into one program in `directory`, and return its path.
 
     The sources compile in parallel with TDLib's Release flags and `-fsigned-char`, then
-    `flags`, such as `--coverage`. A first link names the symbols they leave undefined,
-    and their stubs join the second. The compiler gets only `PATH`, to find the
-    assembler and the linker, and `TMPDIR`, so that its temporary files stay in
-    `directory`.
+    `flags`, such as `--coverage`; tdutils' `crypto.cpp` compiles without OpenSSL. A
+    first link names the symbols they leave undefined, and their stubs join the second.
+    The compiler gets only `PATH`, to find the assembler and the linker, and `TMPDIR`,
+    so that its temporary files stay in `directory`.
 
     Raises:
         HarnessError: If the system is not Linux, `c++` is not on `PATH`, a source does
@@ -220,20 +226,28 @@ def build(
     """
     compiler = _find_compiler()
     env = {"PATH": os.environ.get("PATH", os.defpath), "TMPDIR": str(directory)}
-    config = directory / "config" / "td" / "utils"
-    config.mkdir(parents=True)
-    (config / "config.h").write_text(_CONFIG_H, encoding="ascii")
-    includes = [f"-I{path}" for path in (*include_dirs, directory / "config")]
+    includes = {}
+    for openssl in (0, 1):
+        config = directory / f"config-{openssl}"
+        (config / "td" / "utils").mkdir(parents=True)
+        (config / "td" / "utils" / "config.h").write_text(
+            _CONFIG_H.format(openssl=openssl), encoding="ascii"
+        )
+        includes[openssl] = [f"-I{path}" for path in (*include_dirs, config)]
 
     objects = directory / "objects"
     objects.mkdir()
     jobs = [
-        (source, objects / f"{index:03d}-{source.stem}.o")
+        (
+            source,
+            objects / f"{index:03d}-{source.stem}.o",
+            includes[0 if source.as_posix().endswith(_WITHOUT_OPENSSL) else 1],
+        )
         for index, source in enumerate(sources)
     ]
     with ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
         errors = pool.map(
-            lambda job: _compile(compiler, job[0], job[1], [*flags, *includes], env),
+            lambda job: _compile(compiler, job[0], job[1], [*flags, *job[2]], env),
             jobs,
         )
         messages = [message for message in errors if message is not None]
@@ -241,7 +255,7 @@ def build(
         raise HarnessError("\n".join(messages))
 
     program = directory / "harness"
-    compiled = [output for _, output in jobs]
+    compiled = [output for _, output, _ in jobs]
     result = _link(compiler, compiled, program, [*flags, "-Wl,--no-demangle"], env)
     if result.returncode == 0:
         return program

@@ -4,7 +4,9 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""UTF-8 helpers of tdutils: validity, length, and truncation."""
+"""UTF-8 helpers of tdutils: validity, stepping, length, truncation, and lowercasing."""
+
+from tdlib_oracle.text.unicode import unicode_to_lower
 
 # Ported from tdutils/td/utils/utf8.cpp, the enum that opens with UTF8_REJECT: the
 # states of the shift-based DFA that checks UTF-8 validity. The transitions by one byte
@@ -118,3 +120,87 @@ def utf8_truncate(text: bytes, length: int) -> bytes:
                     return text[:i]
                 length -= 1
     return text
+
+
+# Ported from tdutils/td/utils/utf8.cpp, next_utf8_unsafe().
+def next_utf8_unsafe(text: bytes, pos: int) -> tuple[int, int]:
+    """Return where the character at `pos` of `text` ends, and its code point.
+
+    `text` must be valid UTF-8 and `pos` the start of a character, or the end of `text`,
+    where the C++ reads the string terminator, a code point of 0.
+    """
+    a = text[pos] if pos < len(text) else 0
+    if (a & 0x80) == 0:
+        return pos + 1, a
+    if (a & 0x20) == 0:
+        return pos + 2, ((a & 0x1F) << 6) | (text[pos + 1] & 0x3F)
+    if (a & 0x10) == 0:
+        return pos + 3, (
+            ((a & 0x0F) << 12) | ((text[pos + 1] & 0x3F) << 6) | (text[pos + 2] & 0x3F)
+        )
+    if (a & 0x08) == 0:
+        return pos + 4, (
+            ((a & 0x07) << 18)
+            | ((text[pos + 1] & 0x3F) << 12)
+            | ((text[pos + 2] & 0x3F) << 6)
+            | (text[pos + 3] & 0x3F)
+        )
+    # Upstream stops at UNREACHABLE() here, which valid UTF-8 never reaches.
+    return pos, 0
+
+
+# Ported from tdutils/td/utils/utf8.h, prev_utf8_unsafe().
+def prev_utf8_unsafe(text: bytes, pos: int) -> int:
+    """Return where the character before `pos` of `text` starts.
+
+    `text` must be valid UTF-8 and `pos` the start of a character after the first, or
+    the end of `text`.
+    """
+    pos -= 1
+    while not is_utf8_character_first_code_unit(text[pos]):
+        pos -= 1
+    return pos
+
+
+# Ported from tdutils/td/utils/utf8.h, utf8_substr(T str, size_t offset).
+def utf8_substr(text: bytes, offset: int) -> bytes:
+    """Return `text` without its first `offset` code points."""
+    if offset == 0:
+        return text
+    offset_pos = len(utf8_truncate(text, offset))
+    return text[offset_pos:]
+
+
+# Ported from tdutils/td/utils/utf8.h, append_utf8_character().
+def _append_utf8_character(result: bytearray, code: int) -> None:
+    if code <= 0x7F:
+        result.append(code)
+    elif code <= 0x7FF:
+        result += bytes((0xC0 | (code >> 6), 0x80 | (code & 0x3F)))
+    elif code <= 0xFFFF:
+        result += bytes(
+            (0xE0 | (code >> 12), 0x80 | ((code >> 6) & 0x3F), 0x80 | (code & 0x3F))
+        )
+    else:
+        result += bytes(
+            (
+                0xF0 | (code >> 18),
+                0x80 | ((code >> 12) & 0x3F),
+                0x80 | ((code >> 6) & 0x3F),
+                0x80 | (code & 0x3F),
+            )
+        )
+
+
+# Ported from tdutils/td/utils/utf8.cpp, utf8_to_lower().
+def utf8_to_lower(text: bytes) -> bytes:
+    """Return `text` with each code point in its lowercase form.
+
+    `text` must be valid UTF-8.
+    """
+    result = bytearray()
+    pos = 0
+    while pos < len(text):
+        pos, code = next_utf8_unsafe(text, pos)
+        _append_utf8_character(result, unicode_to_lower(code))
+    return bytes(result)

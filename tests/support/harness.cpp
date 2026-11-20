@@ -13,12 +13,15 @@
 #include "td/telegram/FormattedDate.h"
 #include "td/telegram/MessageEntity.h"
 #include "td/telegram/misc.h"
+#include "td/telegram/TonWalletManager.h"
 #include "td/telegram/UserId.h"
 
+#include "td/utils/base64.h"
 #include "td/utils/logging.h"
 #include "td/utils/Slice.h"
 #include "td/utils/SliceBuilder.h"
 #include "td/utils/Status.h"
+#include "td/utils/unicode.h"
 #include "td/utils/utf8.h"
 
 #include <cstddef>
@@ -179,6 +182,22 @@ void write_entities(Fields &response, const td::vector<td::MessageEntity> &entit
   }
 }
 
+// Writes each slice of `text` as 2 fields: where it begins and where it ends, in bytes.
+void write_slices(Fields &response, td::Slice text, const td::vector<td::Slice> &slices) {
+  for (auto slice : slices) {
+    response.push_back(std::to_string(slice.begin() - text.begin()));
+    response.push_back(std::to_string(slice.end() - text.begin()));
+  }
+}
+
+// Answers a request for one of the functions that find a kind of entity in a text.
+Fields run_find(td::vector<td::Slice> (*find_f)(td::Slice), const Fields &request) {
+  expect_fields(request, 1);
+  Fields response;
+  write_slices(response, request[0], find_f(request[0]));
+  return response;
+}
+
 Fields run(const std::string &function, const Fields &request) {
   if (function == "check_utf8") {
     expect_fields(request, 1);
@@ -238,21 +257,119 @@ Fields run(const std::string &function, const Fields &request) {
     return response;
   }
   if (function == "fix_formatted_text") {
-    auto entities = read_entities(request, 4);
+    auto entities = read_entities(request, 6);
     auto text = request[0];
     auto allow_empty = to_flag(request[1]);
     auto allow_empty_string = to_flag(request[2]);
-    auto skip_trim = to_flag(request[3]);
+    auto skip_new_entities = to_flag(request[3]);
+    auto skip_bot_commands = to_flag(request[4]);
+    auto skip_trim = to_flag(request[5]);
     // A bot skips media timestamps (td/telegram/MessageEntity.cpp,
-    // get_formatted_text()). New entities are skipped too, as for a bot with more
-    // than one session, since the port finds no entities in the text.
-    auto status = td::fix_formatted_text(
-        text, entities, allow_empty, allow_empty_string, true, true, true, skip_trim);
+    // get_formatted_text()).
+    auto status = td::fix_formatted_text(text, entities, allow_empty, allow_empty_string, skip_new_entities,
+                                         skip_bot_commands, true, skip_trim);
     if (status.is_error()) {
       return {std::to_string(status.code()), status.message().str(), std::string()};
     }
     Fields response{"0", std::string(), text};
     write_entities(response, entities);
+    return response;
+  }
+  if (function == "get_unicode_simple_category") {
+    expect_fields(request, 2);
+    auto code = static_cast<td::uint32>(to_size(request[1]));
+    return {std::to_string(static_cast<int>(td::get_unicode_simple_category(code)))};
+  }
+  if (function == "unicode_to_lower") {
+    expect_fields(request, 2);
+    auto code = static_cast<td::uint32>(to_size(request[1]));
+    return {std::to_string(td::unicode_to_lower(code))};
+  }
+  if (function == "next_utf8_unsafe") {
+    expect_fields(request, 2);
+    auto pos = to_size(request[1]);
+    if (pos > request[0].size()) {
+      fail("a position lies past the end of its text");
+    }
+    // At the end, the character read is the string terminator.
+    auto begin = reinterpret_cast<const unsigned char *>(request[0].c_str());
+    td::uint32 code = 0;
+    auto next = td::next_utf8_unsafe(begin + pos, &code);
+    return {std::to_string(next - begin), std::to_string(code)};
+  }
+  if (function == "prev_utf8_unsafe") {
+    expect_fields(request, 2);
+    auto pos = to_size(request[1]);
+    if (pos == 0 || pos > request[0].size()) {
+      fail("a position lies at the start of its text or past its end");
+    }
+    auto begin = reinterpret_cast<const unsigned char *>(request[0].c_str());
+    return {std::to_string(td::prev_utf8_unsafe(begin + pos) - begin)};
+  }
+  if (function == "utf8_substr") {
+    expect_fields(request, 2);
+    return {td::utf8_substr(td::Slice(request[0]), to_size(request[1])).str()};
+  }
+  if (function == "utf8_to_lower") {
+    expect_fields(request, 1);
+    return {td::utf8_to_lower(request[0])};
+  }
+  if (function == "is_base64any_character") {
+    expect_fields(request, 1);
+    if (request[0].size() != 1) {
+      fail("a code unit field holds other than one byte");
+    }
+    return {from_flag(td::is_base64any_character(request[0][0]))};
+  }
+  if (function == "check_ton_address") {
+    expect_fields(request, 1);
+    auto status = td::TonWalletManager::check_ton_address(request[0]);
+    if (status.is_error()) {
+      return {std::to_string(status.code()), status.message().str()};
+    }
+    return {"0", std::string()};
+  }
+  if (function == "find_mentions") {
+    return run_find(td::find_mentions, request);
+  }
+  if (function == "find_bot_commands") {
+    return run_find(td::find_bot_commands, request);
+  }
+  if (function == "find_hashtags") {
+    return run_find(td::find_hashtags, request);
+  }
+  if (function == "find_cashtags") {
+    return run_find(td::find_cashtags, request);
+  }
+  if (function == "find_bank_card_numbers") {
+    return run_find(td::find_bank_card_numbers, request);
+  }
+  if (function == "find_ton_addresses") {
+    return run_find(td::find_ton_addresses, request);
+  }
+  if (function == "find_tg_urls") {
+    return run_find(td::find_tg_urls, request);
+  }
+  if (function == "find_urls") {
+    expect_fields(request, 1);
+    td::Slice text = request[0];
+    Fields response;
+    for (auto &url : td::find_urls(text)) {
+      write_slices(response, text, {url.first});
+      response.push_back(from_flag(url.second));
+    }
+    return response;
+  }
+  if (function == "is_email_address") {
+    expect_fields(request, 1);
+    return {from_flag(td::is_email_address(request[0]))};
+  }
+  if (function == "find_entities") {
+    expect_fields(request, 2);
+    // A bot skips media timestamps (td/telegram/MessageEntity.cpp,
+    // get_formatted_text()).
+    Fields response;
+    write_entities(response, td::find_entities(request[0], to_flag(request[1]), true));
     return response;
   }
   fail("no such function");
