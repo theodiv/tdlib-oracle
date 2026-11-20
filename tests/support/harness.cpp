@@ -20,6 +20,7 @@
 #include "td/utils/base64.h"
 #include "td/utils/HttpUrl.h"
 #include "td/utils/logging.h"
+#include "td/utils/misc.h"
 #include "td/utils/port/IPAddress.h"
 #include "td/utils/Slice.h"
 #include "td/utils/SliceBuilder.h"
@@ -201,6 +202,25 @@ Fields run_find(td::vector<td::Slice> (*find_f)(td::Slice), const Fields &reques
   return response;
 }
 
+// Answers a request for to_integer<T>(): the number it reads from the text.
+template <class T>
+Fields run_to_integer(const Fields &request) {
+  expect_fields(request, 1);
+  return {std::to_string(td::to_integer<T>(request[0]))};
+}
+
+// Answers a request for to_integer_safe<T>(): whether it reads a number from the text,
+// and the number.
+template <class T>
+Fields run_to_integer_safe(const Fields &request) {
+  expect_fields(request, 1);
+  auto r_value = td::to_integer_safe<T>(request[0]);
+  if (r_value.is_error()) {
+    return {from_flag(false), std::string()};
+  }
+  return {from_flag(true), std::to_string(r_value.ok())};
+}
+
 Fields run(const std::string &function, const Fields &request) {
   if (function == "check_utf8") {
     expect_fields(request, 1);
@@ -259,6 +279,10 @@ Fields run(const std::string &function, const Fields &request) {
     write_entities(response, entities);
     return response;
   }
+  if (function == "is_valid_user_id") {
+    expect_fields(request, 2);
+    return {from_flag(td::UserId(to_int64(request[1])).is_valid())};
+  }
   if (function == "fix_formatted_text") {
     auto entities = read_entities(request, 6);
     auto text = request[0];
@@ -316,6 +340,24 @@ Fields run(const std::string &function, const Fields &request) {
   if (function == "utf8_to_lower") {
     expect_fields(request, 1);
     return {td::utf8_to_lower(request[0])};
+  }
+  if (function == "append_utf8_character") {
+    expect_fields(request, 2);
+    auto text = request[0];
+    td::append_utf8_character(text, static_cast<td::uint32>(to_size(request[1])));
+    return {text};
+  }
+  if (function == "to_integer<int32>") {
+    return run_to_integer<td::int32>(request);
+  }
+  if (function == "to_integer<int64>") {
+    return run_to_integer<td::int64>(request);
+  }
+  if (function == "to_integer_safe<int32>") {
+    return run_to_integer_safe<td::int32>(request);
+  }
+  if (function == "to_integer_safe<int64>") {
+    return run_to_integer_safe<td::int64>(request);
   }
   if (function == "is_base64any_character") {
     expect_fields(request, 1);

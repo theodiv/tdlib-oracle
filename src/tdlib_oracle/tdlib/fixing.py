@@ -1,6 +1,6 @@
-# Ported from td/telegram/MessageEntity.cpp, td/telegram/UserId.h,
-# td/telegram/CustomEmojiId.h, td/telegram/FormattedDate.h, and
-# tdutils/td/utils/algorithm.h of TDLib at the commit in tdlib_oracle.TDLIB_COMMIT.
+# Ported from td/telegram/MessageEntity.cpp, td/telegram/CustomEmojiId.h,
+# td/telegram/FormattedDate.h, and tdutils/td/utils/algorithm.h of TDLib at the commit
+# in tdlib_oracle.TDLIB_COMMIT.
 #
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
@@ -23,6 +23,7 @@ from tdlib_oracle.tdlib.entities import (
     TYPE,
     FormattedText,
     MessageEntity,
+    is_valid_user_id,
     sort_entities,
 )
 from tdlib_oracle.tdlib.finding import (
@@ -46,9 +47,6 @@ from tdlib_oracle.text.utf8 import (
 
 # Ported from td/telegram/MessageEntity.cpp, LENGTH_LIMIT in fix_formatted_text().
 _LENGTH_LIMIT = 35000  # server-side limit
-
-# Ported from td/telegram/UserId.h, UserId::MAX_USER_ID.
-_MAX_USER_ID = (1 << 40) - 1
 
 # Ported from td/telegram/MessageEntity.cpp, SPLITTABLE_ENTITY_TYPE_COUNT.
 _SPLITTABLE_ENTITY_TYPE_COUNT = 5
@@ -141,11 +139,6 @@ def _get_splittable_entity_type_index(entity_type: int) -> int:
     return 4  # Spoiler
 
 
-# Ported from td/telegram/UserId.h, UserId::is_valid().
-def _is_valid_user_id(user_id: int) -> bool:
-    return 0 < user_id <= _MAX_USER_ID
-
-
 # Ported from td/telegram/CustomEmojiId.h, CustomEmojiId::is_valid().
 def _is_valid_custom_emoji_id(custom_emoji_id: int) -> bool:
     return custom_emoji_id != 0
@@ -180,7 +173,7 @@ def _is_empty_entity(entity: MessageEntity) -> bool:
         case TYPE.TEXT_URL:
             return not entity.argument
         case TYPE.MENTION_NAME:
-            return not _is_valid_user_id(entity.user_id)
+            return not is_valid_user_id(entity.user_id)
         case TYPE.CUSTOM_EMOJI:
             return not _is_valid_custom_emoji_id(entity.custom_emoji_id)
         case TYPE.FORMATTED_DATE:
