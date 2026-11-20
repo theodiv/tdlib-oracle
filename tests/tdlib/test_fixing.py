@@ -3,7 +3,11 @@ from dataclasses import replace
 import pytest
 
 from tdlib_oracle.tdlib.entities import TYPE, FormattedText, MessageEntity
-from tdlib_oracle.tdlib.fixing import fix_formatted_text, get_formatted_text
+from tdlib_oracle.tdlib.fixing import (
+    find_entities,
+    fix_formatted_text,
+    get_formatted_text,
+)
 from tdlib_oracle.text.failure import Failure
 
 _NON_EMPTY = Failure(400, "Text must be non-empty")
@@ -15,6 +19,8 @@ def _fix(
     *,
     allow_empty: bool = False,
     allow_empty_string: bool = False,
+    skip_new_entities: bool = False,
+    skip_bot_commands: bool = False,
     skip_trim: bool = False,
 ) -> FormattedText | Failure:
     return fix_formatted_text(
@@ -22,6 +28,8 @@ def _fix(
         entities,
         allow_empty=allow_empty,
         allow_empty_string=allow_empty_string,
+        skip_new_entities=skip_new_entities,
+        skip_bot_commands=skip_bot_commands,
         skip_trim=skip_trim,
     )
 
@@ -192,6 +200,77 @@ def test_cuts_a_text_over_35000_bytes_and_drops_the_entities_past_the_cut() -> N
     kept = MessageEntity(TYPE.ITALIC, 0, 11666)
     entities = (MessageEntity(TYPE.BOLD, 0, 11670), kept)
     assert _fix(text, entities) == FormattedText(text[:34998], (kept,))
+
+
+def test_splits_a_bold_entity_at_the_bounds_of_a_hashtag_it_finds() -> None:
+    entities = (MessageEntity(TYPE.BOLD, 0, 13),)
+    assert _fix(b"see #tag here", entities) == FormattedText(
+        b"see #tag here",
+        (
+            MessageEntity(TYPE.BOLD, 0, 4),
+            MessageEntity(TYPE.HASHTAG, 4, 4),
+            MessageEntity(TYPE.BOLD, 4, 4),
+            MessageEntity(TYPE.BOLD, 8, 5),
+        ),
+    )
+
+
+def test_finds_no_entities_when_skip_new_entities_is_set() -> None:
+    entities = (MessageEntity(TYPE.BOLD, 0, 13),)
+    assert _fix(b"see #tag here", entities, skip_new_entities=True) == FormattedText(
+        b"see #tag here", entities
+    )
+
+
+def test_finds_bot_commands_unless_skip_bot_commands_is_set() -> None:
+    command = MessageEntity(TYPE.BOT_COMMAND, 0, 6)
+    assert _fix(b"/start") == FormattedText(b"/start", (command,))
+    assert _fix(b"/start", skip_bot_commands=True) == FormattedText(b"/start")
+
+
+def test_finds_entities_in_the_trimmed_text() -> None:
+    assert _fix(b"  #tag  ") == FormattedText(
+        b"#tag", (MessageEntity(TYPE.HASHTAG, 0, 4),)
+    )
+
+
+def test_drops_a_found_entity_that_meets_a_continuous_entity() -> None:
+    link = MessageEntity(TYPE.TEXT_URL, 0, 6, b"t.me")
+    assert _fix(b"see #tag", (link,)) == FormattedText(b"see #tag", (link,))
+
+
+def test_drops_a_found_entity_that_crosses_a_blockquote() -> None:
+    quote = MessageEntity(TYPE.BLOCK_QUOTE, 0, 6)
+    assert _fix(b"see #tag", (quote,)) == FormattedText(b"see #tag", (quote,))
+
+
+def test_keeps_a_found_entity_within_a_blockquote() -> None:
+    quote = MessageEntity(TYPE.BLOCK_QUOTE, 0, 8)
+    assert _fix(b"see #tag", (quote,)) == FormattedText(
+        b"see #tag", (quote, MessageEntity(TYPE.HASHTAG, 4, 4))
+    )
+
+
+def test_find_entities_gives_utf16_bounds_in_order() -> None:
+    text = "\U0001f600 /start @user #tag $USD a@b.com".encode()
+    assert find_entities(text, skip_bot_commands=False) == (
+        MessageEntity(TYPE.BOT_COMMAND, 3, 6),
+        MessageEntity(TYPE.MENTION, 10, 5),
+        MessageEntity(TYPE.HASHTAG, 16, 4),
+        MessageEntity(TYPE.CASHTAG, 21, 4),
+        MessageEntity(TYPE.EMAIL_ADDRESS, 26, 7),
+    )
+
+
+def test_find_entities_skips_bot_commands_when_asked() -> None:
+    assert find_entities(b"/start", skip_bot_commands=True) == ()
+
+
+def test_find_entities_drops_an_entity_within_one_found_earlier() -> None:
+    text = b"telegram.org/#tag"
+    assert find_entities(text, skip_bot_commands=False) == (
+        MessageEntity(TYPE.URL, 0, 17),
+    )
 
 
 def test_get_formatted_text_keeps_blanks_only_when_empty_is_allowed() -> None:

@@ -5,7 +5,11 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's fixing of a formatted text: entities, cleaning, trimming, and emptiness."""
+"""TDLib's fixing of a formatted text: entities, cleaning, trimming, and emptiness.
+
+Fixing ends with the entities TDLib finds on its own, on the text as trimmed and cut, so
+the splits they make fall where TDLib's do.
+"""
 
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
@@ -21,10 +25,22 @@ from tdlib_oracle.tdlib.entities import (
     MessageEntity,
     sort_entities,
 )
+from tdlib_oracle.tdlib.finding import (
+    Span,
+    find_bank_card_numbers,
+    find_bot_commands,
+    find_cashtags,
+    find_hashtags,
+    find_mentions,
+    find_tg_urls,
+    find_ton_addresses,
+    find_urls,
+)
 from tdlib_oracle.text.failure import Failure
 from tdlib_oracle.text.utf8 import (
     check_utf8,
     is_utf8_character_first_code_unit,
+    next_utf8_unsafe,
     utf8_utf16_length,
 )
 
@@ -283,6 +299,111 @@ def _remove_entities_intersecting_blockquote(
     return kept
 
 
+# Ported from td/telegram/MessageEntity.cpp, fix_entity_offsets().
+def _fix_entity_offsets(
+    text: bytes, entities: Sequence[MessageEntity]
+) -> list[MessageEntity]:
+    """Return `entities` sorted, without intersections, in UTF-16 code units of `text`.
+
+    The entities come with their bounds in bytes, each at the start of a character.
+    """
+    if not entities:
+        return []
+
+    fixed = _remove_intersecting_entities(sort_entities(entities))
+
+    end = len(text)
+    ptr = 0
+    utf16_pos = 0
+    result = []
+    for entity in fixed:
+        cnt = 2
+        entity_begin = entity.offset
+        entity_end = entity.offset + entity.length
+        offset = entity.offset
+        length = entity.length
+
+        if entity_begin == ptr:
+            cnt -= 1
+            offset = utf16_pos
+
+        while ptr != end and cnt > 0:
+            # A character of 4 bytes takes a surrogate pair.
+            utf16_pos += 1 + (text[ptr] >= 0xF0)
+            ptr, _ = next_utf8_unsafe(text, ptr)
+
+            if entity_begin == ptr:
+                cnt -= 1
+                offset = utf16_pos
+            elif entity_end == ptr:
+                cnt -= 1
+                length = utf16_pos - offset
+        result.append(replace(entity, offset=offset, length=length))
+    return result
+
+
+# Ported from td/telegram/MessageEntity.cpp, find_entities(), for skip_media_timestamps
+# set.
+def find_entities(text: bytes, *, skip_bot_commands: bool) -> tuple[MessageEntity, ...]:
+    """Return the entities TDLib adds to `text` on its own, in UTF-16 code units.
+
+    The entities come sorted, and one that intersects an entity before it in TDLib's
+    order is dropped. A bot skips media timestamps, so none is looked for, and
+    `skip_bot_commands` skips bot commands. `text` must be valid UTF-8.
+    """
+    entities: list[MessageEntity] = []
+
+    def add_entities(entity_type: int, spans: Iterable[Span]) -> None:
+        entities.extend(
+            MessageEntity(entity_type, begin, end - begin) for begin, end in spans
+        )
+
+    add_entities(TYPE.MENTION, find_mentions(text))
+    if not skip_bot_commands:
+        add_entities(TYPE.BOT_COMMAND, find_bot_commands(text))
+    add_entities(TYPE.HASHTAG, find_hashtags(text))
+    add_entities(TYPE.CASHTAG, find_cashtags(text))
+    # Upstream finds no phone numbers yet.
+    add_entities(TYPE.BANK_CARD_NUMBER, find_bank_card_numbers(text))
+    add_entities(TYPE.TON_ADDRESS, find_ton_addresses(text))
+    add_entities(TYPE.URL, find_tg_urls(text))
+    for (begin, end), is_email in find_urls(text):
+        entity_type = TYPE.EMAIL_ADDRESS if is_email else TYPE.URL
+        entities.append(MessageEntity(entity_type, begin, end - begin))
+
+    return tuple(_fix_entity_offsets(text, entities))
+
+
+# Ported from td/telegram/MessageEntity.cpp, merge_entities().
+def _merge_entities(
+    old_entities: Sequence[MessageEntity], new_entities: Sequence[MessageEntity]
+) -> list[MessageEntity]:
+    """Return the sorted lists as one, without new entities that overlap old ones."""
+    if not new_entities:
+        return list(old_entities)
+    if not old_entities:
+        return list(new_entities)
+
+    result = []
+    new_it = 0
+    for old_entity in old_entities:
+        while (
+            new_it < len(new_entities)
+            and new_entities[new_it].offset + new_entities[new_it].length
+            <= old_entity.offset
+        ):
+            result.append(new_entities[new_it])
+            new_it += 1
+        old_entity_end = old_entity.offset + old_entity.length
+        result.append(old_entity)
+        while (
+            new_it < len(new_entities) and new_entities[new_it].offset < old_entity_end
+        ):
+            new_it += 1
+    result.extend(new_entities[new_it:])
+    return result
+
+
 # Ported from td/telegram/MessageEntity.cpp, split_entities().
 def _split_entities(
     entities: Sequence[MessageEntity], other_entities: Sequence[MessageEntity]
@@ -405,6 +526,46 @@ def _fix_entities(entities: Sequence[MessageEntity]) -> tuple[MessageEntity, ...
             sort_entities(_combine(continuous_entities, blockquote_entities))
         )
 
+    return _resplit_entities(splittable_entities, continuous_entities)
+
+
+# Ported from td/telegram/MessageEntity.cpp, merge_new_entities().
+def _merge_new_entities(
+    entities: Sequence[MessageEntity], new_entities: Sequence[MessageEntity]
+) -> tuple[MessageEntity, ...]:
+    """Return the sorted `entities` with the `new_entities` TDLib found in their text.
+
+    A new entity goes when it crosses a blockquote's bounds or overlaps a continuous
+    entity, and splittable entities split around the new ones.
+    """
+    if not new_entities:
+        # fast path
+        return tuple(entities)
+
+    continuous_entities: list[MessageEntity] = []
+    blockquote_entities: list[MessageEntity] = []
+    splittable_entities: list[MessageEntity] = []
+    for entity in entities:
+        if _is_splittable_entity(entity.type):
+            splittable_entities.append(entity)
+        elif _is_blockquote_entity(entity.type):
+            blockquote_entities.append(entity)
+        else:
+            continuous_entities.append(entity)
+
+    new_entities = _remove_entities_intersecting_blockquote(
+        new_entities, blockquote_entities
+    )
+
+    # merge before combining with blockquote entities
+    continuous_entities = _merge_entities(continuous_entities, new_entities)
+
+    if blockquote_entities:
+        continuous_entities = list(
+            sort_entities(_combine(continuous_entities, blockquote_entities))
+        )
+
+    # must be called once to not merge some adjacent entities
     return _resplit_entities(splittable_entities, continuous_entities)
 
 
@@ -565,13 +726,15 @@ def _remove_invalid_entities(
 
 
 # Ported from td/telegram/MessageEntity.cpp, fix_formatted_text(), for
-# skip_new_entities and skip_media_timestamps set, without ltrim_count.
-def fix_formatted_text(  # noqa: PLR0911, PLR0912  # mirrors upstream
+# skip_media_timestamps set, without ltrim_count.
+def fix_formatted_text(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915  # mirrors upstream
     text: bytes,
     entities: Sequence[MessageEntity],
     *,
     allow_empty: bool,
     allow_empty_string: bool,
+    skip_new_entities: bool,
+    skip_bot_commands: bool,
     skip_trim: bool,
 ) -> FormattedText | Failure:
     """Return `text` and `entities` as TDLib fixes them, or the `Failure` refusing them.
@@ -583,7 +746,10 @@ def fix_formatted_text(  # noqa: PLR0911, PLR0912  # mirrors upstream
     `skip_trim` is set, with the entities cut to match, and refused again when only
     blank characters are left. `allow_empty` turns both refusals into an empty text, and
     `allow_empty_string` keeps a text of blank characters. A text over 35,000 bytes is
-    cut there, and the entities that end past the cut are dropped.
+    cut there, and the entities that end past the cut are dropped. Last, unless
+    `skip_new_entities` is set, the entities TDLib finds in the text join the others,
+    bot commands only without `skip_bot_commands`, and splittable entities split
+    around them.
     """
     if not entities:
         # fast path
@@ -679,6 +845,9 @@ def fix_formatted_text(  # noqa: PLR0911, PLR0912  # mirrors upstream
             if entity.offset + entity.length <= text_utf16_length
         ]
 
+    if not skip_new_entities:
+        new_entities = find_entities(fixed_text, skip_bot_commands=skip_bot_commands)
+        return FormattedText(fixed_text, _merge_new_entities(fixed, new_entities))
     return FormattedText(fixed_text, tuple(fixed))
 
 
@@ -691,13 +860,17 @@ def get_formatted_text(
 
     A bot sends the text, so a text of blank characters is kept exactly when an empty
     text is allowed. The Bot API server never sets the `always_parse_markdown` option,
-    so no Markdown is parsed.
+    so no Markdown is parsed. The entities TDLib finds in the text leave the text as it
+    is, and only the text comes back, so none are looked for, as for a bot with more
+    than one session.
     """
     result = fix_formatted_text(
         text,
         (),
         allow_empty=allow_empty,
         allow_empty_string=allow_empty,
+        skip_new_entities=True,
+        skip_bot_commands=True,
         skip_trim=skip_trim,
     )
     if isinstance(result, Failure):

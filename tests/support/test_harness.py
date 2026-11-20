@@ -11,10 +11,13 @@ from tests.support.harness import HarnessError, build, cached_build, run
 
 pytestmark = pytest.mark.differential
 
-# Answers each request with its first field, except three: "crash" calls a function
-# that nothing defines, "hang" sleeps for an hour, and "verbosity" asks for the value of
-# a data symbol that nothing defines either.
+# Answers each request with its first field, except four: "crash" calls a function that
+# nothing defines, "hang" sleeps for an hour, "verbosity" asks for the value of a data
+# symbol that nothing defines either, and "openssl" gives the TD_HAVE_OPENSSL that a
+# crypto_openssl() defined elsewhere and the program each compile with.
 _ECHO = r"""
+#include "td/utils/config.h"
+
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
@@ -26,6 +29,7 @@ namespace td {
 extern int verbosity_actor;
 }
 void missing_function(int);
+int crypto_openssl();
 
 static bool read_size(std::uint32_t &size) {
   unsigned char bytes[4];
@@ -63,6 +67,9 @@ int main() {
     }
     if (answer == "verbosity") {
       answer = std::to_string(td::verbosity_actor);
+    }
+    if (answer == "openssl") {
+      answer = std::to_string(crypto_openssl()) + " " + std::to_string(TD_HAVE_OPENSSL);
     }
     write_size(1);
     write_size(answer.size());
@@ -175,6 +182,17 @@ def test_a_data_symbol_without_an_entry_stops_the_build(tmp_path: Path) -> None:
 def test_a_source_that_does_not_compile_stops_the_build(tmp_path: Path) -> None:
     with pytest.raises(HarnessError, match=r"program\.cpp does not compile"):
         _build(tmp_path, "int main( {\n")
+
+
+def test_tdutils_crypto_cpp_alone_compiles_without_openssl(tmp_path: Path) -> None:
+    crypto = _write(
+        tmp_path / "td" / "tdutils" / "td" / "utils" / "crypto.cpp",
+        '#include "td/utils/config.h"\n'
+        "int crypto_openssl() { return TD_HAVE_OPENSSL; }\n",
+    )
+    program = _write(tmp_path / "program.cpp", _ECHO)
+    harness = build([crypto, program], [], _directory(tmp_path / "build"))
+    assert run(harness, "echo", [[b"openssl"]], timeout=60) == [(b"0 1",)]
 
 
 def test_the_build_names_a_missing_compiler(

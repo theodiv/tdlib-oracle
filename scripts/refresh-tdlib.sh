@@ -25,17 +25,20 @@ if [ -n "$(git -C "$td" status --porcelain --untracked-files=no)" ]; then
   exit 1
 fi
 
-# The translation units the harness compiles: the code that the plain-text path
-# and entity fixing run, and every tdutils source that defines a symbol they
-# reference, so no tdutils function is ever a stub. Sources that need the
-# OpenSSL headers stay out.
+# The translation units the harness compiles: the code that the plain-text path,
+# entity fixing, and entity finding run, and every tdutils source that defines
+# a symbol they reference, so no tdutils function they call is ever a stub.
+# Sources that need the OpenSSL headers stay out, except crypto.cpp, which the
+# harness compiles without OpenSSL for crc16().
 units=(
   td/telegram/FormattedDate.cpp
   td/telegram/MessageEntity.cpp
   td/telegram/misc.cpp
+  td/telegram/TonWalletManager.cpp
   tdutils/td/utils/base64.cpp
   tdutils/td/utils/buffer.cpp
   tdutils/td/utils/check.cpp
+  tdutils/td/utils/crypto.cpp
   tdutils/td/utils/ExitGuard.cpp
   tdutils/td/utils/FlatHashTable.cpp
   tdutils/td/utils/Hints.cpp

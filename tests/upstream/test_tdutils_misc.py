@@ -4,6 +4,9 @@
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
 
+from collections.abc import Callable
+
+from tdlib_oracle.text.unicode import unicode_to_lower
 from tdlib_oracle.text.utf8 import check_utf8
 
 
@@ -61,3 +64,16 @@ def test_check_utf8() -> None:
     _test_check_utf8(b"\xf4\x8f\xc0\x80", False)
     _test_check_utf8(b"\xf4\x8f\xc0\xbf", False)
     _test_check_utf8(b"\xf4\x8f\xbf\xc0", False)
+
+
+# Ported from tdutils/test/misc.cpp, test_unicode().
+def _test_unicode(func: Callable[[int], int]) -> None:
+    for i in range(0x110000 + 1):
+        result = func(i)
+        assert result <= 0x10FFFF, i
+
+
+# Ported from tdutils/test/misc.cpp, TEST(Misc, unicode), for unicode_to_lower(), the
+# one function of the three it checks that the port has.
+def test_unicode() -> None:
+    _test_unicode(unicode_to_lower)

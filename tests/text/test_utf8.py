@@ -3,7 +3,11 @@ import pytest
 from tdlib_oracle.text.utf8 import (
     check_utf8,
     is_utf8_character_first_code_unit,
+    next_utf8_unsafe,
+    prev_utf8_unsafe,
     utf8_length,
+    utf8_substr,
+    utf8_to_lower,
     utf8_truncate,
     utf8_utf16_length,
 )
@@ -107,3 +111,53 @@ def test_utf8_truncate_keeps_whole_code_points(
     text: bytes, length: int, expected: bytes
 ) -> None:
     assert utf8_truncate(text, length) == expected
+
+
+@pytest.mark.parametrize(
+    ("character", "code"),
+    [
+        (b"a", 0x61),
+        ("\N{LATIN SMALL LETTER E WITH ACUTE}".encode(), 0xE9),
+        ("\N{EURO SIGN}".encode(), 0x20AC),
+        ("\U0001f600".encode(), 0x1F600),
+    ],
+)
+def test_next_utf8_unsafe_steps_over_one_character(character: bytes, code: int) -> None:
+    text = b"<" + character + b">"
+    assert next_utf8_unsafe(text, 1) == (1 + len(character), code)
+
+
+def test_next_utf8_unsafe_reads_the_terminator_at_the_end() -> None:
+    assert next_utf8_unsafe(b"ab", 2) == (3, 0)
+
+
+def test_next_utf8_unsafe_stops_at_a_byte_no_character_starts_with() -> None:
+    assert next_utf8_unsafe(b"\xf8", 0) == (0, 0)
+
+
+def test_prev_utf8_unsafe_steps_back_over_one_character() -> None:
+    text = "a\N{EURO SIGN}\U0001f600".encode()
+    assert prev_utf8_unsafe(text, len(text)) == 4
+    assert prev_utf8_unsafe(text, 4) == 1
+    assert prev_utf8_unsafe(text, 1) == 0
+
+
+@pytest.mark.parametrize(
+    ("offset", "expected"),
+    [
+        (0, "a\N{EURO SIGN}\U0001f600"),
+        (1, "\N{EURO SIGN}\U0001f600"),
+        (2, "\U0001f600"),
+        (3, ""),
+        (4, ""),
+    ],
+)
+def test_utf8_substr_drops_the_first_code_points(offset: int, expected: str) -> None:
+    text = "a\N{EURO SIGN}\U0001f600".encode()
+    assert utf8_substr(text, offset) == expected.encode()
+
+
+def test_utf8_to_lower_lowers_each_code_point() -> None:
+    text = "AbC \U00000410\U00000130\U00001e00\U00010400\U0001f600".encode()
+    lowered = "abc \U00000430i\U00001e01\U00010428\U0001f600".encode()
+    assert utf8_to_lower(text) == lowered
