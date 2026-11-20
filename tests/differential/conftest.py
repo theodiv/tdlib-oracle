@@ -65,12 +65,14 @@ def harness(
     # Each component of td other than td itself keeps its headers in a td/ directory.
     components = sorted(path for path in td.iterdir() if (path / "td").is_dir())
     flags = shlex.split(pytestconfig.getoption("harness_flags"))
+    jobs: int | None = pytestconfig.getoption("harness_jobs")
     return cached_build(
         sources,
         [td, *components, tl],
         pytestconfig.cache.mkdir("harness"),
         tmp_path_factory.mktemp("harness"),
         flags=flags,
+        jobs=jobs,
     )
 
 
