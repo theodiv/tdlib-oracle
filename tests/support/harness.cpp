@@ -11,13 +11,16 @@
 
 #include "td/telegram/CustomEmojiId.h"
 #include "td/telegram/FormattedDate.h"
+#include "td/telegram/LinkManager.h"
 #include "td/telegram/MessageEntity.h"
 #include "td/telegram/misc.h"
 #include "td/telegram/TonWalletManager.h"
 #include "td/telegram/UserId.h"
 
 #include "td/utils/base64.h"
+#include "td/utils/HttpUrl.h"
 #include "td/utils/logging.h"
+#include "td/utils/port/IPAddress.h"
 #include "td/utils/Slice.h"
 #include "td/utils/SliceBuilder.h"
 #include "td/utils/Status.h"
@@ -371,6 +374,45 @@ Fields run(const std::string &function, const Fields &request) {
     Fields response;
     write_entities(response, td::find_entities(request[0], to_flag(request[1]), true));
     return response;
+  }
+  if (function == "init_ipv6_port") {
+    expect_fields(request, 1);
+    // parse_url() passes port 1 (tdutils/td/utils/HttpUrl.cpp).
+    td::IPAddress ip_address;
+    return {from_flag(ip_address.init_ipv6_port(request[0], 1).is_ok())};
+  }
+  if (function == "parse_url") {
+    expect_fields(request, 1);
+    auto r_url = td::parse_url(request[0]);
+    if (r_url.is_error()) {
+      return {from_flag(false), std::to_string(r_url.error().code()), r_url.error().message().str()};
+    }
+    auto url = r_url.move_as_ok();
+    return {from_flag(true),
+            std::to_string(static_cast<int>(url.protocol_)),
+            url.userinfo_,
+            url.host_,
+            from_flag(url.is_ipv6_),
+            std::to_string(url.specified_port_),
+            std::to_string(url.port_),
+            url.query_,
+            url.get_url()};
+  }
+  if (function == "check_link") {
+    expect_fields(request, 1);
+    auto r_link = td::LinkManager::check_link(request[0]);
+    if (r_link.is_error()) {
+      return {std::to_string(r_link.error().code()), r_link.error().message().str(), std::string()};
+    }
+    return {"0", std::string(), r_link.move_as_ok()};
+  }
+  if (function == "get_checked_link") {
+    expect_fields(request, 1);
+    return {td::LinkManager::get_checked_link(request[0])};
+  }
+  if (function == "get_link_user_id") {
+    expect_fields(request, 1);
+    return {std::to_string(td::LinkManager::get_link_user_id(request[0]).get())};
   }
   fail("no such function");
 }

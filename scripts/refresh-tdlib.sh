@@ -26,12 +26,13 @@ if [ -n "$(git -C "$td" status --porcelain --untracked-files=no)" ]; then
 fi
 
 # The translation units the harness compiles: the code that the plain-text path,
-# entity fixing, and entity finding run, and every tdutils source that defines
-# a symbol they reference, so no tdutils function they call is ever a stub.
-# Sources that need the OpenSSL headers stay out, except crypto.cpp, which the
-# harness compiles without OpenSSL for crc16().
+# entity fixing, entity finding, and the link checks run, and every tdutils
+# source that defines a symbol they reference, so no tdutils function they call
+# is ever a stub. Sources that need the OpenSSL headers stay out, except
+# crypto.cpp, which the harness compiles without OpenSSL for crc16().
 units=(
   td/telegram/FormattedDate.cpp
+  td/telegram/LinkManager.cpp
   td/telegram/MessageEntity.cpp
   td/telegram/misc.cpp
   td/telegram/TonWalletManager.cpp
@@ -42,13 +43,18 @@ units=(
   tdutils/td/utils/ExitGuard.cpp
   tdutils/td/utils/FlatHashTable.cpp
   tdutils/td/utils/Hints.cpp
+  tdutils/td/utils/HttpUrl.cpp
+  tdutils/td/utils/JsonBuilder.cpp
   tdutils/td/utils/logging.cpp
   tdutils/td/utils/misc.cpp
   tdutils/td/utils/port/Clocks.cpp
   tdutils/td/utils/port/detail/NativeFd.cpp
   tdutils/td/utils/port/FileFd.cpp
+  tdutils/td/utils/port/IPAddress.cpp
   tdutils/td/utils/port/PollFlags.cpp
+  tdutils/td/utils/port/ServerSocketFd.cpp
   tdutils/td/utils/port/sleep.cpp
+  tdutils/td/utils/port/SocketFd.cpp
   tdutils/td/utils/port/Stat.cpp
   tdutils/td/utils/port/StdStreams.cpp
   tdutils/td/utils/port/thread_local.cpp
