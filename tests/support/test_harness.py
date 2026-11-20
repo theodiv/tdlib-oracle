@@ -7,7 +7,13 @@ from pathlib import Path
 
 import pytest
 
-from tests.support.harness import HarnessError, build, cached_build, run
+from tests.support.harness import (
+    HarnessError,
+    build,
+    cached_build,
+    compile_jobs,
+    run,
+)
 
 pytestmark = pytest.mark.differential
 
@@ -118,6 +124,7 @@ def _fake_build(
     directory: Path,
     *,
     flags: Sequence[str] = (),
+    jobs: int | None = None,
 ) -> Path:
     text = b"".join(source.read_bytes() for source in sources)
     if b"broken" in text:
@@ -193,6 +200,55 @@ def test_tdutils_crypto_cpp_alone_compiles_without_openssl(tmp_path: Path) -> No
     program = _write(tmp_path / "program.cpp", _ECHO)
     harness = build([crypto, program], [], _directory(tmp_path / "build"))
     assert run(harness, "echo", [[b"openssl"]], timeout=60) == [(b"0 1",)]
+
+
+def _meminfo(gib: float) -> str:
+    """Return a `/proc/meminfo` text whose `MemAvailable` is `gib` GiB."""
+    kib = int(gib * (1 << 20))
+    return f"MemTotal:       99999999 kB\nMemAvailable:   {kib} kB\nSwapTotal: 0 kB\n"
+
+
+@pytest.mark.parametrize(
+    ("cores", "gib", "flags", "jobs"),
+    [
+        (4, 64, [], 4),
+        (8, 3.5, [], 3),
+        (8, 7.5, ["-fsanitize=address,undefined", "-g"], 3),
+        (8, 3.5, ["-g", "-fsanitize=undefined"], 1),
+        (4, 0.5, [], 1),
+        (4, 0.5, ["-fsanitize=address"], 1),
+    ],
+)
+def test_the_build_compiles_as_many_sources_as_the_cores_and_memory_allow(
+    monkeypatch: pytest.MonkeyPatch,
+    cores: int,
+    gib: float,
+    flags: list[str],
+    jobs: int,
+) -> None:
+    monkeypatch.setattr("tests.support.harness.os.cpu_count", lambda: cores)
+    assert compile_jobs(flags, _meminfo(gib)) == jobs
+
+
+def test_the_cores_alone_decide_without_the_available_memory(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr("tests.support.harness.os.cpu_count", lambda: 6)
+    assert compile_jobs([], "MemTotal:       99999999 kB\n") == 6
+
+
+def test_a_build_of_one_job_at_a_time_makes_the_same_program(tmp_path: Path) -> None:
+    crypto = _write(
+        tmp_path / "td" / "tdutils" / "td" / "utils" / "crypto.cpp",
+        '#include "td/utils/config.h"\n'
+        "int crypto_openssl() { return TD_HAVE_OPENSSL; }\n",
+    )
+    program = _write(tmp_path / "program.cpp", _ECHO)
+    harness = build([crypto, program], [], _directory(tmp_path / "build"), jobs=1)
+    assert run(harness, "echo", [[b"openssl"], [b"a"]], timeout=60) == [
+        (b"0 1",),
+        (b"a",),
+    ]
 
 
 def test_the_build_names_a_missing_compiler(

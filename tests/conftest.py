@@ -10,6 +10,13 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         help="compiler flags appended to the harness build, such as '--coverage -O0'",
     )
     group.addoption(
+        "--harness-jobs",
+        type=int,
+        default=None,
+        help="sources the harness build compiles at once"
+        " (default: what the cores and the available memory allow)",
+    )
+    group.addoption(
         "--differential-seed",
         type=int,
         default=None,

@@ -85,6 +85,11 @@ _CONFIG_H = """\
 # code.
 _WITHOUT_OPENSSL = "/tdutils/td/utils/crypto.cpp"
 
+# The memory one compile may take, a little above the peak of the heaviest source,
+# LinkManager.cpp: under 1 GiB with the Release flags, under 2 GiB with sanitizers.
+_COMPILE_MEMORY = 1 << 30
+_SANITIZED_COMPILE_MEMORY = 2 << 30
+
 _STUBS_HEADER = """\
 #include <cstdio>
 #include <cstdlib>
@@ -105,6 +110,22 @@ _UNDEFINED = re.compile(r"undefined (?:reference to `([^']+)'|symbol: (\S+))")
 
 # A demangled function name ends with its parameter list and any qualifiers.
 _FUNCTION = re.compile(r"\)(?: const| volatile| &&| &| noexcept)*$")
+
+
+def compile_jobs(flags: Sequence[str], meminfo: str) -> int:
+    """Return how many sources a build with `flags` compiles at once.
+
+    One per core, but no more than the available memory that `meminfo`, the text of
+    `/proc/meminfo`, reports holds compiles of the heaviest source, and at least one.
+    Without a `MemAvailable` line, the cores alone decide.
+    """
+    cores = os.cpu_count() or 1
+    match = re.search(r"^MemAvailable:\s+(\d+) kB$", meminfo, re.MULTILINE)
+    if match is None:
+        return cores
+    sanitized = any(flag.startswith("-fsanitize") for flag in flags)
+    budget = _SANITIZED_COMPILE_MEMORY if sanitized else _COMPILE_MEMORY
+    return max(1, min(cores, int(match[1]) * 1024 // budget))
 
 
 def _find_compiler() -> str:
@@ -210,11 +231,13 @@ def build(
     directory: Path,
     *,
     flags: Sequence[str] = (),
+    jobs: int | None = None,
 ) -> Path:
     """Compile `sources` into one program in `directory`, and return its path.
 
     The sources compile in parallel with TDLib's Release flags and `-fsigned-char`, then
-    `flags`, such as `--coverage`; tdutils' `crypto.cpp` compiles without OpenSSL. A
+    `flags`, such as `--coverage`; tdutils' `crypto.cpp` compiles without OpenSSL. They
+    compile `jobs` at a time, or as many as `compile_jobs` gives for this machine. A
     first link names the symbols they leave undefined, and their stubs join the second.
     The compiler gets only `PATH`, to find the assembler and the linker, and `TMPDIR`,
     so that its temporary files stay in `directory`.
@@ -235,9 +258,16 @@ def build(
         )
         includes[openssl] = [f"-I{path}" for path in (*include_dirs, config)]
 
+    if jobs is None:
+        try:
+            meminfo = Path("/proc/meminfo").read_text(encoding="ascii")
+        except OSError:
+            meminfo = ""
+        jobs = compile_jobs(flags, meminfo)
+
     objects = directory / "objects"
     objects.mkdir()
-    jobs = [
+    units = [
         (
             source,
             objects / f"{index:03d}-{source.stem}.o",
@@ -245,17 +275,17 @@ def build(
         )
         for index, source in enumerate(sources)
     ]
-    with ThreadPoolExecutor(max_workers=os.cpu_count() or 1) as pool:
+    with ThreadPoolExecutor(max_workers=jobs) as pool:
         errors = pool.map(
-            lambda job: _compile(compiler, job[0], job[1], [*flags, *job[2]], env),
-            jobs,
+            lambda unit: _compile(compiler, unit[0], unit[1], [*flags, *unit[2]], env),
+            units,
         )
         messages = [message for message in errors if message is not None]
     if messages:
         raise HarnessError("\n".join(messages))
 
     program = directory / "harness"
-    compiled = [output for _, output, _ in jobs]
+    compiled = [output for _, output, _ in units]
     result = _link(compiler, compiled, program, [*flags, "-Wl,--no-demangle"], env)
     if result.returncode == 0:
         return program
@@ -335,6 +365,7 @@ def cached_build(
     scratch: Path,
     *,
     flags: Sequence[str] = (),
+    jobs: int | None = None,
 ) -> Path:
     """Return the program `build` makes of `sources`, from `cache` when it holds one.
 
@@ -344,21 +375,22 @@ def cached_build(
     of each source and of each file under `include_dirs`. A miss builds in `scratch` and
     moves the program into `cache`, replacing the one there. A build with `flags` is
     always fresh and leaves `cache` alone, since a coverage build writes its counts
-    beside its objects, which a cached program no longer has.
+    beside its objects, which a cached program no longer has. `jobs` passes to `build`
+    and stays out of the key, since the program does not depend on it.
 
     Raises:
         HarnessError: If the system is not Linux, `c++`, `ld`, or `ldd` is not on
             `PATH`, or the build fails.
     """
     if flags:
-        return build(sources, include_dirs, scratch, flags=flags)
+        return build(sources, include_dirs, scratch, flags=flags, jobs=jobs)
 
     key = _fingerprint(_find_compiler(), sources, include_dirs)
     program = cache / f"harness-{key}"
     if program.is_file():
         return program
 
-    built = build(sources, include_dirs, scratch)
+    built = build(sources, include_dirs, scratch, jobs=jobs)
 
     # The copy takes a temporary name, so a half-copied program never carries the
     # key's name, and a failed copy leaves nothing behind.
