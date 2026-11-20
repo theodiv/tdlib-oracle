@@ -1,6 +1,7 @@
 import pytest
 
 from tdlib_oracle.text.utf8 import (
+    append_utf8_character,
     check_utf8,
     is_utf8_character_first_code_unit,
     next_utf8_unsafe,
@@ -161,3 +162,25 @@ def test_utf8_to_lower_lowers_each_code_point() -> None:
     text = "AbC \U00000410\U00000130\U00001e00\U00010400\U0001f600".encode()
     lowered = "abc \U00000430i\U00001e01\U00010428\U0001f600".encode()
     assert utf8_to_lower(text) == lowered
+
+
+@pytest.mark.parametrize(
+    ("code", "encoded"),
+    [
+        (0x00, b"\x00"),
+        (0x7F, b"\x7f"),
+        (0x80, b"\xc2\x80"),
+        (0x7FF, b"\xdf\xbf"),
+        (0x800, b"\xe0\xa0\x80"),
+        (0xFFFF, b"\xef\xbf\xbf"),
+        (0x10000, b"\xf0\x90\x80\x80"),
+        (0x10FFFF, b"\xf4\x8f\xbf\xbf"),
+        (0xD800, b"\xed\xa0\x80"),  # a surrogate, in the form UTF-8 refuses
+    ],
+)
+def test_append_utf8_character_appends_the_utf8_form_of_a_code_point(
+    code: int, encoded: bytes
+) -> None:
+    result = bytearray(b"x")
+    append_utf8_character(result, code)
+    assert result == b"x" + encoded

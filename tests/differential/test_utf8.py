@@ -5,6 +5,7 @@ from pathlib import Path
 import pytest
 
 from tdlib_oracle.text.utf8 import (
+    append_utf8_character,
     check_utf8,
     is_utf8_character_first_code_unit,
     next_utf8_unsafe,
@@ -48,6 +49,12 @@ Compare = Callable[..., None]
 
 def _flag(value: bool) -> tuple[bytes, ...]:
     return (b"1" if value else b"0",)
+
+
+def _append(text: bytes, args: tuple[int, ...]) -> tuple[bytes, ...]:
+    result = bytearray(text)
+    append_utf8_character(result, args[0])
+    return (bytes(result),)
 
 
 def test_check_utf8_gives_the_pinned_result(
@@ -203,3 +210,11 @@ def test_utf8_to_lower_gives_the_pinned_result(
             seed=seed,
             by_bytes=False,
         )
+
+
+def test_append_utf8_character_gives_the_pinned_bytes_of_each_code_point(
+    compare: Compare,
+) -> None:
+    # After a byte already there, which the character must follow.
+    cases = [((b"x",), (code,)) for code in range(0x10FFFF + 1)]
+    compare("append_utf8_character", _append, cases, seed=None, by_bytes=False)

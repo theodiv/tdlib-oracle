@@ -20,6 +20,7 @@ from typing import Final
 
 from tdlib_oracle.tdlib.ipv6 import is_ipv6_address
 from tdlib_oracle.text.failure import Failure
+from tdlib_oracle.text.integers import to_integer_safe
 from tdlib_oracle.text.utf8 import check_utf8
 
 # Ported from tdutils/td/utils/misc.h, is_space(), the characters it accepts.
@@ -104,35 +105,6 @@ def _read_till(data: bytes, pos: int, characters: bytes) -> int:
     return min((end for end in ends if end != -1), default=len(data))
 
 
-# Ported from tdutils/td/utils/misc.h, to_integer(Slice str), for a signed type of
-# `bits` bits.
-def _to_integer(text: bytes, bits: int) -> int:
-    mask = (1 << bits) - 1
-    maximum = mask >> 1
-    is_negative = text[:1] == b"-"
-    pos = 1 if is_negative else 0
-    value = 0
-    while pos < len(text) and 0x30 <= text[pos] <= 0x39:  # '0' to '9'
-        value = (value * 10 + text[pos] - 0x30) & mask  # wraps as the unsigned type
-        pos += 1
-
-    if value > maximum:
-        value = (~value + 1) & mask
-        is_negative = not is_negative
-        if value > maximum:
-            return -maximum - 1
-    return -value if is_negative else value
-
-
-# Ported from tdutils/td/utils/misc.h, to_integer_safe().
-def _to_integer_safe(text: bytes, bits: int) -> int | None:
-    # A value prints in at most 20 characters, so a longer text never matches it.
-    if len(text) > 20:
-        return None
-    value = _to_integer(text, bits)
-    return value if str(value).encode() == text else None
-
-
 # Ported from tdutils/td/utils/port/IPAddress.cpp, IPAddress::init_ipv6_port(), for the
 # port 1 that parse_url() passes.
 def _init_ipv6_port(ipv6: bytes) -> bool:
@@ -188,7 +160,7 @@ def parse_url(url: bytes) -> HttpUrl | Failure:  # noqa: PLR0912  # mirrors upst
         port_slice = userinfo_host_port[colon + 1 :]
         # Leading zeros go, but a last one stays.
         port_slice = port_slice.lstrip(b"0") or port_slice[-1:]
-        r_port = _to_integer_safe(port_slice, 32)
+        r_port = to_integer_safe(port_slice, 32)
         port = -1 if r_port is None or r_port == 0 else r_port
         userinfo_host = userinfo_host_port[:colon]
     else:
@@ -349,5 +321,5 @@ def get_link_user_id(url: bytes) -> int:
     if start == -1 or parameters[start + 3] != 0x3D:  # '='
         return 0
     value = parameters[start + 4 : parameters.index(b"&", start + 4)]
-    user_id = _to_integer_safe(value, 64)
+    user_id = to_integer_safe(value, 64)
     return 0 if user_id is None else user_id

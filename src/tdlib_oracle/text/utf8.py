@@ -4,7 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""UTF-8 helpers of tdutils: validity, stepping, length, truncation, and lowercasing."""
+"""UTF-8 helpers: validity, stepping, length, truncation, appending, and lowercasing."""
 
 from tdlib_oracle.text.unicode import unicode_to_lower
 
@@ -172,7 +172,12 @@ def utf8_substr(text: bytes, offset: int) -> bytes:
 
 
 # Ported from tdutils/td/utils/utf8.h, append_utf8_character().
-def _append_utf8_character(result: bytearray, code: int) -> None:
+def append_utf8_character(result: bytearray, code: int) -> None:
+    """Append the code point `code` to `result` in UTF-8.
+
+    A code point takes 1 to 4 bytes, and a surrogate the 3-byte form that UTF-8 refuses.
+    `code` must be a code point, at most U+10FFFF.
+    """
     if code <= 0x7F:
         result.append(code)
     elif code <= 0x7FF:
@@ -202,5 +207,5 @@ def utf8_to_lower(text: bytes) -> bytes:
     pos = 0
     while pos < len(text):
         pos, code = next_utf8_unsafe(text, pos)
-        _append_utf8_character(result, unicode_to_lower(code))
+        append_utf8_character(result, unicode_to_lower(code))
     return bytes(result)
