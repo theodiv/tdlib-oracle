@@ -23,6 +23,7 @@ from tdlib_oracle.tdlib.finding import (
     is_email_address,
 )
 from tdlib_oracle.tdlib.fixing import fix_formatted_text
+from tdlib_oracle.tdlib.parsing import parse_html
 from tdlib_oracle.text.failure import Failure
 from tdlib_oracle.text.utf8 import utf8_utf16_length
 
@@ -1717,4 +1718,660 @@ def test_fix_formatted_text() -> None:  # noqa: PLR0912, PLR0915  # mirrors upst
         (),
         b"",
         (),
+    )
+
+
+# Ported from test/message_entities.cpp, check_parse_html(td::string text, const
+# td::string &result, ...).
+def _check_parse_html(
+    text: bytes, result: bytes, entities: tuple[MessageEntity, ...]
+) -> None:
+    assert parse_html(text) == FormattedText(result, entities), text
+
+
+# Ported from test/message_entities.cpp, check_parse_html(td::string text, td::Slice
+# error_message).
+def _check_parse_html_fails(text: bytes, error_message: str) -> None:
+    assert parse_html(text) == Failure(400, error_message), text
+
+
+# Ported from test/message_entities.cpp, TEST(MessageEntities, parse_html).
+def test_parse_html() -> None:  # noqa: PLR0915  # mirrors upstream
+    invalid_surrogate_pair_error_message = (
+        "Text contains invalid Unicode characters after decoding HTML entities, check"
+        " for unmatched surrogate code units"
+    )
+    _check_parse_html_fails(b"&#57311;", invalid_surrogate_pair_error_message)
+    _check_parse_html_fails(b"&#xDFDF;", invalid_surrogate_pair_error_message)
+    _check_parse_html_fails(b"&#xDFDF", invalid_surrogate_pair_error_message)
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<abacaba".encode(),
+        "Unclosed start tag at byte offset 13",
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<abac aba>".encode(),
+        'Unsupported start tag "abac" at byte offset 13',
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<abac>".encode(),
+        'Unsupported start tag "abac" at byte offset 13',
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<i   =aba>".encode(),
+        'Empty attribute name in the tag "i" at byte offset 13',
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<i    aba>".encode(),
+        'Can\'t find end tag corresponding to start tag "i"',
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<i    aba  =  ".encode(),
+        'Unclosed start tag "i" at byte offset 13',
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<i    aba  =  190azAz-.,".encode(),
+        "Unexpected end of name token at byte offset 27",
+    )
+    _check_parse_html_fails(
+        '\U0001f3df \U0001f3df&lt;<i    aba  =  "&lt;&gt;&quot;>'.encode(),
+        "Unclosed start tag at byte offset 13",
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<i    aba  =  '&lt;&gt;&quot;>".encode(),
+        "Unclosed start tag at byte offset 13",
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;</".encode(), "Unexpected end tag at byte offset 13"
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<b></b></".encode(),
+        "Unexpected end tag at byte offset 20",
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<i>a</i   ".encode(),
+        "Unclosed end tag at byte offset 17",
+    )
+    _check_parse_html_fails(
+        "\U0001f3df \U0001f3df&lt;<i>a</em   >".encode(),
+        'Unmatched end tag at byte offset 17, expected "</i>", found "</em>"',
+    )
+    _check_parse_html(b"", b"", ())
+    _check_parse_html(
+        "\U000027a1\U0000fe0f \U000027a1\U0000fe0f".encode(),
+        "\U000027a1\U0000fe0f \U000027a1\U0000fe0f".encode(),
+        (),
+    )
+    _check_parse_html(
+        b"&ge;&lt;&gt;&amp;&quot;&laquo;&raquo;&#12345678;",
+        b'&ge;<>&"&laquo;&raquo;&#12345678;',
+        (),
+    )
+    _check_parse_html(b"&Or;", b"&Or;", ())
+    _check_parse_html(
+        b"&#x41;&#X41;&#x1F600;&#X1f600;&#65;", "AA\U0001f600\U0001f600A".encode(), ()
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<i>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</i>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<em>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</em>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<b>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.BOLD, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<strong>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</strong>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.BOLD, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<u>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</u>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.UNDERLINE, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<ins>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</ins>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.UNDERLINE, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<s>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</s>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.STRIKETHROUGH, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<strike>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</strike>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.STRIKETHROUGH, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<del>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</del>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.STRIKETHROUGH, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<blockquote>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</blockquote>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.BLOCK_QUOTE, 5, 5),),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<i>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</i><b>\U000027a1\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 5), MessageEntity(TYPE.BOLD, 10, 5)),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df<i>\U0001f3df &lt\U0001f3df</i>".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df <\U0001f3df".encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 6),),
+    )
+    _check_parse_html(
+        (
+            "\U0001f3df \U0001f3df<i>\U0001f3df &gt;<b aba   =   caba>&lt\U0001f3df</b>"
+            "</i>"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f3df ><\U0001f3df".encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 7), MessageEntity(TYPE.BOLD, 9, 3)),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<i    aba  =  190azAz-.   >a</i>".encode(),
+        "\U0001f3df \U0001f3df<a".encode(),
+        (MessageEntity(TYPE.ITALIC, 6, 1),),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<i    aba  =  190azAz-.>a</i>".encode(),
+        "\U0001f3df \U0001f3df<a".encode(),
+        (MessageEntity(TYPE.ITALIC, 6, 1),),
+    )
+    _check_parse_html(
+        '\U0001f3df \U0001f3df&lt;<i    aba  =  "&lt;&gt;&quot;">a</i>'.encode(),
+        "\U0001f3df \U0001f3df<a".encode(),
+        (MessageEntity(TYPE.ITALIC, 6, 1),),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<i    aba  =  '&lt;&gt;&quot;'>a</i>".encode(),
+        "\U0001f3df \U0001f3df<a".encode(),
+        (MessageEntity(TYPE.ITALIC, 6, 1),),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<i    aba  =  '&lt;&gt;&quot;'>a</>".encode(),
+        "\U0001f3df \U0001f3df<a".encode(),
+        (MessageEntity(TYPE.ITALIC, 6, 1),),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<i>\U0001f3df \U0001f3df&lt;</>".encode(),
+        "\U0001f3df \U0001f3df<\U0001f3df \U0001f3df<".encode(),
+        (MessageEntity(TYPE.ITALIC, 6, 6),),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<i>a</    >".encode(),
+        "\U0001f3df \U0001f3df<a".encode(),
+        (MessageEntity(TYPE.ITALIC, 6, 1),),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<i>a</i   >".encode(),
+        "\U0001f3df \U0001f3df<a".encode(),
+        (MessageEntity(TYPE.ITALIC, 6, 1),),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<b></b>".encode(),
+        "\U0001f3df \U0001f3df<".encode(),
+        (),
+    )
+    _check_parse_html(b"<i>\t</i>", b"\t", (MessageEntity(TYPE.ITALIC, 0, 1),))
+    _check_parse_html(b"<i>\r</i>", b"\r", (MessageEntity(TYPE.ITALIC, 0, 1),))
+    _check_parse_html(b"<i>\n</i>", b"\n", (MessageEntity(TYPE.ITALIC, 0, 1),))
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<span class = "tg-spoiler">'
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f</span><b>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.SPOILER, 5, 5), MessageEntity(TYPE.BOLD, 10, 5)),
+    )
+    _check_parse_html(
+        (
+            '\U0001f3df \U0001f3df<span class="tg-spoiler">\U0001f3df &lt\U0001f3df</'
+            "span>"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f3df <\U0001f3df".encode(),
+        (MessageEntity(TYPE.SPOILER, 5, 6),),
+    )
+    _check_parse_html(
+        (
+            '\U0001f3df \U0001f3df<span class="tg-spoiler">\U0001f3df &gt;<b aba   = '
+            "  caba>&lt\U0001f3df</b></span>"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f3df ><\U0001f3df".encode(),
+        (MessageEntity(TYPE.SPOILER, 5, 7), MessageEntity(TYPE.BOLD, 9, 3)),
+    )
+    _check_parse_html(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-spoiler>\U000027a1\U0000fe0f "
+            "\U000027a1\U0000fe0f</tg-spoiler><b>\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.SPOILER, 5, 5), MessageEntity(TYPE.BOLD, 10, 5)),
+    )
+    _check_parse_html(
+        (
+            "\U0001f3df \U0001f3df<tg-spoiler>\U0001f3df &lt\U0001f3df</tg-spoiler>"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f3df <\U0001f3df".encode(),
+        (MessageEntity(TYPE.SPOILER, 5, 6),),
+    )
+    _check_parse_html(
+        (
+            "\U0001f3df \U0001f3df<tg-spoiler>\U0001f3df &gt;<b aba   =   caba>&lt"
+            "\U0001f3df</b></tg-spoiler>"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f3df ><\U0001f3df".encode(),
+        (MessageEntity(TYPE.SPOILER, 5, 7), MessageEntity(TYPE.BOLD, 9, 3)),
+    )
+    _check_parse_html(
+        b"<a href=telegram.org>\t</a>",
+        b"\t",
+        (MessageEntity(TYPE.TEXT_URL, 0, 1, b"http://telegram.org/"),),
+    )
+    _check_parse_html(
+        b"<a href=telegram.org>\r</a>",
+        b"\r",
+        (MessageEntity(TYPE.TEXT_URL, 0, 1, b"http://telegram.org/"),),
+    )
+    _check_parse_html(
+        b"<a href=telegram.org>\n</a>",
+        b"\n",
+        (MessageEntity(TYPE.TEXT_URL, 0, 1, b"http://telegram.org/"),),
+    )
+    _check_parse_html(
+        b"<code><i><b> </b></i></code><i><b><code> </code></b></i>",
+        b"  ",
+        (
+            MessageEntity(TYPE.CODE, 0, 1),
+            MessageEntity(TYPE.BOLD, 0, 1),
+            MessageEntity(TYPE.ITALIC, 0, 1),
+            MessageEntity(TYPE.CODE, 1, 1),
+            MessageEntity(TYPE.BOLD, 1, 1),
+            MessageEntity(TYPE.ITALIC, 1, 1),
+        ),
+    )
+    _check_parse_html(
+        b"<i><b> </b> <code> </code></i>",
+        b"   ",
+        (
+            MessageEntity(TYPE.ITALIC, 0, 3),
+            MessageEntity(TYPE.BOLD, 0, 1),
+            MessageEntity(TYPE.CODE, 2, 1),
+        ),
+    )
+    _check_parse_html(
+        b"<a href=telegram.org> </a>",
+        b" ",
+        (MessageEntity(TYPE.TEXT_URL, 0, 1, b"http://telegram.org/"),),
+    )
+    _check_parse_html(
+        b'<a href  ="telegram.org"   > </a>',
+        b" ",
+        (MessageEntity(TYPE.TEXT_URL, 0, 1, b"http://telegram.org/"),),
+    )
+    _check_parse_html(
+        b"<a   href=  'telegram.org'   > </a>",
+        b" ",
+        (MessageEntity(TYPE.TEXT_URL, 0, 1, b"http://telegram.org/"),),
+    )
+    _check_parse_html(
+        b"<a   href=  'telegram.org?&lt;'   > </a>",
+        b" ",
+        (MessageEntity(TYPE.TEXT_URL, 0, 1, b"http://telegram.org/?<"),),
+    )
+    _check_parse_html(b"<a> </a>", b" ", ())
+    _check_parse_html(b"<a>telegram.org </a>", b"telegram.org ", ())
+    _check_parse_html(
+        b"<a>telegram.org</a>",
+        b"telegram.org",
+        (MessageEntity(TYPE.TEXT_URL, 0, 12, b"http://telegram.org/"),),
+    )
+    _check_parse_html(
+        b"<a>https://telegram.org/asdsa?asdasdwe#12e3we</a>",
+        b"https://telegram.org/asdsa?asdasdwe#12e3we",
+        (
+            MessageEntity(
+                TYPE.TEXT_URL, 0, 42, b"https://telegram.org/asdsa?asdasdwe#12e3we"
+            ),
+        ),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<pre  >\U0001f3df \U0001f3df&lt;</>".encode(),
+        "\U0001f3df \U0001f3df<\U0001f3df \U0001f3df<".encode(),
+        (MessageEntity(TYPE.PRE, 6, 6),),
+    )
+    _check_parse_html(
+        "\U0001f3df \U0001f3df&lt;<code >\U0001f3df \U0001f3df&lt;</>".encode(),
+        "\U0001f3df \U0001f3df<\U0001f3df \U0001f3df<".encode(),
+        (MessageEntity(TYPE.CODE, 6, 6),),
+    )
+    _check_parse_html(
+        (
+            "\U0001f3df \U0001f3df&lt;<pre><code>\U0001f3df \U0001f3df&lt;</code></>"
+        ).encode(),
+        "\U0001f3df \U0001f3df<\U0001f3df \U0001f3df<".encode(),
+        (MessageEntity(TYPE.PRE, 6, 6), MessageEntity(TYPE.CODE, 6, 6)),
+    )
+    _check_parse_html(
+        (
+            '\U0001f3df \U0001f3df&lt;<pre><code class="language-">\U0001f3df '
+            "\U0001f3df&lt;</code></>"
+        ).encode(),
+        "\U0001f3df \U0001f3df<\U0001f3df \U0001f3df<".encode(),
+        (MessageEntity(TYPE.PRE, 6, 6), MessageEntity(TYPE.CODE, 6, 6)),
+    )
+    _check_parse_html(
+        (
+            '\U0001f3df \U0001f3df&lt;<pre><code class="language-fift">\U0001f3df '
+            "\U0001f3df&lt;</></>"
+        ).encode(),
+        "\U0001f3df \U0001f3df<\U0001f3df \U0001f3df<".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 6, 6, b"fift"),),
+    )
+    _check_parse_html(
+        (
+            '\U0001f3df \U0001f3df&lt;<code class="language-fift"><pre>\U0001f3df '
+            "\U0001f3df&lt;</></>"
+        ).encode(),
+        "\U0001f3df \U0001f3df<\U0001f3df \U0001f3df<".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 6, 6, b"fift"),),
+    )
+    _check_parse_html(
+        (
+            '\U0001f3df \U0001f3df&lt;<pre><code class="language-fift">\U0001f3df '
+            "\U0001f3df&lt;</> </>"
+        ).encode(),
+        "\U0001f3df \U0001f3df<\U0001f3df \U0001f3df< ".encode(),
+        (MessageEntity(TYPE.PRE, 6, 7), MessageEntity(TYPE.CODE, 6, 6)),
+    )
+    _check_parse_html(
+        (
+            '\U0001f3df \U0001f3df&lt;<pre> <code class="language-fift">\U0001f3df '
+            "\U0001f3df&lt;</></>"
+        ).encode(),
+        "\U0001f3df \U0001f3df< \U0001f3df \U0001f3df<".encode(),
+        (MessageEntity(TYPE.PRE, 6, 7), MessageEntity(TYPE.CODE, 7, 6)),
+    )
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-emoji emoji-id = "12345">'
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-emoji><b>\U000027a1"
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (
+            MessageEntity(TYPE.CUSTOM_EMOJI, 5, 5, custom_emoji_id=12345),
+            MessageEntity(TYPE.BOLD, 10, 5),
+        ),
+    )
+    _check_parse_html(
+        (
+            '\U0001f3df \U0001f3df<tg-emoji emoji-id="54321">\U0001f3df &lt\U0001f3df'
+            "</tg-emoji>"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f3df <\U0001f3df".encode(),
+        (MessageEntity(TYPE.CUSTOM_EMOJI, 5, 6, custom_emoji_id=54321),),
+    )
+    _check_parse_html(
+        (
+            '\U0001f3df \U0001f3df<b aba   =   caba><tg-emoji emoji-id="1">\U0001f3df'
+            "</tg-emoji>1</b>"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f3df1".encode(),
+        (
+            MessageEntity(TYPE.BOLD, 5, 3),
+            MessageEntity(TYPE.CUSTOM_EMOJI, 5, 2, custom_emoji_id=1),
+        ),
+    )
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "r">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>\U000027a1'
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (
+            MessageEntity(TYPE.FORMATTED_DATE, 5, 5, date=12345, date_flags=1),
+            MessageEntity(TYPE.BOLD, 10, 5),
+        ),
+    )
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "t">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>\U000027a1'
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (
+            MessageEntity(TYPE.FORMATTED_DATE, 5, 5, date=12345, date_flags=2),
+            MessageEntity(TYPE.BOLD, 10, 5),
+        ),
+    )
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "T">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>\U000027a1'
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (
+            MessageEntity(TYPE.FORMATTED_DATE, 5, 5, date=12345, date_flags=4),
+            MessageEntity(TYPE.BOLD, 10, 5),
+        ),
+    )
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "d">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>\U000027a1'
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (
+            MessageEntity(TYPE.FORMATTED_DATE, 5, 5, date=12345, date_flags=8),
+            MessageEntity(TYPE.BOLD, 10, 5),
+        ),
+    )
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "D">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>\U000027a1'
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (
+            MessageEntity(TYPE.FORMATTED_DATE, 5, 5, date=12345, date_flags=16),
+            MessageEntity(TYPE.BOLD, 10, 5),
+        ),
+    )
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "w">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>\U000027a1'
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (
+            MessageEntity(TYPE.FORMATTED_DATE, 5, 5, date=12345, date_flags=32),
+            MessageEntity(TYPE.BOLD, 10, 5),
+        ),
+    )
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "W">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>\U000027a1'
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (
+            MessageEntity(TYPE.FORMATTED_DATE, 5, 5, date=12345, date_flags=32),
+            MessageEntity(TYPE.BOLD, 10, 5),
+        ),
+    )
+    _check_parse_html(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "tttTTdDwW">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>'
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f \U000027a1"
+            "\U0000fe0f\U000027a1\U0000fe0f \U000027a1\U0000fe0f"
+        ).encode(),
+        (
+            MessageEntity(TYPE.FORMATTED_DATE, 5, 5, date=12345, date_flags=62),
+            MessageEntity(TYPE.BOLD, 10, 5),
+        ),
+    )
+    _check_parse_html_fails(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "rt">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>\U000027a1'
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        "Invalid date format used",
+    )
+    _check_parse_html_fails(
+        (
+            '\U000027a1\U0000fe0f \U000027a1\U0000fe0f<tg-time unix = "12345", format'
+            ' = "ts">\U000027a1\U0000fe0f \U000027a1\U0000fe0f</tg-time><b>\U000027a1'
+            "\U0000fe0f \U000027a1\U0000fe0f</b>"
+        ).encode(),
+        "Invalid date format used",
+    )
+    _check_parse_html(
+        b'<blockquote   cite="" askdlbas nasjdbaj nj12b3>a&lt;<pre  >b;</></>',
+        b"a<b;",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 4), MessageEntity(TYPE.PRE, 2, 2)),
+    )
+    _check_parse_html(
+        b"<blockquote   expandable>a&lt;<pre  >b;</></>",
+        b"a<b;",
+        (
+            MessageEntity(TYPE.EXPANDABLE_BLOCK_QUOTE, 0, 4),
+            MessageEntity(TYPE.PRE, 2, 2),
+        ),
+    )
+    _check_parse_html(
+        b"<blockquote   expandable   asd>a&lt;<pre  >b;</></>",
+        b"a<b;",
+        (
+            MessageEntity(TYPE.EXPANDABLE_BLOCK_QUOTE, 0, 4),
+            MessageEntity(TYPE.PRE, 2, 2),
+        ),
+    )
+    _check_parse_html(
+        b"<blockquote   expandable=false>a&lt;<pre  >b;</></>",
+        b"a<b;",
+        (
+            MessageEntity(TYPE.EXPANDABLE_BLOCK_QUOTE, 0, 4),
+            MessageEntity(TYPE.PRE, 2, 2),
+        ),
     )
