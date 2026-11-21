@@ -8,10 +8,10 @@
 
 from tdlib_oracle.tdutils.unicode import unicode_to_lower
 
-# Ported from tdutils/td/utils/utf8.cpp, the enum that opens with UTF8_REJECT: the
-# states of the shift-based DFA that checks UTF-8 validity. The transitions by one byte
-# are packed into one integer, which stores the next state for a state S in the 6 bits
-# from bit S.
+# Ported from tdutils/td/utils/utf8.cpp, UTF8_REJECT, with the rest of the enum it
+# opens: the states of the shift-based DFA that checks UTF-8 validity. The transitions
+# by one byte are packed into one integer, which stores the next state for a state S in
+# the 6 bits from bit S.
 _UTF8_REJECT = 0  # zero, so that every unspecified transition leads to it
 _UTF8_ACCEPT = 6
 _UTF8_NEED_1 = 12  # 1 more continuation byte

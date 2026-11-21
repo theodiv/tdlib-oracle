@@ -9,7 +9,7 @@
 from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdutils.misc import to_lower
 
-# Ported from telegram-bot-api/Client.cpp, the limit that Client::get_formatted_text()
+# Ported from telegram-bot-api/Client.cpp, Client::get_formatted_text(), the limit it
 # puts on a text.
 _MAX_TEXT_SIZE = 1 << 15  # 32,768 bytes
 

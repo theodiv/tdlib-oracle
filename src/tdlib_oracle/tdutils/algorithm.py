@@ -9,6 +9,8 @@
 from collections.abc import Sequence
 from typing import TypeVar
 
+# Ported from tdutils/td/utils/algorithm.h, T in combine(vector<T> &destination,
+# vector<T> &&source).
 _T = TypeVar("_T")
 
 

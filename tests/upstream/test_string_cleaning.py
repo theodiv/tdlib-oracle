@@ -7,6 +7,9 @@
 
 from tdlib_oracle.tdlib.misc import clean_input_string, strip_empty_characters
 
+# Ported from test/string_cleaning.cpp, TEST(StringCleaning, clean_input_string), its
+# string of the bytes 0x00 to 0x21, which TEST(StringCleaning, strip_empty_characters)
+# checks too.
 _CONTROL_CHARACTERS = (
     b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13"
     b"\x14\x15\x16\x17\x18\x19\x1a\x1b\x1c\x1d\x1e\x1f\x20\x21"

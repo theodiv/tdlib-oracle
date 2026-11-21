@@ -39,14 +39,15 @@ from tdlib_oracle.tdutils.utf8 import (
     is_utf8_character_first_code_unit,
 )
 
-# The characters is_space() accepts, for the tests of a byte against them all at once.
+# Ported from td/telegram/MessageEntity.cpp, parse_html(), the characters its calls of
+# is_space() accept, for the tests of a byte against them all at once.
 _SPACES = bytes(c for c in range(256) if is_space(c))
 
-# Ported from td/telegram/MessageEntity.cpp, the characters besides spaces that end an
-# attribute name in parse_html().
+# Ported from td/telegram/MessageEntity.cpp, parse_html(), the characters besides spaces
+# that end an attribute name.
 _ATTRIBUTE_NAME_ENDS = _SPACES + b"=>/\"'"
 
-# Ported from td/telegram/MessageEntity.cpp, the tag names parse_html() supports.
+# Ported from td/telegram/MessageEntity.cpp, parse_html(), the tag names it supports.
 _TAG_NAMES = frozenset(
     (
         b"a",
