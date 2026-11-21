@@ -456,6 +456,25 @@ Fields run(const std::string &function, const Fields &request) {
     expect_fields(request, 1);
     return {std::to_string(td::LinkManager::get_link_user_id(request[0]).get())};
   }
+  if (function == "get_formatted_date") {
+    expect_fields(request, 2);
+    auto r_date = td::FormattedDate::get_formatted_date(to_int32(request[1]), request[0]);
+    if (r_date.is_error()) {
+      return {std::to_string(r_date.error().code()), r_date.error().message().str(), std::string()};
+    }
+    return {"0", std::string(), PSTRING() << r_date.ok()};
+  }
+  if (function == "parse_html") {
+    expect_fields(request, 1);
+    auto text = request[0];
+    auto r_entities = td::parse_html(text);
+    if (r_entities.is_error()) {
+      return {std::to_string(r_entities.error().code()), r_entities.error().message().str(), std::string()};
+    }
+    Fields response{"0", std::string(), text};
+    write_entities(response, r_entities.ok());
+    return response;
+  }
   fail("no such function");
 }
 
