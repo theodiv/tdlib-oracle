@@ -5,7 +5,7 @@
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
 
-from tdlib_oracle.tdlib.cleaning import clean_input_string, strip_empty_characters
+from tdlib_oracle.tdlib.misc import clean_input_string, strip_empty_characters
 
 _CONTROL_CHARACTERS = (
     b"\x00\x01\x02\x03\x04\x05\x06\x07\x08\x09\x0a\x0b\x0c\x0d\x0e\x0f\x10\x11\x12\x13"

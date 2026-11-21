@@ -5,8 +5,13 @@ from collections.abc import Callable
 import pytest
 
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib.entities import TYPE, MessageEntity
-from tdlib_oracle.tdlib.fixing import find_entities, fix_formatted_text
+from tdlib_oracle.tdlib.message_entity import (
+    TYPE,
+    MessageEntity,
+    fix_entities,
+    fix_formatted_text,
+    remove_empty_entities,
+)
 from tests.support.entities import draw_entities
 from tests.support.texts import (
     FINDING_UNITS,
@@ -45,6 +50,15 @@ _CUT = 34_996
 # With entities, cleaning cuts nothing, and the text is cut at 35,000 bytes.
 _ENTITY_CUT = 35_000
 
+# Twenty tied links: more than libstdc++'s insertion sort keeps in order.
+_TIED_LINKS = tuple(
+    MessageEntity(TYPE.TEXT_URL, 0, 1, str(index).encode()) for index in range(20)
+)
+
+# The bounds that fix_formatted_text() holds an entity's offset and length to before it
+# fixes the entities.
+_MAX_BOUND = 1_000_000
+
 # Characters that trimming and the emptiness checks treat apart, to land on each side of
 # the cut.
 _CUT_UNITS = tuple(
@@ -72,10 +86,29 @@ def _fix_with_entities(
     return (b"0", b"", result.text), result.entities
 
 
-def _find(
+def _remove_empty(
     text: bytes, args: tuple[int, ...], entities: tuple[MessageEntity, ...]
 ) -> tuple[tuple[bytes, ...], tuple[MessageEntity, ...]]:
-    return (), find_entities(text, skip_bot_commands=bool(args[0]))
+    return (), tuple(remove_empty_entities(entities))
+
+
+def _fix_entities(
+    text: bytes, args: tuple[int, ...], entities: tuple[MessageEntity, ...]
+) -> tuple[tuple[bytes, ...], tuple[MessageEntity, ...]]:
+    return (), fix_entities(entities)
+
+
+def _draw_entities_to_fix(rng: random.Random) -> tuple[MessageEntity, ...]:
+    """Return drawn entities that fix_formatted_text() lets through to fix_entities().
+
+    It refuses an offset or length outside its bounds, and drops an empty entity first,
+    so fix_entities() never sees one; past its bounds, an end overflows in the C++.
+    """
+    return tuple(
+        entity
+        for entity in draw_entities(rng, 10)
+        if 0 <= entity.offset <= _MAX_BOUND and 0 < entity.length <= _MAX_BOUND
+    )
 
 
 def _draw_flags(rng: random.Random) -> Flags:
@@ -224,13 +257,37 @@ def test_fix_formatted_text_gives_the_pinned_result_around_the_cut_with_entities
     )
 
 
-def test_find_entities_gives_the_pinned_entities(
+def test_remove_empty_entities_gives_the_pinned_entities(
     compare_entities: Compare, seeds: tuple[int, ...], count: int
 ) -> None:
     for seed in seeds:
-        rng = random.Random(f"{seed} flags")
-        cases = [
-            (text, (rng.randint(0, 1),), ())
-            for text in draw_texts(seed, count, FINDING_UNITS)
-        ]
-        compare_entities("find_entities", _find, cases, seed=seed, by_bytes=False)
+        rng = random.Random(f"{seed} empty entities")
+        cases = [((), (), draw_entities(rng, 10)) for _ in range(count)]
+        compare_entities(
+            "remove_empty_entities", _remove_empty, cases, seed=seed, by_bytes=False
+        )
+
+
+def test_fix_entities_gives_the_pinned_entities(
+    compare_entities: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        rng = random.Random(seed)
+        cases = [((), (), _draw_entities_to_fix(rng)) for _ in range(count)]
+        compare_entities(
+            "fix_entities", _fix_entities, cases, seed=seed, by_bytes=False
+        )
+
+
+def test_fix_entities_gives_the_pinned_entities_for_ties_already_in_order(
+    compare_entities: Compare,
+) -> None:
+    cases = [((), (), _TIED_LINKS)]
+    compare_entities("fix_entities", _fix_entities, cases, seed=None, by_bytes=False)
+
+
+def test_fix_entities_gives_the_pinned_entities_for_ties_it_sorts(
+    compare_entities: Compare,
+) -> None:
+    cases = [((), (), (MessageEntity(TYPE.BOLD, 1, 1), *_TIED_LINKS))]
+    compare_entities("fix_entities", _fix_entities, cases, seed=None, by_bytes=False)

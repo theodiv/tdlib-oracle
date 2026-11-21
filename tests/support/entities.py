@@ -2,7 +2,7 @@
 
 import random
 
-from tdlib_oracle.tdlib.entities import TYPE, MessageEntity
+from tdlib_oracle.tdlib.message_entity import TYPE, MessageEntity
 
 # The values each kind of entity tells apart: an empty argument or not, user IDs on both
 # sides of each bound of a valid one, a custom emoji ID of zero or not, and dates of

@@ -1,12 +1,15 @@
+import random
 from collections.abc import Callable, Sequence
 
 import pytest
 
-from tdlib_oracle.tdlib.finding import (
-    Span,
+from tdlib_oracle.runtime.cstring import Span
+from tdlib_oracle.tdlib.message_entity import (
+    MessageEntity,
     find_bank_card_numbers,
     find_bot_commands,
     find_cashtags,
+    find_entities,
     find_hashtags,
     find_mentions,
     find_tg_urls,
@@ -166,3 +169,21 @@ def test_is_email_address_gives_the_pinned_result_for_the_fixed_addresses(
         seed=None,
         by_bytes=False,
     )
+
+
+def _find(
+    text: bytes, args: tuple[int, ...], entities: tuple[MessageEntity, ...]
+) -> tuple[tuple[bytes, ...], tuple[MessageEntity, ...]]:
+    return (), find_entities(text, skip_bot_commands=bool(args[0]))
+
+
+def test_find_entities_gives_the_pinned_entities(
+    compare_entities: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        rng = random.Random(f"{seed} flags")
+        cases = [
+            (text, (rng.randint(0, 1),), ())
+            for text in draw_texts(seed, count, FINDING_UNITS)
+        ]
+        compare_entities("find_entities", _find, cases, seed=seed, by_bytes=False)

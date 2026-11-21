@@ -6,7 +6,7 @@ from typing import TypeVar
 
 import pytest
 
-from tdlib_oracle.tdlib.entities import MessageEntity
+from tdlib_oracle.tdlib.message_entity import MessageEntity
 from tests.support.harness import cached_build, run
 from tests.support.texts import shrink
 
@@ -55,10 +55,8 @@ def harness(
     root = pytestconfig.rootpath
     td = root / "tests" / "data" / "td"
     tl = root / "tests" / "data" / "tl"
-    # harness.cpp includes MessageEntity.cpp, to reach the functions it keeps static.
-    included = td / "td" / "telegram" / "MessageEntity.cpp"
     sources = [
-        *(path for path in sorted(td.rglob("*.cpp")) if path != included),
+        *sorted(td.rglob("*.cpp")),
         *sorted(tl.rglob("*.cpp")),
         root / "tests" / "support" / "harness.cpp",
     ]

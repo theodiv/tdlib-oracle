@@ -3,11 +3,6 @@
 // A request and a response are each a field count followed by that many fields, and a
 // field is a 32-bit little-endian length followed by that many bytes. Each response is
 // flushed before the next request is read, so a crash names the request that caused it.
-//
-// MessageEntity.cpp is compiled here, as part of this file, instead of on its own, so
-// that the functions it keeps static are in reach.
-
-#include "td/telegram/MessageEntity.cpp"
 
 #include "td/telegram/CustomEmojiId.h"
 #include "td/telegram/FormattedDate.h"
@@ -290,12 +285,22 @@ Fields run(const std::string &function, const Fields &request) {
     expect_fields(request, 1);
     return {from_flag(td::is_empty_string(request[0]))};
   }
-  if (function == "sort_entities") {
+  if (function == "remove_empty_entities") {
     auto entities = read_entities(request, 1);
     if (!request[0].empty()) {
-      fail("sort_entities takes no text");
+      fail("remove_empty_entities takes no text");
     }
-    td::sort_entities(entities);
+    td::remove_empty_entities(entities);
+    Fields response;
+    write_entities(response, entities);
+    return response;
+  }
+  if (function == "fix_entities") {
+    auto entities = read_entities(request, 1);
+    if (!request[0].empty()) {
+      fail("fix_entities takes no text");
+    }
+    td::fix_entities(entities);
     Fields response;
     write_entities(response, entities);
     return response;

@@ -73,9 +73,12 @@ ruff format .
 ## Testing Standards
 
 - Tests must mirror `src/`: `tests/<domain>/test_<module>.py` for a domain
-  module, `tests/test_<module>.py` for a top-level module. Test code that
-  several test modules share, or that runs an external program or a server, must
-  live in `tests/support/`, with its tests beside it.
+  module, `tests/tdlib/message_entity/test_<module>.py` for a module of
+  `tdlib/message_entity/`, and `tests/test_<module>.py` for a top-level module.
+  Code outside `tdlib/message_entity/`, tests included, must import its names
+  from the package, never from one of its modules. Test code that several test
+  modules share, or that runs an external program or a server, must live in
+  `tests/support/`, with its tests beside it.
 - Every bug fix must add a regression test that fails on the unfixed code.
 - Tests must assert outcomes (outputs, lengths, exit codes, stderr lines), not
   that an internal call happened.
