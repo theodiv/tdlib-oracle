@@ -30,6 +30,8 @@ from tdlib_oracle.tdlib.message_entity import (
 from tdlib_oracle.tdutils.utf8 import utf8_utf16_length
 
 
+# Ported from test/message_entities.cpp, check_mention(), its conversion of the found
+# slices to strings, which the other checks of found entities repeat.
 def _matches(text: bytes, find: Callable[[bytes], tuple[Span, ...]]) -> list[bytes]:
     return [text[begin:end] for begin, end in find(text)]
 

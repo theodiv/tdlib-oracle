@@ -94,8 +94,8 @@ def _match_mentions(text: bytes) -> list[Span]:
     return result
 
 
-# '/', '<', and '>', which match_bot_commands() in td/telegram/MessageEntity.cpp finds
-# no bot command next to, as it finds none next to a word character.
+# Ported from td/telegram/MessageEntity.cpp, match_bot_commands(), the characters
+# besides word characters that it finds no bot command next to: '/', '<', and '>'.
 _COMMAND_NEIGHBORS = (0x2F, 0x3C, 0x3E)
 
 
@@ -403,8 +403,8 @@ def _is_protocol_symbol(c: int) -> bool:
     return get_unicode_simple_category(c) != CATEGORY.SEPARATOR
 
 
-# Ported from td/telegram/MessageEntity.cpp, the characters is_user_data_symbol in
-# match_urls() refuses, '«' and '»' among them.
+# Ported from td/telegram/MessageEntity.cpp, is_user_data_symbol in match_urls(), the
+# characters it refuses, '«' and '»' among them.
 _NOT_USER_DATA_SYMBOLS = frozenset(b"\n/[]{}()'`<>\"@\xab\xbb")
 
 

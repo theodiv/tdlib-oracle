@@ -20,30 +20,31 @@ from tdlib_oracle.tdutils.ip_address import init_ipv6_port
 from tdlib_oracle.tdutils.misc import is_space, to_integer_safe
 from tdlib_oracle.tdutils.parser import read_till_nofail
 
-# The characters is_space() accepts, for the bytes method that strips them all at once.
+# Ported from tdutils/td/utils/HttpUrl.cpp, parse_url(), the characters its calls of
+# is_space() accept, for the bytes method that strips them all at once.
 _SPACES = bytes(c for c in range(256) if is_space(c))
 
-# Ported from tdutils/td/utils/HttpUrl.cpp, the first character that check_url_part in
-# parse_url() refuses in a host: a `%` without two hex digits after it, or a character
+# Ported from tdutils/td/utils/HttpUrl.cpp, check_url_part in parse_url(), the first
+# character it refuses in a host: a `%` without two hex digits after it, or a character
 # outside the symbols RFC 7230 and RFC 3986 allow, UTF-8 bytes aside. The byte past the
 # end is the string terminator, no hex digit.
 _REFUSED_IN_HOST = re.compile(
     rb"%(?![0-9A-Fa-f]{2})|[^%0-9A-Za-z.\-_!$,~*'();&+=\x80-\xff]"
 )
 
-# Ported from tdutils/td/utils/HttpUrl.cpp, the first character that check_url_part in
-# parse_url() refuses in a userinfo, which may also hold colons. The byte past the end
+# Ported from tdutils/td/utils/HttpUrl.cpp, check_url_part in parse_url(), the first
+# character it refuses in a userinfo, which may also hold colons. The byte past the end
 # is the `@` after the userinfo, no hex digit either.
 _REFUSED_IN_USERINFO = re.compile(
     rb"%(?![0-9A-Fa-f]{2})|[^%0-9A-Za-z.\-_!$,~*'();&+=:\x80-\xff]"
 )
 
-# Ported from tdutils/td/utils/HttpUrl.cpp, the bytes up to 0x20 that parse_url()
+# Ported from tdutils/td/utils/HttpUrl.cpp, parse_url(), the bytes up to 0x20 it
 # percent-encodes in a query.
 _UNSAFE_IN_QUERY = re.compile(rb"[\x00-\x20]")
 
-# Ported from tdutils/td/utils/HttpUrl.cpp, the characters parse_url() allows in an IPv6
-# host, between its brackets and in lowercase.
+# Ported from tdutils/td/utils/HttpUrl.cpp, parse_url(), the characters it allows in an
+# IPv6 host, between its brackets and in lowercase.
 _IPV6_HOST_CHARACTERS = b":.0123456789abcdef"
 
 

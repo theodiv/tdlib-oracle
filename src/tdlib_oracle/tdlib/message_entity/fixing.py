@@ -51,8 +51,8 @@ _LENGTH_LIMIT = 35000  # server-side limit
 # Ported from td/telegram/MessageEntity.cpp, SPLITTABLE_ENTITY_TYPE_COUNT.
 _SPLITTABLE_ENTITY_TYPE_COUNT = 5
 
-# Ported from td/telegram/MessageEntity.cpp, the types that flush_entities in
-# split_entities() walks, in its order.
+# Ported from td/telegram/MessageEntity.cpp, flush_entities in split_entities(), the
+# types it walks, in its order.
 _SPLITTABLE_TYPES = (
     TYPE.BOLD,
     TYPE.ITALIC,
@@ -61,7 +61,8 @@ _SPLITTABLE_TYPES = (
     TYPE.SPOILER,
 )
 
-# The offset that split_entities() flushes at last: std::numeric_limits<int32>::max().
+# Ported from td/telegram/MessageEntity.cpp, split_entities(), the offset it flushes at
+# last, std::numeric_limits<int32>::max().
 _INT32_MAX = (1 << 31) - 1
 
 

@@ -17,8 +17,8 @@ from tdlib_oracle.tdutils.http_url import PROTOCOL, parse_url
 from tdlib_oracle.tdutils.misc import to_integer_safe
 from tdlib_oracle.tdutils.utf8 import check_utf8
 
-# Ported from td/telegram/LinkManager.cpp, the characters LinkManager::check_link_impl()
-# allows in the host of a tg or ton link; a tonsite link also allows dots.
+# Ported from td/telegram/LinkManager.cpp, LinkManager::check_link_impl(), the
+# characters it allows in the host of a tg or ton link; a tonsite link also allows dots.
 _TG_HOST_CHARACTERS = (
     b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
 )

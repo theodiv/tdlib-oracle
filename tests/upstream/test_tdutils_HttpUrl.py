@@ -8,7 +8,8 @@
 from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdutils.http_url import HttpUrl, parse_url
 
-# Ported from tdutils/test/HttpUrl.cpp, the queries that each test_parse_url() appends.
+# Ported from tdutils/test/HttpUrl.cpp, test_parse_url(), the queries that each of its
+# overloads appends.
 _QUERIES = (b"", b"/.com", b"#", b"?t=1")
 
 

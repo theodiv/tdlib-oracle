@@ -25,7 +25,8 @@ def _get_character_table(*, is_url: bool) -> tuple[int, ...]:
     return tuple(char_to_value)
 
 
-# The tables that get_character_table() fills on its first call.
+# Ported from tdutils/td/utils/base64.cpp, char_to_value in get_character_table(), the
+# table each alphabet fills on its first call.
 _CHARACTER_TABLE = _get_character_table(is_url=False)
 _URL_CHARACTER_TABLE = _get_character_table(is_url=True)
 
