@@ -35,7 +35,7 @@ namespace td {
 extern int verbosity_actor;
 }
 void missing_function(int);
-int crypto_openssl();
+int tdutils_openssl();
 
 static bool read_size(std::uint32_t &size) {
   unsigned char bytes[4];
@@ -75,7 +75,8 @@ int main() {
       answer = std::to_string(td::verbosity_actor);
     }
     if (answer == "openssl") {
-      answer = std::to_string(crypto_openssl()) + " " + std::to_string(TD_HAVE_OPENSSL);
+      answer = std::to_string(tdutils_openssl()) + " " +
+               std::to_string(TD_HAVE_OPENSSL);
     }
     write_size(1);
     write_size(answer.size());
@@ -191,14 +192,17 @@ def test_a_source_that_does_not_compile_stops_the_build(tmp_path: Path) -> None:
         _build(tmp_path, "int main( {\n")
 
 
-def test_tdutils_crypto_cpp_alone_compiles_without_openssl(tmp_path: Path) -> None:
-    crypto = _write(
-        tmp_path / "td" / "tdutils" / "td" / "utils" / "crypto.cpp",
+@pytest.mark.parametrize("name", ["crypto.cpp", "Slice.cpp"])
+def test_tdutils_crypto_cpp_and_slice_cpp_alone_compile_without_openssl(
+    tmp_path: Path, name: str
+) -> None:
+    tdutils = _write(
+        tmp_path / "td" / "tdutils" / "td" / "utils" / name,
         '#include "td/utils/config.h"\n'
-        "int crypto_openssl() { return TD_HAVE_OPENSSL; }\n",
+        "int tdutils_openssl() { return TD_HAVE_OPENSSL; }\n",
     )
     program = _write(tmp_path / "program.cpp", _ECHO)
-    harness = build([crypto, program], [], _directory(tmp_path / "build"))
+    harness = build([tdutils, program], [], _directory(tmp_path / "build"))
     assert run(harness, "echo", [[b"openssl"]], timeout=60) == [(b"0 1",)]
 
 
@@ -241,7 +245,7 @@ def test_a_build_of_one_job_at_a_time_makes_the_same_program(tmp_path: Path) -> 
     crypto = _write(
         tmp_path / "td" / "tdutils" / "td" / "utils" / "crypto.cpp",
         '#include "td/utils/config.h"\n'
-        "int crypto_openssl() { return TD_HAVE_OPENSSL; }\n",
+        "int tdutils_openssl() { return TD_HAVE_OPENSSL; }\n",
     )
     program = _write(tmp_path / "program.cpp", _ECHO)
     harness = build([crypto, program], [], _directory(tmp_path / "build"), jobs=1)

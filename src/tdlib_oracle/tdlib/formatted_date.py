@@ -4,11 +4,12 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's formatted dates: their check, and the parts of a date a format shows."""
+"""TDLib's formatted dates: their check, and their formats as flags and API objects."""
 
 from typing import Final
 
 from tdlib_oracle.runtime.failure import Failure
+from tdlib_oracle.tdlib import td_api
 
 
 # Ported from td/telegram/FormattedDate.h, FormattedDate::DateFlags.
@@ -21,6 +22,40 @@ class DATE_FLAG:
     SHORT_DATE: Final = 8
     LONG_DATE: Final = 16
     DAY_OF_WEEK: Final = 32
+
+
+# Ported from td/telegram/FormattedDate.cpp, FormattedDate::get_formatted_date(int32
+# date, const td_api::object_ptr<td_api::DateTimeFormattingType> &type_ptr).
+def get_formatted_date(
+    date: int, formatting_type: td_api.DateTimeFormattingType | None
+) -> tuple[int, int] | Failure:
+    """Return the date and the flags `formatting_type` gives it, or a `Failure`.
+
+    The date must be positive. No formatting type shows no part of the date, a relative
+    one shows the date relative to the present, and an absolute one shows each part its
+    precision names, so a missing precision leaves the part out.
+    """
+    if date <= 0:
+        return Failure(400, "Invalid date specified")
+
+    date_flags = 0
+    match formatting_type:
+        case td_api.DateTimeFormattingTypeRelative():
+            date_flags = DATE_FLAG.RELATIVE
+        case td_api.DateTimeFormattingTypeAbsolute():
+            match formatting_type.time_precision:
+                case td_api.DateTimePartPrecisionShort():
+                    date_flags |= DATE_FLAG.SHORT_TIME
+                case td_api.DateTimePartPrecisionLong():
+                    date_flags |= DATE_FLAG.LONG_TIME
+            match formatting_type.date_precision:
+                case td_api.DateTimePartPrecisionShort():
+                    date_flags |= DATE_FLAG.SHORT_DATE
+                case td_api.DateTimePartPrecisionLong():
+                    date_flags |= DATE_FLAG.LONG_DATE
+            if formatting_type.show_day_of_week:
+                date_flags |= DATE_FLAG.DAY_OF_WEEK
+    return date, date_flags
 
 
 # Ported from td/telegram/FormattedDate.cpp, FormattedDate::get_date_flags().
@@ -51,6 +86,44 @@ def get_date_flags(date_format: bytes) -> int | Failure:
             case _:
                 return Failure(400, "Invalid date format used")
     return date_flags
+
+
+# Ported from td/telegram/FormattedDate.cpp,
+# FormattedDate::get_date_time_formatting_type_object().
+def get_date_time_formatting_type_object(
+    date_flags: int,
+) -> td_api.DateTimeFormattingType | None:
+    """Return the formatting type that shows the parts of a date `date_flags` name.
+
+    No flag gives `None`, and the flag of a relative date gives a relative type,
+    whatever the others. Of a short and a long time, or of a short and a long date, the
+    short one shows.
+    """
+    if date_flags == 0:
+        return None
+    if (date_flags & DATE_FLAG.RELATIVE) != 0:
+        return td_api.DateTimeFormattingTypeRelative()
+
+    time_precision: td_api.DateTimePartPrecision
+    if (date_flags & DATE_FLAG.SHORT_TIME) != 0:
+        time_precision = td_api.DateTimePartPrecisionShort()
+    elif (date_flags & DATE_FLAG.LONG_TIME) != 0:
+        time_precision = td_api.DateTimePartPrecisionLong()
+    else:
+        time_precision = td_api.DateTimePartPrecisionNone()
+
+    date_precision: td_api.DateTimePartPrecision
+    if (date_flags & DATE_FLAG.SHORT_DATE) != 0:
+        date_precision = td_api.DateTimePartPrecisionShort()
+    elif (date_flags & DATE_FLAG.LONG_DATE) != 0:
+        date_precision = td_api.DateTimePartPrecisionLong()
+    else:
+        date_precision = td_api.DateTimePartPrecisionNone()
+
+    show_day_of_week = (date_flags & DATE_FLAG.DAY_OF_WEEK) != 0
+    return td_api.DateTimeFormattingTypeAbsolute(
+        time_precision, date_precision, show_day_of_week
+    )
 
 
 # Ported from td/telegram/FormattedDate.h, FormattedDate::is_valid().

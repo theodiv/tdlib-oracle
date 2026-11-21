@@ -53,6 +53,23 @@ DATA_SYMBOLS = (
         source="tdactor/td/actor/impl/Scheduler.cpp",
         line="int VERBOSITY_NAME(actor) = VERBOSITY_NAME(DEBUG) + 10;",
     ),
+    # td::verbosity_notifications; VERBOSITY_NAME(INFO) is
+    # 3 (tdutils/td/utils/logging.h).
+    DataSymbol(
+        symbol="_ZN2td23verbosity_notificationsE",
+        ctype="int",
+        value="3",
+        source="td/telegram/NotificationManager.cpp",
+        line="int VERBOSITY_NAME(notifications) = VERBOSITY_NAME(INFO);",
+    ),
+    # td::verbosity_td_requests; VERBOSITY_NAME(INFO) is 3 (tdutils/td/utils/logging.h).
+    DataSymbol(
+        symbol="_ZN2td21verbosity_td_requestsE",
+        ctype="int",
+        value="3",
+        source="td/telegram/Td.cpp",
+        line="int VERBOSITY_NAME(td_requests) = VERBOSITY_NAME(INFO);",
+    ),
 )
 
 # TDLib's Release flags, and the signed char of x86-64 servers.
@@ -80,10 +97,11 @@ _CONFIG_H = """\
 """
 
 # tdutils builds without OpenSSL when CMake finds none (tdutils/CMakeLists.txt). Built
-# so, crypto.cpp needs no OpenSSL headers and still defines crc16(), which lies outside
-# its OpenSSL code; every other source needs no more than tdutils' declarations of that
-# code.
-_WITHOUT_OPENSSL = "/tdutils/td/utils/crypto.cpp"
+# so, crypto.cpp and Slice.cpp need no OpenSSL headers: crypto.cpp still defines
+# crc16(), which lies outside its OpenSSL code, and Slice.cpp clears memory with a loop
+# of its own in place of OPENSSL_cleanse(); every other source needs no more than
+# tdutils' declarations of that code.
+_WITHOUT_OPENSSL = ("/tdutils/td/utils/crypto.cpp", "/tdutils/td/utils/Slice.cpp")
 
 # The memory one compile may take, a little above the peak of the heaviest source,
 # LinkManager.cpp: under 1 GiB with the Release flags, under 2 GiB with sanitizers.
@@ -236,9 +254,10 @@ def build(
     """Compile `sources` into one program in `directory`, and return its path.
 
     The sources compile in parallel with TDLib's Release flags and `-fsigned-char`, then
-    `flags`, such as `--coverage`; tdutils' `crypto.cpp` compiles without OpenSSL. They
-    compile `jobs` at a time, or as many as `compile_jobs` gives for this machine. A
-    first link names the symbols they leave undefined, and their stubs join the second.
+    `flags`, such as `--coverage`; tdutils' `crypto.cpp` and `Slice.cpp` compile without
+    OpenSSL. They compile `jobs` at a time, or as many as `compile_jobs` gives for this
+    machine. A first link names the symbols they leave undefined, and their stubs join
+    the second.
     The compiler gets only `PATH`, to find the assembler and the linker, and `TMPDIR`,
     so that its temporary files stay in `directory`.
 
