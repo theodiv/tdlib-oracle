@@ -2,7 +2,7 @@ import dataclasses
 
 import pytest
 
-from tdlib_oracle.text.failure import Failure
+from tdlib_oracle.runtime.failure import Failure
 
 
 def test_failures_compare_by_code_and_message() -> None:

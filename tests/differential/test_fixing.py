@@ -4,9 +4,9 @@ from collections.abc import Callable
 
 import pytest
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.entities import TYPE, MessageEntity
 from tdlib_oracle.tdlib.fixing import find_entities, fix_formatted_text
-from tdlib_oracle.text.failure import Failure
 from tests.support.entities import draw_entities
 from tests.support.texts import (
     FINDING_UNITS,

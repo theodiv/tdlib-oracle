@@ -6,7 +6,7 @@
 # see LICENSES/BSL-1.0.txt.
 """UTF-8 helpers: validity, stepping, length, truncation, appending, and lowercasing."""
 
-from tdlib_oracle.text.unicode import unicode_to_lower
+from tdlib_oracle.tdutils.unicode import unicode_to_lower
 
 # Ported from tdutils/td/utils/utf8.cpp, the enum that opens with UTF8_REJECT: the
 # states of the shift-based DFA that checks UTF-8 validity. The transitions by one byte

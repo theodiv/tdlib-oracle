@@ -1,20 +1,13 @@
 # Ported from telegram-bot-api/Client.cpp of the Telegram Bot API server at the commit
-# in tdlib_oracle.BOT_API_COMMIT, and from tdutils/td/utils/misc.h of TDLib at the
-# commit in tdlib_oracle.TDLIB_COMMIT.
+# in tdlib_oracle.BOT_API_COMMIT.
 #
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
 """The Bot API server's error descriptions."""
 
-from tdlib_oracle.text.failure import Failure
-
-
-# Ported from tdutils/td/utils/misc.h, to_lower(char c).
-def _to_lower(c: str) -> str:
-    if "A" <= c <= "Z":
-        return chr(ord(c) - ord("A") + ord("a"))
-    return c
+from tdlib_oracle.runtime.failure import Failure
+from tdlib_oracle.tdutils.misc import to_lower
 
 
 # Ported from telegram-bot-api/Client.cpp,
@@ -50,4 +43,4 @@ def get_error_description(failure: Failure) -> str:
         return prefix
     if len(message) >= 2 and (message[1] == "_" or "A" <= message[1] <= "Z"):
         return f"{prefix}: {message}"
-    return f"{prefix}: {_to_lower(message[0])}{message[1:]}"
+    return f"{prefix}: {chr(to_lower(ord(message[0])))}{message[1:]}"

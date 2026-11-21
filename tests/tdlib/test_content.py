@@ -1,5 +1,5 @@
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.content import get_input_message_content
-from tdlib_oracle.text.failure import Failure
 
 
 def test_keeps_the_cleaned_and_trimmed_text() -> None:

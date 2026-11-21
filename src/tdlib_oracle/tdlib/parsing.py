@@ -1,5 +1,5 @@
-# Ported from td/telegram/MessageEntity.cpp and tdutils/td/utils/misc.h of TDLib at the
-# commit in tdlib_oracle.TDLIB_COMMIT.
+# Ported from td/telegram/MessageEntity.cpp of TDLib at the commit
+# in tdlib_oracle.TDLIB_COMMIT.
 #
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
@@ -13,6 +13,7 @@ of the length of the text; the Bot API's 32,768-byte cap bounds it.
 
 from dataclasses import dataclass, replace
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.dates import get_date_flags
 from tdlib_oracle.tdlib.entities import (
     TYPE,
@@ -22,16 +23,24 @@ from tdlib_oracle.tdlib.entities import (
     sort_entities,
 )
 from tdlib_oracle.tdlib.links import get_checked_link, get_link_user_id
-from tdlib_oracle.text.failure import Failure
-from tdlib_oracle.text.integers import to_integer, to_integer_safe
-from tdlib_oracle.text.utf8 import (
+from tdlib_oracle.tdutils.misc import (
+    hex_to_int,
+    is_alnum,
+    is_alpha,
+    is_digit,
+    is_hex_digit,
+    is_space,
+    to_integer,
+    to_integer_safe,
+)
+from tdlib_oracle.tdutils.utf8 import (
     append_utf8_character,
     check_utf8,
     is_utf8_character_first_code_unit,
 )
 
-# Ported from tdutils/td/utils/misc.h, is_space(), the characters it accepts.
-_SPACES = b" \t\r\n\x00\x0b"
+# The characters is_space() accepts, for the tests of a byte against them all at once.
+_SPACES = bytes(c for c in range(256) if is_space(c))
 
 # Ported from td/telegram/MessageEntity.cpp, the characters besides spaces that end an
 # attribute name in parse_html().
@@ -61,33 +70,6 @@ _TAG_NAMES = frozenset(
 )
 
 
-# Ported from tdutils/td/utils/misc.h, is_digit().
-def _is_digit(c: int) -> bool:
-    return 0x30 <= c <= 0x39  # '0' to '9'
-
-
-# Ported from tdutils/td/utils/misc.h, is_alpha().
-def _is_alpha(c: int) -> bool:
-    return 0x61 <= (c | 0x20) <= 0x7A  # 'a' to 'z', in either case
-
-
-# Ported from tdutils/td/utils/misc.h, is_alnum().
-def _is_alnum(c: int) -> bool:
-    return _is_alpha(c) or _is_digit(c)
-
-
-# Ported from tdutils/td/utils/misc.h, is_hex_digit().
-def _is_hex_digit(c: int) -> bool:
-    return _is_digit(c) or 0x61 <= (c | 0x20) <= 0x66  # 'a' to 'f', in either case
-
-
-# Ported from tdutils/td/utils/misc.h, hex_to_int(), for a hex digit.
-def _hex_to_int(c: int) -> int:
-    if _is_digit(c):
-        return c - 0x30
-    return (c | 0x20) - 0x61 + 10  # 'a' to 'f', in either case
-
-
 # Ported from td/telegram/MessageEntity.cpp, decode_html_entity().
 def _decode_html_entity(text: bytes, pos: int) -> tuple[int, int]:  # noqa: PLR0912  # mirrors upstream
     """Return the code point of the reference at `pos` of `text`, and where it ends.
@@ -103,17 +85,17 @@ def _decode_html_entity(text: bytes, pos: int) -> tuple[int, int]:  # noqa: PLR0
         # wraps around.
         if text[pos + 2] in b"xX":
             end_pos += 1
-            while _is_hex_digit(text[end_pos]):
-                res = (res * 16 + _hex_to_int(text[end_pos])) & 0xFFFFFFFF
+            while is_hex_digit(text[end_pos]):
+                res = (res * 16 + hex_to_int(text[end_pos])) & 0xFFFFFFFF
                 end_pos += 1
         else:
-            while _is_digit(text[end_pos]):
+            while is_digit(text[end_pos]):
                 res = (res * 10 + text[end_pos] - 0x30) & 0xFFFFFFFF
                 end_pos += 1
         if res == 0 or res >= 0x10FFFF or end_pos - pos >= 10:
             return 0, pos
     else:
-        while _is_alpha(text[end_pos]):
+        while is_alpha(text[end_pos]):
             end_pos += 1
         match text[pos + 1 : end_pos]:
             case b"lt":
@@ -257,7 +239,7 @@ def parse_html(text: bytes) -> FormattedText | Failure:  # noqa: PLR0911, PLR091
                     # A name token, of letters, digits, periods, and hyphens, which is
                     # not case-sensitive.
                     token_begin_pos = i
-                    while _is_alnum(data[i]) or data[i] in b".-":
+                    while is_alnum(data[i]) or data[i] in b".-":
                         i += 1
                     attribute_value = data[token_begin_pos:i].lower()
 

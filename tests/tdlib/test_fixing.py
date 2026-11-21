@@ -2,13 +2,13 @@ from dataclasses import replace
 
 import pytest
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.entities import TYPE, FormattedText, MessageEntity
 from tdlib_oracle.tdlib.fixing import (
     find_entities,
     fix_formatted_text,
     get_formatted_text,
 )
-from tdlib_oracle.text.failure import Failure
 
 _NON_EMPTY = Failure(400, "Text must be non-empty")
 

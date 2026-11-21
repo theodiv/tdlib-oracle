@@ -1,8 +1,21 @@
 from collections.abc import Callable
+from pathlib import Path
 
 import pytest
 
-from tdlib_oracle.text.integers import to_integer, to_integer_safe
+from tdlib_oracle.tdutils.misc import (
+    hex_to_int,
+    is_alnum,
+    is_alpha,
+    is_digit,
+    is_hex_digit,
+    is_space,
+    to_integer,
+    to_integer_safe,
+    to_lower,
+    trim,
+)
+from tests.support.harness import run
 from tests.support.texts import draw_texts
 
 pytestmark = pytest.mark.differential
@@ -142,3 +155,60 @@ def test_to_integer_safe_gives_the_pinned_result_at_the_edges(
         seed=None,
         by_bytes=True,
     )
+
+
+def _flag(value: bool) -> bytes:
+    return b"1" if value else b"0"
+
+
+# Each function of a byte compared, by the name the harness gives it, with the field the
+# port answers it with.
+_CODE_UNIT_FUNCTIONS: tuple[tuple[str, Callable[[int], bytes]], ...] = (
+    ("is_space", lambda c: _flag(is_space(c))),
+    ("is_alpha", lambda c: _flag(is_alpha(c))),
+    ("is_digit", lambda c: _flag(is_digit(c))),
+    ("is_alnum", lambda c: _flag(is_alnum(c))),
+    ("is_hex_digit", lambda c: _flag(is_hex_digit(c))),
+    ("hex_to_int", lambda c: str(hex_to_int(c)).encode()),
+    ("to_lower", lambda c: bytes([to_lower(c)])),
+)
+
+# The bytes trimming tells apart: each space tdutils trims; a form feed, a no-break
+# space, and an em space, which it keeps; and other characters and bytes.
+_TRIM_UNITS = (
+    *(bytes([c]) for c in b" \t\r\n\x00\x0b\x0c"),
+    b"a",
+    "\U000000a0".encode(),
+    "\U00002003".encode(),
+    b"\xff",
+)
+
+# An empty text, spaces alone, and spaces around a text at both ends.
+_TRIM_EDGES = (b"", b" \t\r\n\x00\x0b", b" \x00a b\x0b\n")
+
+
+@pytest.mark.parametrize(
+    ("function", "port"), _CODE_UNIT_FUNCTIONS, ids=[f for f, _ in _CODE_UNIT_FUNCTIONS]
+)
+def test_byte_functions_give_the_pinned_result_for_each_byte(
+    harness: Path, function: str, port: Callable[[int], bytes]
+) -> None:
+    pinned = run(harness, function, [[bytes([c])] for c in range(256)], timeout=60)
+    assert pinned == [(port(c),) for c in range(256)]
+
+
+def _trim(text: bytes, args: tuple[int, ...]) -> tuple[bytes, ...]:
+    return (trim(text),)
+
+
+def test_trim_gives_the_pinned_result(
+    compare: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        cases = [(text, ()) for text in draw_texts(seed, count, _TRIM_UNITS)]
+        compare("trim", _trim, cases, seed=seed, by_bytes=True)
+
+
+def test_trim_gives_the_pinned_result_at_the_edges(compare: Compare) -> None:
+    cases = [(tuple(bytes([c]) for c in text), ()) for text in _TRIM_EDGES]
+    compare("trim", _trim, cases, seed=None, by_bytes=True)

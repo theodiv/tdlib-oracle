@@ -30,9 +30,10 @@ jobs:
             ci
           scopes: |
             api
-            text
+            runtime
             botapi
             tdlib
+            tdutils
             cli
             build
           requireScope: false

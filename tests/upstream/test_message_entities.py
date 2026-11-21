@@ -9,6 +9,7 @@ import random
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.entities import TYPE, FormattedText, MessageEntity
 from tdlib_oracle.tdlib.finding import (
     Span,
@@ -24,8 +25,7 @@ from tdlib_oracle.tdlib.finding import (
 )
 from tdlib_oracle.tdlib.fixing import fix_formatted_text
 from tdlib_oracle.tdlib.parsing import parse_html
-from tdlib_oracle.text.failure import Failure
-from tdlib_oracle.text.utf8 import utf8_utf16_length
+from tdlib_oracle.tdutils.utf8 import utf8_utf16_length
 
 
 def _matches(text: bytes, find: Callable[[bytes], tuple[Span, ...]]) -> list[bytes]:

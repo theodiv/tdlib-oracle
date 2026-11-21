@@ -1,5 +1,5 @@
 from tdlib_oracle.botapi.checks import get_input_message_text
-from tdlib_oracle.text.failure import Failure
+from tdlib_oracle.runtime.failure import Failure
 
 
 def test_refuses_an_empty_text() -> None:

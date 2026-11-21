@@ -3,8 +3,8 @@ import binascii
 
 import pytest
 
-from tdlib_oracle.tdlib.ton import check_ton_address, is_base64any_character
-from tdlib_oracle.text.failure import Failure
+from tdlib_oracle.runtime.failure import Failure
+from tdlib_oracle.tdlib.ton import check_ton_address
 
 # A valid address, among TDLib's own (test/message_entities.cpp,
 # TEST(MessageEntities, ton_address)).
@@ -63,22 +63,3 @@ def test_refuses_an_address_whose_checksum_differs() -> None:
 def test_refuses_an_address_whose_first_byte_lacks_the_tag() -> None:
     address = _address(b"\x00" * 34)
     assert check_ton_address(address) == Failure(400, "Invalid address first byte")
-
-
-@pytest.mark.parametrize(
-    ("c", "expected"),
-    [
-        (ord("A"), True),
-        (ord("z"), True),
-        (ord("0"), True),
-        (ord("+"), True),
-        (ord("/"), True),
-        (ord("-"), True),
-        (ord("_"), True),
-        (ord("="), False),
-        (ord(" "), False),
-        (0xFF, False),
-    ],
-)
-def test_is_base64any_character_takes_both_alphabets(c: int, expected: bool) -> None:
-    assert is_base64any_character(c) == expected

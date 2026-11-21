@@ -2,7 +2,7 @@
 
 The pinned code refuses a request with an error `Status`: a code and a message. A
 message can quote its input, which no exception may carry, so a ported function returns
-a `Failure` where the C++ returns such a `Status`, and only the composition module turns
+a `Failure` where the C++ returns such a `Status`, and only `tdlib_oracle.server` turns
 one into a refusal.
 """
 

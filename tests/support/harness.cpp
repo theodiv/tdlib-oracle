@@ -17,10 +17,13 @@
 #include "td/telegram/TonWalletManager.h"
 #include "td/telegram/UserId.h"
 
+#include "td/utils/algorithm.h"
 #include "td/utils/base64.h"
+#include "td/utils/crypto.h"
 #include "td/utils/HttpUrl.h"
 #include "td/utils/logging.h"
 #include "td/utils/misc.h"
+#include "td/utils/Parser.h"
 #include "td/utils/port/IPAddress.h"
 #include "td/utils/Slice.h"
 #include "td/utils/SliceBuilder.h"
@@ -28,6 +31,7 @@
 #include "td/utils/unicode.h"
 #include "td/utils/utf8.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -153,6 +157,15 @@ void expect_fields(const Fields &request, std::size_t count) {
   }
 }
 
+// Reads a request of one field that holds one byte.
+char read_code_unit(const Fields &request) {
+  expect_fields(request, 1);
+  if (request[0].size() != 1) {
+    fail("a code unit field holds other than one byte");
+  }
+  return request[0][0];
+}
+
 // Reads the entities that fill a request from field `first` on, 8 fields each: the type,
 // offset, length, argument, user ID, custom emoji ID, date, and date flags.
 td::vector<td::MessageEntity> read_entities(const Fields &request, std::size_t first) {
@@ -202,6 +215,18 @@ Fields run_find(td::vector<td::Slice> (*find_f)(td::Slice), const Fields &reques
   return response;
 }
 
+// Answers a request for a base64 decoder: whether it decodes the text, the code and
+// message of its error if not, and the bytes it decodes if so.
+Fields run_base64_decode(td::Result<td::string> (*decode_f)(td::Slice), const Fields &request) {
+  expect_fields(request, 1);
+  auto r_decoded = decode_f(request[0]);
+  if (r_decoded.is_error()) {
+    return {from_flag(false), std::to_string(r_decoded.error().code()), r_decoded.error().message().str(),
+            std::string()};
+  }
+  return {from_flag(true), "0", std::string(), r_decoded.move_as_ok()};
+}
+
 // Answers a request for to_integer<T>(): the number it reads from the text.
 template <class T>
 Fields run_to_integer(const Fields &request) {
@@ -235,11 +260,7 @@ Fields run(const std::string &function, const Fields &request) {
     return {td::utf8_truncate(td::Slice(request[0]), to_size(request[1])).str()};
   }
   if (function == "is_utf8_character_first_code_unit") {
-    expect_fields(request, 1);
-    if (request[0].size() != 1) {
-      fail("a code unit field holds other than one byte");
-    }
-    auto c = static_cast<unsigned char>(request[0][0]);
+    auto c = static_cast<unsigned char>(read_code_unit(request));
     return {from_flag(td::is_utf8_character_first_code_unit(c))};
   }
   if (function == "utf8_utf16_length") {
@@ -359,12 +380,71 @@ Fields run(const std::string &function, const Fields &request) {
   if (function == "to_integer_safe<int64>") {
     return run_to_integer_safe<td::int64>(request);
   }
-  if (function == "is_base64any_character") {
+  if (function == "is_space") {
+    return {from_flag(td::is_space(read_code_unit(request)))};
+  }
+  if (function == "is_alpha") {
+    return {from_flag(td::is_alpha(read_code_unit(request)))};
+  }
+  if (function == "is_digit") {
+    return {from_flag(td::is_digit(read_code_unit(request)))};
+  }
+  if (function == "is_alnum") {
+    return {from_flag(td::is_alnum(read_code_unit(request)))};
+  }
+  if (function == "is_hex_digit") {
+    return {from_flag(td::is_hex_digit(read_code_unit(request)))};
+  }
+  if (function == "hex_to_int") {
+    return {std::to_string(td::hex_to_int(read_code_unit(request)))};
+  }
+  if (function == "to_lower") {
+    return {std::string(1, td::to_lower(read_code_unit(request)))};
+  }
+  if (function == "trim") {
     expect_fields(request, 1);
-    if (request[0].size() != 1) {
-      fail("a code unit field holds other than one byte");
+    return {td::trim(td::Slice(request[0])).str()};
+  }
+  if (function == "read_till_nofail") {
+    expect_fields(request, 3);
+    // The characters that parse_url() reads till (tdutils/td/utils/HttpUrl.cpp,
+    // parse_url()), by the index the request gives.
+    static const char *const CHARACTER_SETS[] = {":/?#@[]", "/?#"};
+    auto character_set = to_size(request[1]);
+    if (character_set >= 2) {
+      fail("a character set field names no set");
     }
-    return {from_flag(td::is_base64any_character(request[0][0]))};
+    td::Slice text = request[0];
+    // A position past the end stands for the end, so a request stays valid as its
+    // text shrinks.
+    auto pos = std::min(to_size(request[2]), text.size());
+    td::ConstParser parser(text.substr(pos));
+    auto slice = parser.read_till_nofail(td::Slice(CHARACTER_SETS[character_set]));
+    return {std::to_string(slice.begin() - text.begin()), std::to_string(slice.end() - text.begin())};
+  }
+  if (function == "base64_decode") {
+    return run_base64_decode(td::base64_decode, request);
+  }
+  if (function == "base64url_decode") {
+    return run_base64_decode(td::base64url_decode, request);
+  }
+  if (function == "is_base64any_character") {
+    return {from_flag(td::is_base64any_character(read_code_unit(request)))};
+  }
+  if (function == "crc16") {
+    expect_fields(request, 1);
+    return {std::to_string(td::crc16(request[0]))};
+  }
+  if (function == "combine") {
+    expect_fields(request, 1);
+    // The text holds the elements of the destination, a '|', then those of the source,
+    // one byte each; without a '|', the source is empty.
+    const auto &text = request[0];
+    auto separator = std::min(text.find('|'), text.size());
+    std::vector<char> destination(text.begin(), text.begin() + separator);
+    std::vector<char> source(text.begin() + std::min(separator + 1, text.size()), text.end());
+    td::combine(destination, std::move(source));
+    return {std::string(destination.begin(), destination.end())};
   }
   if (function == "check_ton_address") {
     expect_fields(request, 1);

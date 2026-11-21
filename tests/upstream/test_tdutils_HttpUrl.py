@@ -5,8 +5,8 @@
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
 
-from tdlib_oracle.tdlib.links import HttpUrl, parse_url
-from tdlib_oracle.text.failure import Failure
+from tdlib_oracle.runtime.failure import Failure
+from tdlib_oracle.tdutils.http_url import HttpUrl, parse_url
 
 # Ported from tdutils/test/HttpUrl.cpp, the queries that each test_parse_url() appends.
 _QUERIES = (b"", b"/.com", b"#", b"?t=1")
