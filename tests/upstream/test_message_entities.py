@@ -9,10 +9,12 @@ import random
 from collections.abc import Callable, Sequence
 from dataclasses import replace
 
+from tdlib_oracle.runtime.cstring import Span
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib.entities import TYPE, FormattedText, MessageEntity
-from tdlib_oracle.tdlib.finding import (
-    Span,
+from tdlib_oracle.tdlib.message_entity import (
+    TYPE,
+    FormattedText,
+    MessageEntity,
     find_bank_card_numbers,
     find_bot_commands,
     find_cashtags,
@@ -21,10 +23,10 @@ from tdlib_oracle.tdlib.finding import (
     find_tg_urls,
     find_ton_addresses,
     find_urls,
+    fix_formatted_text,
     is_email_address,
+    parse_html,
 )
-from tdlib_oracle.tdlib.fixing import fix_formatted_text
-from tdlib_oracle.tdlib.parsing import parse_html
 from tdlib_oracle.tdutils.utf8 import utf8_utf16_length
 
 

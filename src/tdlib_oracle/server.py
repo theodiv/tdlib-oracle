@@ -7,10 +7,9 @@ defined here too.
 
 from dataclasses import dataclass
 
-from tdlib_oracle.botapi.checks import get_input_message_text
-from tdlib_oracle.botapi.descriptions import get_error_description
+from tdlib_oracle.botapi.client import get_error_description, get_input_message_text
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib.content import get_input_message_content
+from tdlib_oracle.tdlib.message_content import get_input_message_content
 
 
 @dataclass(frozen=True)

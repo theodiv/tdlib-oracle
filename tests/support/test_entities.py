@@ -1,7 +1,7 @@
 import random
 from itertools import combinations
 
-from tdlib_oracle.tdlib.entities import TYPE, MessageEntity
+from tdlib_oracle.tdlib.message_entity import TYPE, MessageEntity
 from tests.support.entities import draw_entities
 
 
