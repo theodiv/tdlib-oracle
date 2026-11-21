@@ -238,6 +238,19 @@ def _is_pre_entity(entity_type: int) -> bool:
     return (_get_entity_type_mask(entity_type) & _PRE_ENTITIES_MASK) != 0
 
 
+# Ported from td/telegram/MessageEntity.cpp, SPLITTABLE_ENTITY_TYPE_COUNT.
+_SPLITTABLE_ENTITY_TYPE_COUNT = 5
+
+
+# Ported from td/telegram/MessageEntity.cpp, get_splittable_entity_type_index().
+def _get_splittable_entity_type_index(entity_type: int) -> int:
+    if entity_type <= TYPE.BOLD + 1:  # Bold or Italic
+        return entity_type - TYPE.BOLD
+    if entity_type <= TYPE.UNDERLINE + 1:  # Underline or Strikethrough
+        return entity_type - TYPE.UNDERLINE + 2
+    return 4  # Spoiler
+
+
 # Ported from td/telegram/MessageEntity.cpp, remove_intersecting_entities().
 def _remove_intersecting_entities(
     entities: Iterable[MessageEntity],
@@ -253,3 +266,95 @@ def _remove_intersecting_entities(
             last_entity_end = entity.offset + entity.length
             kept.append(entity)
     return kept
+
+
+# Ported from td/telegram/MessageEntity.cpp, flush_entities in split_entities(), the
+# types it walks, in its order.
+_SPLITTABLE_TYPES = (
+    TYPE.BOLD,
+    TYPE.ITALIC,
+    TYPE.UNDERLINE,
+    TYPE.STRIKETHROUGH,
+    TYPE.SPOILER,
+)
+
+# Ported from td/telegram/MessageEntity.cpp, split_entities(), the offset it flushes at
+# last, std::numeric_limits<int32>::max().
+_INT32_MAX = (1 << 31) - 1
+
+
+# Ported from td/telegram/MessageEntity.cpp, split_entities().
+def _split_entities(
+    entities: Sequence[MessageEntity], other_entities: Sequence[MessageEntity]
+) -> tuple[MessageEntity, ...]:
+    """Return the splittable `entities` merged where they meet, split by the others.
+
+    Both lists must be sorted. Entities of one type that overlap or touch become one,
+    each entity is cut where an entity of `other_entities` starts or ends, and the parts
+    inside a pre entity are dropped.
+    """
+    begin_pos = [0] * _SPLITTABLE_ENTITY_TYPE_COUNT
+    end_pos = [0] * _SPLITTABLE_ENTITY_TYPE_COUNT
+    it = 0
+    result: list[MessageEntity] = []
+
+    def flush_entities(offset: int) -> None:
+        for entity_type in _SPLITTABLE_TYPES:
+            index = _get_splittable_entity_type_index(entity_type)
+            if end_pos[index] != 0 and begin_pos[index] < offset:
+                if end_pos[index] <= offset:
+                    result.append(
+                        MessageEntity(
+                            entity_type,
+                            begin_pos[index],
+                            end_pos[index] - begin_pos[index],
+                        )
+                    )
+                    begin_pos[index] = 0
+                    end_pos[index] = 0
+                else:
+                    result.append(
+                        MessageEntity(
+                            entity_type, begin_pos[index], offset - begin_pos[index]
+                        )
+                    )
+                    begin_pos[index] = offset
+
+    def add_entities(end_offset: int) -> None:
+        nonlocal it
+        while it < len(entities):
+            entity = entities[it]
+            if entity.offset >= end_offset:
+                break
+            index = _get_splittable_entity_type_index(entity.type)
+            if entity.offset <= end_pos[index] and end_pos[index] != 0:
+                end_pos[index] = max(end_pos[index], entity.offset + entity.length)
+            else:
+                flush_entities(entity.offset)
+                begin_pos[index] = entity.offset
+                end_pos[index] = entity.offset + entity.length
+            it += 1
+        flush_entities(end_offset)
+
+    nested_entities_stack: list[MessageEntity] = []
+
+    def add_offset(offset: int) -> None:
+        while nested_entities_stack and offset >= (
+            nested_entities_stack[-1].offset + nested_entities_stack[-1].length
+        ):
+            old_size = len(result)
+            add_entities(
+                nested_entities_stack[-1].offset + nested_entities_stack[-1].length
+            )
+            if _is_pre_entity(nested_entities_stack[-1].type):
+                del result[old_size:]
+            nested_entities_stack.pop()
+        add_entities(offset)
+
+    for other_entity in other_entities:
+        add_offset(other_entity.offset)
+        nested_entities_stack.append(other_entity)
+    add_offset(_INT32_MAX)
+
+    # The entities are sorted only by offset now.
+    return _sort_entities(result)
