@@ -4,7 +4,14 @@ This module holds what `td/telegram/MessageEntity.h` declares, so code outside t
 package imports those names from here, whichever module of the package defines them.
 """
 
-from tdlib_oracle.tdlib.message_entity.conversion import get_formatted_text
+from tdlib_oracle.tdlib.message_entity.conversion import (
+    get_formatted_text,
+    get_input_message_entities,
+    get_message_entities,
+    get_text_entities_object,
+    get_text_entity_object,
+    get_text_entity_type_object,
+)
 from tdlib_oracle.tdlib.message_entity.entity import (
     TYPE,
     FormattedText,
@@ -46,6 +53,11 @@ __all__ = [
     "fix_entities",
     "fix_formatted_text",
     "get_formatted_text",
+    "get_input_message_entities",
+    "get_message_entities",
+    "get_text_entities_object",
+    "get_text_entity_object",
+    "get_text_entity_type_object",
     "is_email_address",
     "order",
     "parse_html",

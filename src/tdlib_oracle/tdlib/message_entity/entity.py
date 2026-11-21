@@ -11,8 +11,9 @@ compare equal to the C++ library, so a server built with another library can kee
 another entity of such a tie. The port sorts as `sorted()` does and records on its
 entities each tie between entities that differ.
 
-Finding, fixing, and parsing all sort entities, and finding and fixing also test the
-classes of their types and drop entities that intersect, so those operations live here.
+Finding, fixing, and parsing sort entities, finding and fixing drop entities that
+intersect, and fixing and conversion test the classes of entity types and split the
+splittable entities, so those operations live here.
 """
 
 from collections.abc import Iterable, Sequence
@@ -217,6 +218,16 @@ _PRE_ENTITIES_MASK = (
     | _get_entity_type_mask(TYPE.FORMATTED_DATE)
 )
 
+# Ported from td/telegram/MessageEntity.cpp, get_user_entities_mask().
+_USER_ENTITIES_MASK = (
+    _SPLITTABLE_ENTITIES_MASK
+    | _BLOCKQUOTE_ENTITIES_MASK
+    | _get_entity_type_mask(TYPE.TEXT_URL)
+    | _get_entity_type_mask(TYPE.MENTION_NAME)
+    | _get_entity_type_mask(TYPE.CUSTOM_EMOJI)
+    | _PRE_ENTITIES_MASK
+)
+
 
 # Ported from td/telegram/MessageEntity.cpp, is_splittable_entity().
 def _is_splittable_entity(entity_type: int) -> bool:
@@ -236,6 +247,11 @@ def _is_continuous_entity(entity_type: int) -> bool:
 # Ported from td/telegram/MessageEntity.cpp, is_pre_entity().
 def _is_pre_entity(entity_type: int) -> bool:
     return (_get_entity_type_mask(entity_type) & _PRE_ENTITIES_MASK) != 0
+
+
+# Ported from td/telegram/MessageEntity.cpp, is_user_entity().
+def _is_user_entity(entity_type: int) -> bool:
+    return (_get_entity_type_mask(entity_type) & _USER_ENTITIES_MASK) != 0
 
 
 # Ported from td/telegram/MessageEntity.cpp, SPLITTABLE_ENTITY_TYPE_COUNT.

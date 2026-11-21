@@ -9,8 +9,12 @@
 #include "td/telegram/LinkManager.h"
 #include "td/telegram/MessageEntity.h"
 #include "td/telegram/misc.h"
+#include "td/telegram/SynchronousRequests.h"
+#include "td/telegram/td_api.h"
+#include "td/telegram/telegram_api.h"
 #include "td/telegram/TonWalletManager.h"
 #include "td/telegram/UserId.h"
+#include "td/telegram/UserManager.h"
 
 #include "td/utils/algorithm.h"
 #include "td/utils/base64.h"
@@ -34,6 +38,18 @@
 #include <limits>
 #include <string>
 #include <vector>
+
+namespace td {
+
+// A bot names a user it has not met by the user's ID alone
+// (td/telegram/UserManager.cpp, UserManager::get_input_user()).
+// get_input_message_entities() calls nothing else of a user manager, so this function
+// alone of UserManager.cpp is defined here.
+telegram_api::object_ptr<telegram_api::InputUser> UserManager::get_input_user_force(UserId user_id) const {
+  return telegram_api::make_object<telegram_api::inputUser>(user_id.get(), 0);
+}
+
+}  // namespace td
 
 namespace {
 
@@ -191,6 +207,349 @@ void write_entities(Fields &response, const td::vector<td::MessageEntity> &entit
     response.push_back(std::to_string(entity.user_id.get()));
     response.push_back(std::to_string(entity.custom_emoji_id.get()));
     response.push_back(PSTRING() << entity.date);
+  }
+}
+
+// The user manager get_input_message_entities() is given: get_input_user_force(), the
+// one function it calls, reads no member, so storage of the class's size stands in for
+// an object never built.
+alignas(td::UserManager) unsigned char user_manager_storage[sizeof(td::UserManager)];
+
+const td::UserManager *bot_user_manager() {
+  return reinterpret_cast<const td::UserManager *>(user_manager_storage);
+}
+
+// Reads a precision of a date or a time from its name, "" standing for none at all.
+td::td_api::object_ptr<td::td_api::DateTimePartPrecision> read_precision(const std::string &field) {
+  if (field.empty()) {
+    return nullptr;
+  }
+  if (field == "none") {
+    return td::td_api::make_object<td::td_api::dateTimePartPrecisionNone>();
+  }
+  if (field == "short") {
+    return td::td_api::make_object<td::td_api::dateTimePartPrecisionShort>();
+  }
+  if (field == "long") {
+    return td::td_api::make_object<td::td_api::dateTimePartPrecisionLong>();
+  }
+  fail("a precision field names no precision");
+}
+
+std::string write_precision(const td::td_api::DateTimePartPrecision *precision) {
+  if (precision == nullptr) {
+    return std::string();
+  }
+  switch (precision->get_id()) {
+    case td::td_api::dateTimePartPrecisionNone::ID:
+      return "none";
+    case td::td_api::dateTimePartPrecisionShort::ID:
+      return "short";
+    case td::td_api::dateTimePartPrecisionLong::ID:
+      return "long";
+    default:
+      fail("a precision has no name");
+  }
+}
+
+// Reads a date format from the 4 fields from `first` on: the formatting type,
+// "relative", "absolute", or "" for none; the precisions of the time and of the date;
+// and whether the day of the week shows.
+td::td_api::object_ptr<td::td_api::DateTimeFormattingType> read_formatting_type(const Fields &request,
+                                                                                 std::size_t first) {
+  const auto &kind = request[first];
+  if (kind.empty()) {
+    return nullptr;
+  }
+  if (kind == "relative") {
+    return td::td_api::make_object<td::td_api::dateTimeFormattingTypeRelative>();
+  }
+  if (kind == "absolute") {
+    return td::td_api::make_object<td::td_api::dateTimeFormattingTypeAbsolute>(
+        read_precision(request[first + 1]), read_precision(request[first + 2]), to_flag(request[first + 3]));
+  }
+  fail("a formatting type field names no type");
+}
+
+void write_formatting_type(Fields &response, const td::td_api::DateTimeFormattingType *type) {
+  if (type == nullptr) {
+    response.insert(response.end(), {std::string(), std::string(), std::string(), from_flag(false)});
+    return;
+  }
+  if (type->get_id() == td::td_api::dateTimeFormattingTypeRelative::ID) {
+    response.insert(response.end(), {"relative", std::string(), std::string(), from_flag(false)});
+    return;
+  }
+  auto absolute = static_cast<const td::td_api::dateTimeFormattingTypeAbsolute *>(type);
+  response.insert(response.end(), {"absolute", write_precision(absolute->time_precision_.get()),
+                                   write_precision(absolute->date_precision_.get()),
+                                   from_flag(absolute->show_day_of_week_)});
+}
+
+// Reads the API objects of the entities that fill a request from field `first` on, 9
+// fields each: the constructor of the type, "null" for a null type, or "" for a null
+// entity; the offset and length; the language or link; the user ID, custom emoji ID,
+// media timestamp, or Unix time; and the date format, as read_formatting_type() reads
+// it.
+td::vector<td::td_api::object_ptr<td::td_api::textEntity>> read_text_entities(const Fields &request,
+                                                                              std::size_t first) {
+  if (request.size() < first || (request.size() - first) % 9 != 0) {
+    fail("a request holds the wrong number of fields");
+  }
+  td::vector<td::td_api::object_ptr<td::td_api::textEntity>> entities;
+  for (auto i = first; i < request.size(); i += 9) {
+    const auto &name = request[i];
+    if (name.empty()) {
+      entities.push_back(nullptr);
+      continue;
+    }
+    const auto &text = request[i + 3];
+    const auto &number = request[i + 4];
+    td::td_api::object_ptr<td::td_api::TextEntityType> type;
+    if (name == "null") {
+    } else if (name == "textEntityTypeMention") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeMention>();
+    } else if (name == "textEntityTypeHashtag") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeHashtag>();
+    } else if (name == "textEntityTypeCashtag") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeCashtag>();
+    } else if (name == "textEntityTypeBotCommand") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeBotCommand>();
+    } else if (name == "textEntityTypeUrl") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeUrl>();
+    } else if (name == "textEntityTypeEmailAddress") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeEmailAddress>();
+    } else if (name == "textEntityTypePhoneNumber") {
+      type = td::td_api::make_object<td::td_api::textEntityTypePhoneNumber>();
+    } else if (name == "textEntityTypeBankCardNumber") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeBankCardNumber>();
+    } else if (name == "textEntityTypeTonAddress") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeTonAddress>();
+    } else if (name == "textEntityTypeBold") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeBold>();
+    } else if (name == "textEntityTypeItalic") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeItalic>();
+    } else if (name == "textEntityTypeUnderline") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeUnderline>();
+    } else if (name == "textEntityTypeStrikethrough") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeStrikethrough>();
+    } else if (name == "textEntityTypeSpoiler") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeSpoiler>();
+    } else if (name == "textEntityTypeCode") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeCode>();
+    } else if (name == "textEntityTypePre") {
+      type = td::td_api::make_object<td::td_api::textEntityTypePre>();
+    } else if (name == "textEntityTypePreCode") {
+      type = td::td_api::make_object<td::td_api::textEntityTypePreCode>(text);
+    } else if (name == "textEntityTypeBlockQuote") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeBlockQuote>();
+    } else if (name == "textEntityTypeExpandableBlockQuote") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeExpandableBlockQuote>();
+    } else if (name == "textEntityTypeTextUrl") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeTextUrl>(text);
+    } else if (name == "textEntityTypeMentionName") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeMentionName>(to_int64(number));
+    } else if (name == "textEntityTypeCustomEmoji") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeCustomEmoji>(to_int64(number));
+    } else if (name == "textEntityTypeMediaTimestamp") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeMediaTimestamp>(to_int32(number));
+    } else if (name == "textEntityTypeDateTime") {
+      type = td::td_api::make_object<td::td_api::textEntityTypeDateTime>(to_int32(number),
+                                                                         read_formatting_type(request, i + 5));
+    } else {
+      fail("an entity type field names no type");
+    }
+    auto offset = to_int32(request[i + 1]);
+    auto length = to_int32(request[i + 2]);
+    entities.push_back(td::td_api::make_object<td::td_api::textEntity>(offset, length, std::move(type)));
+  }
+  return entities;
+}
+
+// Writes the API object of each entity as 9 fields, as read_text_entities() reads them.
+void write_text_entities(Fields &response, const td::vector<td::td_api::object_ptr<td::td_api::textEntity>> &entities) {
+  for (auto &entity : entities) {
+    if (entity == nullptr || entity->type_ == nullptr) {
+      fail("an entity to write is null or has a null type");
+    }
+    std::string name;
+    std::string text;
+    td::int64 number = 0;
+    const td::td_api::DateTimeFormattingType *formatting_type = nullptr;
+    auto *type = entity->type_.get();
+    switch (type->get_id()) {
+      case td::td_api::textEntityTypeMention::ID:
+        name = "textEntityTypeMention";
+        break;
+      case td::td_api::textEntityTypeHashtag::ID:
+        name = "textEntityTypeHashtag";
+        break;
+      case td::td_api::textEntityTypeCashtag::ID:
+        name = "textEntityTypeCashtag";
+        break;
+      case td::td_api::textEntityTypeBotCommand::ID:
+        name = "textEntityTypeBotCommand";
+        break;
+      case td::td_api::textEntityTypeUrl::ID:
+        name = "textEntityTypeUrl";
+        break;
+      case td::td_api::textEntityTypeEmailAddress::ID:
+        name = "textEntityTypeEmailAddress";
+        break;
+      case td::td_api::textEntityTypePhoneNumber::ID:
+        name = "textEntityTypePhoneNumber";
+        break;
+      case td::td_api::textEntityTypeBankCardNumber::ID:
+        name = "textEntityTypeBankCardNumber";
+        break;
+      case td::td_api::textEntityTypeTonAddress::ID:
+        name = "textEntityTypeTonAddress";
+        break;
+      case td::td_api::textEntityTypeBold::ID:
+        name = "textEntityTypeBold";
+        break;
+      case td::td_api::textEntityTypeItalic::ID:
+        name = "textEntityTypeItalic";
+        break;
+      case td::td_api::textEntityTypeUnderline::ID:
+        name = "textEntityTypeUnderline";
+        break;
+      case td::td_api::textEntityTypeStrikethrough::ID:
+        name = "textEntityTypeStrikethrough";
+        break;
+      case td::td_api::textEntityTypeSpoiler::ID:
+        name = "textEntityTypeSpoiler";
+        break;
+      case td::td_api::textEntityTypeCode::ID:
+        name = "textEntityTypeCode";
+        break;
+      case td::td_api::textEntityTypePre::ID:
+        name = "textEntityTypePre";
+        break;
+      case td::td_api::textEntityTypePreCode::ID:
+        name = "textEntityTypePreCode";
+        text = static_cast<const td::td_api::textEntityTypePreCode *>(type)->language_;
+        break;
+      case td::td_api::textEntityTypeBlockQuote::ID:
+        name = "textEntityTypeBlockQuote";
+        break;
+      case td::td_api::textEntityTypeExpandableBlockQuote::ID:
+        name = "textEntityTypeExpandableBlockQuote";
+        break;
+      case td::td_api::textEntityTypeTextUrl::ID:
+        name = "textEntityTypeTextUrl";
+        text = static_cast<const td::td_api::textEntityTypeTextUrl *>(type)->url_;
+        break;
+      case td::td_api::textEntityTypeMentionName::ID:
+        name = "textEntityTypeMentionName";
+        number = static_cast<const td::td_api::textEntityTypeMentionName *>(type)->user_id_;
+        break;
+      case td::td_api::textEntityTypeCustomEmoji::ID:
+        name = "textEntityTypeCustomEmoji";
+        number = static_cast<const td::td_api::textEntityTypeCustomEmoji *>(type)->custom_emoji_id_;
+        break;
+      case td::td_api::textEntityTypeMediaTimestamp::ID:
+        name = "textEntityTypeMediaTimestamp";
+        number = static_cast<const td::td_api::textEntityTypeMediaTimestamp *>(type)->media_timestamp_;
+        break;
+      case td::td_api::textEntityTypeDateTime::ID: {
+        auto date_time = static_cast<const td::td_api::textEntityTypeDateTime *>(type);
+        name = "textEntityTypeDateTime";
+        number = date_time->unix_time_;
+        formatting_type = date_time->formatting_type_.get();
+        break;
+      }
+      default:
+        fail("an entity type has no name");
+    }
+    response.insert(response.end(), {name, std::to_string(entity->offset_), std::to_string(entity->length_), text,
+                                     std::to_string(number)});
+    write_formatting_type(response, formatting_type);
+  }
+}
+
+// Writes each entity TDLib sends as 6 fields: its constructor, offset, and length; its
+// language or link; the user it mentions, the custom emoji it shows, or its date; and
+// whether a blockquote is collapsed, or the parts a date shows, as FormattedDate's
+// flags.
+void write_input_message_entities(
+    Fields &response, const td::vector<td::telegram_api::object_ptr<td::telegram_api::MessageEntity>> &entities) {
+  auto write = [&response](const char *name, td::int32 offset, td::int32 length, const std::string &text,
+                           td::int64 number, td::int32 flags) {
+    response.insert(response.end(), {name, std::to_string(offset), std::to_string(length), text, std::to_string(number),
+                                     std::to_string(flags)});
+  };
+  for (auto &entity : entities) {
+    switch (entity->get_id()) {
+      case td::telegram_api::messageEntityBold::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityBold *>(entity.get());
+        write("messageEntityBold", e->offset_, e->length_, std::string(), 0, 0);
+        break;
+      }
+      case td::telegram_api::messageEntityItalic::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityItalic *>(entity.get());
+        write("messageEntityItalic", e->offset_, e->length_, std::string(), 0, 0);
+        break;
+      }
+      case td::telegram_api::messageEntityUnderline::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityUnderline *>(entity.get());
+        write("messageEntityUnderline", e->offset_, e->length_, std::string(), 0, 0);
+        break;
+      }
+      case td::telegram_api::messageEntityStrike::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityStrike *>(entity.get());
+        write("messageEntityStrike", e->offset_, e->length_, std::string(), 0, 0);
+        break;
+      }
+      case td::telegram_api::messageEntitySpoiler::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntitySpoiler *>(entity.get());
+        write("messageEntitySpoiler", e->offset_, e->length_, std::string(), 0, 0);
+        break;
+      }
+      case td::telegram_api::messageEntityCode::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityCode *>(entity.get());
+        write("messageEntityCode", e->offset_, e->length_, std::string(), 0, 0);
+        break;
+      }
+      case td::telegram_api::messageEntityPre::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityPre *>(entity.get());
+        write("messageEntityPre", e->offset_, e->length_, e->language_, 0, 0);
+        break;
+      }
+      case td::telegram_api::messageEntityTextUrl::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityTextUrl *>(entity.get());
+        write("messageEntityTextUrl", e->offset_, e->length_, e->url_, 0, 0);
+        break;
+      }
+      case td::telegram_api::inputMessageEntityMentionName::ID: {
+        auto e = static_cast<const td::telegram_api::inputMessageEntityMentionName *>(entity.get());
+        if (e->user_id_ == nullptr || e->user_id_->get_id() != td::telegram_api::inputUser::ID) {
+          fail("a mention names its user other than by ID");
+        }
+        auto user_id = static_cast<const td::telegram_api::inputUser *>(e->user_id_.get())->user_id_;
+        write("inputMessageEntityMentionName", e->offset_, e->length_, std::string(), user_id, 0);
+        break;
+      }
+      case td::telegram_api::messageEntityCustomEmoji::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityCustomEmoji *>(entity.get());
+        write("messageEntityCustomEmoji", e->offset_, e->length_, std::string(), e->document_id_, 0);
+        break;
+      }
+      case td::telegram_api::messageEntityBlockquote::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityBlockquote *>(entity.get());
+        write("messageEntityBlockquote", e->offset_, e->length_, std::string(), 0, e->collapsed_ ? 1 : 0);
+        break;
+      }
+      case td::telegram_api::messageEntityFormattedDate::ID: {
+        auto e = static_cast<const td::telegram_api::messageEntityFormattedDate *>(entity.get());
+        td::int32 flags = (e->relative_ ? 1 : 0) | (e->short_time_ ? 2 : 0) | (e->long_time_ ? 4 : 0) |
+                          (e->short_date_ ? 8 : 0) | (e->long_date_ ? 16 : 0) | (e->day_of_week_ ? 32 : 0);
+        write("messageEntityFormattedDate", e->offset_, e->length_, std::string(), e->date_, flags);
+        break;
+      }
+      default:
+        fail("a sent entity has no name");
+    }
   }
 }
 
@@ -560,8 +919,99 @@ Fields run(const std::string &function, const Fields &request) {
     write_entities(response, r_entities.ok());
     return response;
   }
+  if (function == "get_text_entities_object") {
+    auto entities = read_entities(request, 1);
+    if (!request[0].empty()) {
+      fail("get_text_entities_object takes no text");
+    }
+    // As SynchronousRequests::do_request() calls it for parseTextEntities.
+    Fields response;
+    write_text_entities(response, td::get_text_entities_object(nullptr, entities, false, -1));
+    return response;
+  }
+  if (function == "get_message_entities") {
+    auto input_entities = read_text_entities(request, 1);
+    if (!request[0].empty()) {
+      fail("get_message_entities takes no text");
+    }
+    // Without a user manager, which a mention of a valid user passes as a bot's does.
+    auto r_entities = td::get_message_entities(nullptr, std::move(input_entities), false);
+    if (r_entities.is_error()) {
+      return {std::to_string(r_entities.error().code()), r_entities.error().message().str()};
+    }
+    Fields response{"0", std::string()};
+    write_entities(response, r_entities.ok());
+    return response;
+  }
+  if (function == "get_input_message_entities") {
+    auto entities = read_entities(request, 1);
+    if (!request[0].empty()) {
+      fail("get_input_message_entities takes no text");
+    }
+    Fields response;
+    write_input_message_entities(response, td::get_input_message_entities(bot_user_manager(), entities, "harness"));
+    return response;
+  }
+  if (function == "run_request") {
+    expect_fields(request, 2);
+    // A parseTextEntities request for the text, in the HTML parse mode or in none.
+    td::td_api::object_ptr<td::td_api::TextParseMode> parse_mode;
+    if (to_flag(request[1])) {
+      parse_mode = td::td_api::make_object<td::td_api::textParseModeHTML>();
+    }
+    auto result = td::SynchronousRequests::run_request(
+        td::td_api::make_object<td::td_api::parseTextEntities>(request[0], std::move(parse_mode)));
+    if (result->get_id() == td::td_api::error::ID) {
+      auto error = td::move_tl_object_as<td::td_api::error>(result);
+      return {std::to_string(error->code_), error->message_, std::string()};
+    }
+    auto text = td::move_tl_object_as<td::td_api::formattedText>(result);
+    Fields response{"0", std::string(), text->text_};
+    write_text_entities(response, text->entities_);
+    return response;
+  }
+  if (function == "get_formatted_date(td_api)") {
+    expect_fields(request, 6);
+    // The date, then the date format as read_formatting_type() reads it, by the index
+    // of each value: no type, "relative", or "absolute"; no precision, "none", "short",
+    // or "long"; and whether the day of the week shows.
+    static const char *const TYPES[] = {"", "relative", "absolute"};
+    static const char *const PRECISIONS[] = {"", "none", "short", "long"};
+    auto type = to_size(request[2]);
+    auto time_precision = to_size(request[3]);
+    auto date_precision = to_size(request[4]);
+    if (type >= 3 || time_precision >= 4 || date_precision >= 4) {
+      fail("a date format field names no value");
+    }
+    Fields format{TYPES[type], PRECISIONS[time_precision], PRECISIONS[date_precision], request[5]};
+    auto r_date = td::FormattedDate::get_formatted_date(to_int32(request[1]), read_formatting_type(format, 0));
+    if (r_date.is_error()) {
+      return {std::to_string(r_date.error().code()), r_date.error().message().str(), std::string()};
+    }
+    return {"0", std::string(), PSTRING() << r_date.ok()};
+  }
+  if (function == "get_date_time_formatting_type_object") {
+    expect_fields(request, 2);
+    // FormattedDate keeps its flags private, so its constructor for tests sets them.
+    td::FormattedDate date(1, to_int32(request[1]));
+    Fields response;
+    write_formatting_type(response, date.get_date_time_formatting_type_object().get());
+    return response;
+  }
   fail("no such function");
 }
+
+// run_request() logs each request and its answer at INFO, the level the Bot API server
+// logs at, which would add both to stderr for every request; warnings and errors still
+// reach it.
+class QuietLog final : public td::LogInterface {
+ public:
+  void do_append(int log_level, td::CSlice slice) final {
+    if (log_level <= VERBOSITY_NAME(WARNING)) {
+      td::default_log_interface->do_append(log_level, slice);
+    }
+  }
+};
 
 }  // namespace
 
@@ -572,6 +1022,8 @@ int main(int argc, char **argv) {
   // The Bot API server logs at INFO for its in-memory log, whatever its verbosity
   // option (telegram-bot-api/telegram-bot-api.cpp, main()).
   SET_VERBOSITY_LEVEL(VERBOSITY_NAME(INFO));
+  static QuietLog quiet_log;
+  td::log_interface = &quiet_log;
 
   std::string function = argv[1];
   Fields request;

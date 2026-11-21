@@ -26,15 +26,18 @@ if [ -n "$(git -C "$td" status --porcelain --untracked-files=no)" ]; then
 fi
 
 # The translation units the harness compiles: the code that the plain-text path,
-# entity fixing, entity finding, and the link checks run, and every tdutils
-# source that defines a symbol they reference, so no tdutils function they call
-# is ever a stub. Sources that need the OpenSSL headers stay out, except
-# crypto.cpp, which the harness compiles without OpenSSL for crc16().
+# entity fixing, entity finding, the link checks, the entity conversions, and
+# the parseTextEntities request run, and every tdutils source that defines a
+# symbol they reference, so no tdutils function they call is ever a stub.
+# Sources that need the OpenSSL headers stay out, except crypto.cpp and
+# Slice.cpp, which the harness compiles without OpenSSL for crc16()
+# and MutableSlice::fill().
 units=(
   td/telegram/FormattedDate.cpp
   td/telegram/LinkManager.cpp
   td/telegram/MessageEntity.cpp
   td/telegram/misc.cpp
+  td/telegram/SynchronousRequests.cpp
   td/telegram/TonWalletManager.cpp
   tdutils/td/utils/base64.cpp
   tdutils/td/utils/buffer.cpp
@@ -58,6 +61,7 @@ units=(
   tdutils/td/utils/port/Stat.cpp
   tdutils/td/utils/port/StdStreams.cpp
   tdutils/td/utils/port/thread_local.cpp
+  tdutils/td/utils/Slice.cpp
   tdutils/td/utils/StackAllocator.cpp
   tdutils/td/utils/Status.cpp
   tdutils/td/utils/StringBuilder.cpp
