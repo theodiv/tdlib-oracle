@@ -1,12 +1,13 @@
-# Ported from td/telegram/misc.cpp and tdutils/td/utils/misc.h of TDLib at the commit
-# in tdlib_oracle.TDLIB_COMMIT.
+# Ported from td/telegram/misc.cpp of TDLib at the commit in tdlib_oracle.TDLIB_COMMIT.
 #
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
 """TDLib's cleaning of input strings, and its test for a text of blank characters."""
 
-from tdlib_oracle.text.utf8 import (
+from tdlib_oracle.runtime.cstring import byte_at
+from tdlib_oracle.tdutils.misc import trim
+from tdlib_oracle.tdutils.utf8 import (
     check_utf8,
     is_utf8_character_first_code_unit,
     utf8_truncate,
@@ -14,9 +15,6 @@ from tdlib_oracle.text.utf8 import (
 
 # Ported from td/telegram/misc.cpp, LENGTH_LIMIT in clean_input_string().
 _LENGTH_LIMIT = 35000  # server-side limit
-
-# Ported from tdutils/td/utils/misc.h, is_space(), the characters it accepts.
-_SPACES = b" \t\r\n\x00\x0b"
 
 # Ported from td/telegram/misc.cpp, space_characters in strip_empty_characters(). Each
 # space character takes 3 bytes.
@@ -53,16 +51,6 @@ _CAN_BE_FIRST = frozenset(character[0] for character in _SPACE_CHARACTERS) | {0x
 _RTLO = chr(0x202E).encode()
 
 
-def _byte_at(text: bytes | bytearray, index: int) -> int:
-    """Return the byte at `index`, or `0` past the end like the C++ terminator."""
-    return text[index] if index < len(text) else 0
-
-
-# Ported from tdutils/td/utils/misc.h, trim().
-def _trim(text: bytes) -> bytes:
-    return text.strip(_SPACES)
-
-
 # Ported from td/telegram/misc.cpp, replace_offending_characters().
 def replace_offending_characters(text: bytes) -> bytes:
     """Return `text` with each U+200E or U+200F mark that another follows as U+200C.
@@ -74,13 +62,13 @@ def replace_offending_characters(text: bytes) -> bytes:
     while pos < len(result):
         if (
             result[pos] == 0xE2
-            and _byte_at(result, pos + 1) == 0x80
-            and _byte_at(result, pos + 2) in (0x8E, 0x8F)
+            and byte_at(result, pos + 1) == 0x80
+            and byte_at(result, pos + 2) in (0x8E, 0x8F)
         ):
             while (
-                _byte_at(result, pos + 3) == 0xE2
-                and _byte_at(result, pos + 4) == 0x80
-                and _byte_at(result, pos + 5) in (0x8E, 0x8F)
+                byte_at(result, pos + 3) == 0xE2
+                and byte_at(result, pos + 4) == 0x80
+                and byte_at(result, pos + 5) in (0x8E, 0x8F)
             ):
                 result[pos + 2] = 0x8C
                 pos += 3
@@ -170,26 +158,26 @@ def strip_empty_characters(  # noqa: PLR0912  # mirrors upstream
         replaced.append(c)
         i += 1
 
-    trimmed = _trim(utf8_truncate(_trim(bytes(replaced)), max_length))
+    trimmed = trim(utf8_truncate(trim(bytes(replaced)), max_length))
     i = 0
     while i < len(trimmed):
         c = trimmed[i]
         if c in (0x20, 0x0A):
             i += 1
             continue
-        if c == 0xE2 and _byte_at(trimmed, i + 1) == 0x80:
-            following = _byte_at(trimmed, i + 2)
+        if c == 0xE2 and byte_at(trimmed, i + 1) == 0x80:
+            following = byte_at(trimmed, i + 2)
             if 0x8B <= following <= 0x8F or following == 0xAE:
                 i += 3
                 continue
         if (
             c == 0xEF
-            and _byte_at(trimmed, i + 1) == 0xBB
-            and _byte_at(trimmed, i + 2) == 0xBF
+            and byte_at(trimmed, i + 1) == 0xBB
+            and byte_at(trimmed, i + 2) == 0xBF
         ):
             i += 3
             continue
-        if c == 0xC2 and _byte_at(trimmed, i + 1) == 0xA0:
+        if c == 0xC2 and byte_at(trimmed, i + 1) == 0xA0:
             i += 2
             continue
         return trimmed

@@ -114,8 +114,8 @@ Every PR lands as one squash merge, so its title becomes the commit subject on
 ```
 
 - Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`, `perf`, `ci`.
-- Scopes, optional: `api`, `text`, `botapi`, `tdlib`, `cli`, `build`. A CI
-  change takes the `ci` type with no scope.
+- Scopes, optional: `api`, `runtime`, `botapi`, `tdlib`, `tdutils`, `cli`,
+  `build`. A CI change takes the `ci` type with no scope.
 - The summary must be imperative and lowercase, with no trailing period.
 - A title must not exceed 68 characters, `<type>(<scope>)` and `!` included, so
   that GitHub's `(#N)` suffix still fits.

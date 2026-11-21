@@ -6,9 +6,9 @@
 # see LICENSES/BSL-1.0.txt.
 """TDLib's processing of an input message text, through its length check."""
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.fixing import get_formatted_text
-from tdlib_oracle.text.failure import Failure
-from tdlib_oracle.text.utf8 import utf8_length
+from tdlib_oracle.tdutils.utf8 import utf8_length
 
 # Ported from td/telegram/OptionManager.cpp, OptionManager::OptionManager(), its default
 # for the option message_text_length_max, which Telegram's configuration may raise.

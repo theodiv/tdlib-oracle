@@ -1,6 +1,5 @@
-# Ported from td/telegram/MessageEntity.cpp, td/telegram/CustomEmojiId.h,
-# td/telegram/FormattedDate.h, and tdutils/td/utils/algorithm.h of TDLib at the commit
-# in tdlib_oracle.TDLIB_COMMIT.
+# Ported from td/telegram/MessageEntity.cpp, td/telegram/CustomEmojiId.h, and
+# td/telegram/FormattedDate.h of TDLib at the commit in tdlib_oracle.TDLIB_COMMIT.
 #
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
@@ -14,6 +13,7 @@ the splits they make fall where TDLib's do.
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.cleaning import (
     clean_input_string,
     is_empty_string,
@@ -37,8 +37,8 @@ from tdlib_oracle.tdlib.finding import (
     find_ton_addresses,
     find_urls,
 )
-from tdlib_oracle.text.failure import Failure
-from tdlib_oracle.text.utf8 import (
+from tdlib_oracle.tdutils.algorithm import combine
+from tdlib_oracle.tdutils.utf8 import (
     check_utf8,
     is_utf8_character_first_code_unit,
     next_utf8_unsafe,
@@ -147,21 +147,6 @@ def _is_valid_custom_emoji_id(custom_emoji_id: int) -> bool:
 # Ported from td/telegram/FormattedDate.h, FormattedDate::is_valid().
 def _is_valid_date(date: int) -> bool:
     return date > 0
-
-
-# Ported from tdutils/td/utils/algorithm.h, combine(vector<T> &destination, vector<T>
-# &&source).
-def _combine(
-    destination: Sequence[MessageEntity], source: Sequence[MessageEntity]
-) -> list[MessageEntity]:
-    """Return both lists as one: the longer first, or `destination` when as long.
-
-    TDLib swaps the lists before it appends when `destination` is the shorter, and that
-    decides the order a sort starts from.
-    """
-    if len(destination) < len(source):
-        return [*source, *destination]
-    return [*destination, *source]
 
 
 # Ported from td/telegram/MessageEntity.cpp, remove_empty_entities(), the lambda that
@@ -482,7 +467,7 @@ def _resplit_entities(
         split = _split_entities(splittable_entities, entities)
         if not entities:
             return split
-        return sort_entities(_combine(entities, split))
+        return sort_entities(combine(entities, split))
     return tuple(entities)
 
 
@@ -516,7 +501,7 @@ def _fix_entities(entities: Sequence[MessageEntity]) -> tuple[MessageEntity, ...
             continuous_entities, blockquote_entities
         )
         continuous_entities = list(
-            sort_entities(_combine(continuous_entities, blockquote_entities))
+            sort_entities(combine(continuous_entities, blockquote_entities))
         )
 
     return _resplit_entities(splittable_entities, continuous_entities)
@@ -555,7 +540,7 @@ def _merge_new_entities(
 
     if blockquote_entities:
         continuous_entities = list(
-            sort_entities(_combine(continuous_entities, blockquote_entities))
+            sort_entities(combine(continuous_entities, blockquote_entities))
         )
 
     # must be called once to not merge some adjacent entities

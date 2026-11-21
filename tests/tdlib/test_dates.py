@@ -1,7 +1,7 @@
 import pytest
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.dates import get_date_flags
-from tdlib_oracle.text.failure import Failure
 
 
 @pytest.mark.parametrize(

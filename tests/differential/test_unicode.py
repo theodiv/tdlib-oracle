@@ -2,7 +2,7 @@ from collections.abc import Callable
 
 import pytest
 
-from tdlib_oracle.text.unicode import get_unicode_simple_category, unicode_to_lower
+from tdlib_oracle.tdutils.unicode import get_unicode_simple_category, unicode_to_lower
 
 pytestmark = pytest.mark.differential
 

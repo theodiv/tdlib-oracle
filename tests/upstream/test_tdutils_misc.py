@@ -6,8 +6,8 @@
 
 from collections.abc import Callable
 
-from tdlib_oracle.text.unicode import unicode_to_lower
-from tdlib_oracle.text.utf8 import check_utf8
+from tdlib_oracle.tdutils.unicode import unicode_to_lower
+from tdlib_oracle.tdutils.utf8 import check_utf8
 
 
 # Ported from tdutils/test/misc.cpp, test_check_utf8().

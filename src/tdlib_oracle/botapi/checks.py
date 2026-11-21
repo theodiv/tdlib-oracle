@@ -6,7 +6,7 @@
 # see LICENSES/BSL-1.0.txt.
 """The Bot API server's checks on a text field before TDLib sees it."""
 
-from tdlib_oracle.text.failure import Failure
+from tdlib_oracle.runtime.failure import Failure
 
 _MAX_TEXT_SIZE = 1 << 15  # 32,768 bytes
 

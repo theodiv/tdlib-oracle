@@ -3,7 +3,7 @@ from collections.abc import Callable
 
 import pytest
 
-from tdlib_oracle.tdlib.ipv6 import is_ipv6_address
+from tdlib_oracle.runtime.ipv6 import is_ipv6_address
 
 pytestmark = pytest.mark.differential
 

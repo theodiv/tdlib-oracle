@@ -3,9 +3,9 @@ from collections.abc import Callable, Sequence
 
 import pytest
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.entities import MessageEntity
 from tdlib_oracle.tdlib.parsing import parse_html
-from tdlib_oracle.text.failure import Failure
 from tests.support.texts import INVALID_UNITS, LINK_UNITS, PLAIN_UNITS
 
 pytestmark = pytest.mark.differential

@@ -1,12 +1,10 @@
-# Ported from td/telegram/LinkManager.cpp, tdutils/td/utils/HttpUrl.cpp,
-# tdutils/td/utils/HttpUrl.h, tdutils/td/utils/misc.h, tdutils/td/utils/Parser.h,
-# tdutils/td/utils/port/IPAddress.cpp, and tdutils/td/utils/Status.h of TDLib at the
-# commit in tdlib_oracle.TDLIB_COMMIT.
+# Ported from td/telegram/LinkManager.cpp of TDLib at the commit
+# in tdlib_oracle.TDLIB_COMMIT.
 #
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's checks of a link, with the URL parser of tdutils that they read.
+"""TDLib's checks of a link: whether it survives, and in what form.
 
 A link survives in the form `check_link()` gives it, and a `tg://user?id=` link names
 the user that `get_link_user_id()` reads. HTML checks the text inside each nested link
@@ -14,40 +12,10 @@ again, so each check passes over a link a fixed number of times in bytes methods
 regular expressions; a Python loop reads 20 of its bytes at most.
 """
 
-import re
-from dataclasses import dataclass
-from typing import Final
-
-from tdlib_oracle.tdlib.ipv6 import is_ipv6_address
-from tdlib_oracle.text.failure import Failure
-from tdlib_oracle.text.integers import to_integer_safe
-from tdlib_oracle.text.utf8 import check_utf8
-
-# Ported from tdutils/td/utils/misc.h, is_space(), the characters it accepts.
-_SPACES = b" \t\r\n\x00\x0b"
-
-# Ported from tdutils/td/utils/HttpUrl.cpp, the first character that check_url_part in
-# parse_url() refuses in a host: a `%` without two hex digits after it, or a character
-# outside the symbols RFC 7230 and RFC 3986 allow, UTF-8 bytes aside. The byte past the
-# end is the string terminator, no hex digit.
-_REFUSED_IN_HOST = re.compile(
-    rb"%(?![0-9A-Fa-f]{2})|[^%0-9A-Za-z.\-_!$,~*'();&+=\x80-\xff]"
-)
-
-# Ported from tdutils/td/utils/HttpUrl.cpp, the first character that check_url_part in
-# parse_url() refuses in a userinfo, which may also hold colons. The byte past the end
-# is the `@` after the userinfo, no hex digit either.
-_REFUSED_IN_USERINFO = re.compile(
-    rb"%(?![0-9A-Fa-f]{2})|[^%0-9A-Za-z.\-_!$,~*'();&+=:\x80-\xff]"
-)
-
-# Ported from tdutils/td/utils/HttpUrl.cpp, the bytes up to 0x20 that parse_url()
-# percent-encodes in a query.
-_UNSAFE_IN_QUERY = re.compile(rb"[\x00-\x20]")
-
-# Ported from tdutils/td/utils/HttpUrl.cpp, the characters parse_url() allows in an IPv6
-# host, between its brackets and in lowercase.
-_IPV6_HOST_CHARACTERS = b":.0123456789abcdef"
+from tdlib_oracle.runtime.failure import Failure
+from tdlib_oracle.tdutils.http_url import PROTOCOL, parse_url
+from tdlib_oracle.tdutils.misc import to_integer_safe
+from tdlib_oracle.tdutils.utf8 import check_utf8
 
 # Ported from td/telegram/LinkManager.cpp, the characters LinkManager::check_link_impl()
 # allows in the host of a tg or ton link; a tonsite link also allows dots.
@@ -55,159 +23,6 @@ _TG_HOST_CHARACTERS = (
     b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-_"
 )
 _TONSITE_HOST_CHARACTERS = _TG_HOST_CHARACTERS + b"."
-
-
-# Ported from tdutils/td/utils/HttpUrl.h, HttpUrl::Protocol.
-class PROTOCOL:
-    """The protocols of a URL, numbered as tdutils numbers them."""
-
-    HTTP: Final = 0
-    HTTPS: Final = 1
-
-
-# Ported from tdutils/td/utils/HttpUrl.h, HttpUrl.
-@dataclass(frozen=True)
-class HttpUrl:
-    """A URL as tdutils parses it.
-
-    Attributes:
-        protocol: The protocol, one of `PROTOCOL`.
-        userinfo: The user information before the host, as the URL writes it.
-        host: The host in lowercase; an IPv6 address keeps its brackets.
-        is_ipv6: Whether the host is an IPv6 address.
-        specified_port: The port the URL names, or `0` when it names none.
-        port: The port the URL names, or else the default port of `protocol`.
-        query: The path, query, and fragment, from a leading `/`, with each byte up to
-            0x20 percent-encoded.
-    """
-
-    protocol: int
-    userinfo: bytes
-    host: bytes
-    is_ipv6: bool
-    specified_port: int
-    port: int
-    query: bytes
-
-    # Ported from tdutils/td/utils/HttpUrl.cpp, HttpUrl::get_url().
-    def get_url(self) -> bytes:
-        """Return the URL written back from its parts, as TDLib keeps it."""
-        scheme = b"https://" if self.protocol == PROTOCOL.HTTPS else b"http://"
-        userinfo = self.userinfo + b"@" if self.userinfo else b""
-        port = b":%d" % self.specified_port if self.specified_port > 0 else b""
-        return scheme + userinfo + self.host + port + self.query
-
-
-# Ported from tdutils/td/utils/Parser.h, ParserImpl::read_till_nofail(Slice str).
-def _read_till(data: bytes, pos: int, characters: bytes) -> int:
-    """Return where any of `characters` first lies from `pos`, or the end of `data`."""
-    ends = [data.find(c, pos) for c in characters]
-    return min((end for end in ends if end != -1), default=len(data))
-
-
-# Ported from tdutils/td/utils/port/IPAddress.cpp, IPAddress::init_ipv6_port(), for the
-# port 1 that parse_url() passes.
-def _init_ipv6_port(ipv6: bytes) -> bool:
-    if len(ipv6) > 2 and ipv6[0] == 0x5B and ipv6[-1] == 0x5D:  # '[' and ']'
-        ipv6 = ipv6[1:-1]
-    # inet_pton() reads a C string, which ends at the first NUL.
-    return is_ipv6_address(ipv6.partition(b"\0")[0])
-
-
-# Ported from tdutils/td/utils/HttpUrl.cpp, check_url_part in parse_url().
-def _check_url_part(
-    part: bytes, name: str, refused: re.Pattern[bytes]
-) -> Failure | None:
-    match = refused.search(part)
-    if match is None:
-        return None
-    if match[0] == b"%":
-        return Failure(0, f"Wrong percent-encoded symbol in URL {name}")
-    return Failure(0, f"Disallowed character in URL {name}")
-
-
-# Ported from tdutils/td/utils/HttpUrl.cpp, parse_url(), for the default protocol HTTP.
-def parse_url(url: bytes) -> HttpUrl | Failure:  # noqa: PLR0912  # mirrors upstream
-    """Return `url` parsed as tdutils parses a URL, or the `Failure` that refuses it.
-
-    A URL without `http://` or `https://` takes HTTP. The host is lowercased and
-    checked, and so is the userinfo, unless the host is an IPv6 address in brackets; a
-    port runs from 1 to 65535; and the query loses its trailing spaces, then has each
-    other byte up to 0x20 percent-encoded.
-    """
-    # url == [https?://][userinfo@]host[:port]
-    pos = _read_till(url, 0, b":/?#@[]")
-    protocol_str = url[:pos].lower()
-    if url.startswith(b"://", pos):
-        if protocol_str == b"http":
-            protocol = PROTOCOL.HTTP
-        elif protocol_str == b"https":
-            protocol = PROTOCOL.HTTPS
-        else:
-            return Failure(0, "Unsupported URL protocol")
-        pos += 3
-    else:
-        pos = 0
-        protocol = PROTOCOL.HTTP
-    end = _read_till(url, pos, b"/?#")
-    userinfo_host_port = url[pos:end]
-
-    port = 0
-    # Upstream steps back to the last colon, closing bracket, or `@`, but never reads
-    # the first character, where it stops.
-    colon = max(userinfo_host_port.rfind(c) for c in b":]@")
-    if colon > 0 and userinfo_host_port[colon] == 0x3A:  # ':'
-        port_slice = userinfo_host_port[colon + 1 :]
-        # Leading zeros go, but a last one stays.
-        port_slice = port_slice.lstrip(b"0") or port_slice[-1:]
-        r_port = to_integer_safe(port_slice, 32)
-        port = -1 if r_port is None or r_port == 0 else r_port
-        userinfo_host = userinfo_host_port[:colon]
-    else:
-        userinfo_host = userinfo_host_port
-    if port < 0 or port > 65535:
-        return Failure(0, "Wrong port number specified in the URL")
-
-    at_pos = userinfo_host.rfind(b"@")
-    userinfo = b"" if at_pos == -1 else userinfo_host[:at_pos]
-    host = userinfo_host[at_pos + 1 :]
-
-    is_ipv6 = False
-    if host[:1] == b"[" and host[-1:] == b"]":
-        if not _init_ipv6_port(host):
-            return Failure(0, "Wrong IPv6 address specified in the URL")
-        is_ipv6 = True
-    if not host:
-        return Failure(0, "URL host is empty")
-    if host == b".":
-        return Failure(0, "Host is invalid")
-
-    specified_port = port
-    if port == 0:
-        port = 80 if protocol == PROTOCOL.HTTP else 443
-
-    query = url[end:].rstrip(_SPACES) or b"/"
-    query_str = query if query[0] == 0x2F else b"/" + query  # '/'
-    if _UNSAFE_IN_QUERY.search(query_str):
-        # No escape holds a byte up to 0x20, so replacing one byte value at a time
-        # encodes each byte once.
-        for c in range(0x21):
-            query_str = query_str.replace(bytes((c,)), b"%%%02X" % c)
-
-    host_str = host.lower()
-    if is_ipv6:
-        if host_str[1:-1].translate(None, _IPV6_HOST_CHARACTERS):
-            return Failure(0, "Wrong IPv6 URL host")
-    else:
-        failure = _check_url_part(host_str, "host", _REFUSED_IN_HOST)
-        if failure is None:
-            failure = _check_url_part(userinfo, "userinfo", _REFUSED_IN_USERINFO)
-        if failure is not None:
-            return failure
-
-    return HttpUrl(
-        protocol, userinfo, host_str, is_ipv6, specified_port, port, query_str
-    )
 
 
 # Ported from td/telegram/LinkManager.cpp, tolower_begins_with().

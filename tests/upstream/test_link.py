@@ -4,9 +4,9 @@
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.finding import find_tg_urls, find_urls
 from tdlib_oracle.tdlib.links import check_link
-from tdlib_oracle.text.failure import Failure
 
 
 # Ported from test/link.cpp, check_find_urls().

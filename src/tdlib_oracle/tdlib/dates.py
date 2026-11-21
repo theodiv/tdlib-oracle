@@ -8,7 +8,7 @@
 
 from typing import Final
 
-from tdlib_oracle.text.failure import Failure
+from tdlib_oracle.runtime.failure import Failure
 
 
 # Ported from td/telegram/FormattedDate.h, FormattedDate::DateFlags.

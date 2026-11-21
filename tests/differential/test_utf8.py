@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from tdlib_oracle.text.utf8 import (
+from tdlib_oracle.tdutils.utf8 import (
     append_utf8_character,
     check_utf8,
     is_utf8_character_first_code_unit,

@@ -1,5 +1,5 @@
-# Ported from td/telegram/MessageEntity.cpp and tdutils/td/utils/misc.h of TDLib at the
-# commit in tdlib_oracle.TDLIB_COMMIT.
+# Ported from td/telegram/MessageEntity.cpp of TDLib at the commit
+# in tdlib_oracle.TDLIB_COMMIT.
 #
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
@@ -10,9 +10,11 @@ TDLib runs the search only on text it has checked, so every function here takes 
 UTF-8, and gives each match as the byte offsets `(begin, end)` of the text.
 """
 
-from tdlib_oracle.tdlib.ton import check_ton_address, is_base64any_character
-from tdlib_oracle.text.unicode import CATEGORY, get_unicode_simple_category
-from tdlib_oracle.text.utf8 import (
+from tdlib_oracle.tdlib.ton import check_ton_address
+from tdlib_oracle.tdutils.base64 import is_base64any_character
+from tdlib_oracle.tdutils.misc import is_alpha, is_digit
+from tdlib_oracle.tdutils.unicode import CATEGORY, get_unicode_simple_category
+from tdlib_oracle.tdutils.utf8 import (
     next_utf8_unsafe,
     prev_utf8_unsafe,
     utf8_length,
@@ -26,16 +28,6 @@ Span = tuple[int, int]
 # Ported from td/telegram/MessageEntity.cpp, bad_path_end_chars in match_tg_urls(),
 # match_urls(), and fix_url(): characters a link does not end with.
 _BAD_PATH_END_CHARS = b".:;,('?!`"
-
-
-# Ported from tdutils/td/utils/misc.h, is_digit().
-def _is_digit(c: int) -> bool:
-    return 0x30 <= c <= 0x39  # '0' to '9'
-
-
-# Ported from tdutils/td/utils/misc.h, is_alpha().
-def _is_alpha(c: int) -> bool:
-    return 0x61 <= (c | 0x20) <= 0x7A  # 'a' to 'z', in either case
 
 
 # Ported from td/telegram/MessageEntity.cpp, is_word_character().
@@ -261,7 +253,7 @@ def _match_bank_card_numbers(text: bytes) -> list[Span]:  # noqa: PLR0912  # mir
     end = len(text)
     ptr = 0
     while True:
-        while ptr != end and not _is_digit(text[ptr]):
+        while ptr != end and not is_digit(text[ptr]):
             ptr += 1
         if ptr == end:
             break
@@ -271,13 +263,13 @@ def _match_bank_card_numbers(text: bytes) -> list[Span]:  # noqa: PLR0912  # mir
                 prev in (0x2E, 0x2C, 0x2B, 0x2D, 0x5F)  # '.', ',', '+', '-', '_'
                 or get_unicode_simple_category(prev) == CATEGORY.LETTER
             ):
-                while ptr != end and (_is_digit(text[ptr]) or text[ptr] in b" -"):
+                while ptr != end and (is_digit(text[ptr]) or text[ptr] in b" -"):
                     ptr += 1
                 continue
 
         card_number_begin = ptr
         digit_count = 0
-        while ptr != end and (_is_digit(text[ptr]) or text[ptr] in b" -"):
+        while ptr != end and (is_digit(text[ptr]) or text[ptr] in b" -"):
             if (
                 text[ptr] == 0x20  # ' '
                 and 16 <= digit_count <= 19
@@ -285,13 +277,13 @@ def _match_bank_card_numbers(text: bytes) -> list[Span]:  # noqa: PLR0912  # mir
             ):
                 # continuous card number
                 break
-            digit_count += _is_digit(text[ptr])
+            digit_count += is_digit(text[ptr])
             ptr += 1
         if digit_count < 13 or digit_count > 19:
             continue
 
         card_number_end = ptr
-        while not _is_digit(text[card_number_end - 1]):
+        while not is_digit(text[card_number_end - 1]):
             card_number_end -= 1
         card_number_size = card_number_end - card_number_begin
         if card_number_size > 2 * digit_count - 1:
@@ -471,7 +463,7 @@ def _match_urls(text: bytes) -> list[Span]:  # noqa: PLR0912, PLR0915  # mirrors
         if url_end_ptr != end and text[url_end_ptr] == 0x3A:  # ':'
             port_end_ptr = url_end_ptr + 1
 
-            while port_end_ptr != end and _is_digit(text[port_end_ptr]):
+            while port_end_ptr != end and is_digit(text[port_end_ptr]):
                 port_end_ptr += 1
 
             port_begin_ptr = url_end_ptr + 1
@@ -570,7 +562,7 @@ def _is_valid_bank_card(text: bytes) -> bool:
     `text` holds 13 to 19 digits, as `_match_bank_card_numbers` finds them. The Luhn
     check comes first, then the length that the card brand of the first digits takes.
     """
-    digits = [c - 0x30 for c in text if _is_digit(c)]
+    digits = [c - 0x30 for c in text if is_digit(c)]
     digit_count = len(digits)
 
     # Luhn algorithm
@@ -641,7 +633,7 @@ def is_email_address(text: bytes) -> bool:  # noqa: PLR0911, PLR0912  # mirrors 
         return False
     if len(domain_parts[-1]) <= 1 or len(domain_parts[-1]) >= 9:
         return False
-    if not all(_is_alpha(c) for c in domain_parts[-1]):
+    if not all(is_alpha(c) for c in domain_parts[-1]):
         return False
     for part in domain_parts[:-1]:
         if not part or len(part) >= 31:
@@ -868,7 +860,7 @@ def _fix_url(url: bytes) -> bytes:  # noqa: PLR0911, PLR0912, PLR0915  # mirrors
             domain_part_count += 1
             if i != len(domain):
                 prev = i + 1
-        elif not _is_digit(domain[i]):
+        elif not is_digit(domain[i]):
             is_ipv4 = False
             has_non_digit = True
     if domain_part_count == 1:

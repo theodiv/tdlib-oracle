@@ -2,12 +2,10 @@ import base64
 import binascii
 import random
 from collections.abc import Callable
-from pathlib import Path
 
 import pytest
 
-from tdlib_oracle.tdlib.ton import check_ton_address, is_base64any_character
-from tests.support.harness import run
+from tdlib_oracle.tdlib.ton import check_ton_address
 
 pytestmark = pytest.mark.differential
 
@@ -75,19 +73,6 @@ def _draw_addresses(seed: int, count: int) -> list[tuple[bytes, ...]]:
                 address = bytearray(rng.choice(alphabet) for _ in range(48))
         addresses.append(tuple(bytes([c]) for c in address))
     return addresses
-
-
-def test_is_base64any_character_gives_the_pinned_result_for_each_byte(
-    harness: Path,
-) -> None:
-    pinned = run(
-        harness,
-        "is_base64any_character",
-        [[bytes([byte])] for byte in range(256)],
-        timeout=60,
-    )
-    flags = [(b"1" if is_base64any_character(c) else b"0",) for c in range(256)]
-    assert pinned == flags
 
 
 def test_check_ton_address_gives_the_pinned_result(

@@ -4,12 +4,59 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""Integer conversions of tdutils: the number a decimal string writes.
+"""Character tests, ASCII lowercasing, trimming, and integer conversions of tdutils.
 
 Python's `int()` takes a plus sign, spaces, underscores, and digits of other scripts,
 and keeps a number of any size. tdutils reads only ASCII digits after an optional minus
 sign, into a C++ type whose range a larger number wraps around, and so does the port.
 """
+
+# Ported from tdutils/td/utils/misc.h, is_space(), the characters it accepts.
+_SPACES = b" \t\r\n\x00\x0b"
+
+
+# Ported from tdutils/td/utils/misc.h, to_lower(char c).
+def to_lower(c: int) -> int:
+    """Return the character `c` in lowercase if it is an ASCII capital letter."""
+    if 0x41 <= c <= 0x5A:  # 'A' to 'Z'
+        return c - 0x41 + 0x61
+    return c
+
+
+# Ported from tdutils/td/utils/misc.h, is_space().
+def is_space(c: int) -> bool:
+    """Return whether the byte `c` is a space, a tab, CR, LF, NUL, or a vertical tab."""
+    return c in _SPACES
+
+
+# Ported from tdutils/td/utils/misc.h, is_alpha().
+def is_alpha(c: int) -> bool:
+    """Return whether the byte `c` is an ASCII letter."""
+    return 0x61 <= (c | 0x20) <= 0x7A  # 'a' to 'z', in either case
+
+
+# Ported from tdutils/td/utils/misc.h, is_digit().
+def is_digit(c: int) -> bool:
+    """Return whether the byte `c` is an ASCII digit."""
+    return 0x30 <= c <= 0x39  # '0' to '9'
+
+
+# Ported from tdutils/td/utils/misc.h, is_alnum().
+def is_alnum(c: int) -> bool:
+    """Return whether the byte `c` is an ASCII letter or digit."""
+    return is_alpha(c) or is_digit(c)
+
+
+# Ported from tdutils/td/utils/misc.h, is_hex_digit().
+def is_hex_digit(c: int) -> bool:
+    """Return whether the byte `c` is a hex digit, in either case."""
+    return is_digit(c) or 0x61 <= (c | 0x20) <= 0x66  # 'a' to 'f', in either case
+
+
+# Ported from tdutils/td/utils/misc.h, trim().
+def trim(text: bytes) -> bytes:
+    """Return `text` without the bytes `is_space` accepts at either end."""
+    return text.strip(_SPACES)
 
 
 # Ported from tdutils/td/utils/misc.h, to_integer(Slice str), for a signed type of
@@ -51,3 +98,14 @@ def to_integer_safe(text: bytes, bits: int) -> int | None:
         return None
     value = to_integer(text, bits)
     return value if str(value).encode() == text else None
+
+
+# Ported from tdutils/td/utils/misc.h, hex_to_int().
+def hex_to_int(c: int) -> int:
+    """Return the value of the hex digit `c`, or 16 if `c` is not one."""
+    if is_digit(c):
+        return c - 0x30
+    c |= 0x20
+    if 0x61 <= c <= 0x66:  # 'a' to 'f'
+        return c - 0x61 + 10
+    return 16

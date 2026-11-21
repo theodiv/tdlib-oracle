@@ -2,9 +2,9 @@ from dataclasses import replace
 
 import pytest
 
+from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.entities import TYPE, FormattedText, MessageEntity
 from tdlib_oracle.tdlib.parsing import parse_html
-from tdlib_oracle.text.failure import Failure
 
 _SURROGATE = Failure(
     400,
