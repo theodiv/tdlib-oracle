@@ -1,3 +1,4 @@
+import itertools
 import random
 from collections.abc import Callable
 from pathlib import Path
@@ -41,6 +42,14 @@ _CASE_UNITS = PLAIN_UNITS + tuple(
     )
 )
 
+# The bytes at the edges of each class of bytes that the UTF-8 check tells apart: ASCII;
+# the continuation bytes, split where a second byte after E0, ED, F0, or F4 stops or
+# starts; the lead bytes of overlong forms and of 2-byte characters; E0, E1 to EC, ED,
+# and EE to EF; F0, F1 to F3, and F4; and the bytes no character uses.
+_EDGE_BYTES = bytes.fromhex(
+    "007f 808f 909f a0bf c0c1 c2df e0 e1ec ed eeef f0 f1f3 f4 f5ff"
+)
+
 # Generous enough for a build with --coverage or the sanitizers.
 _TIMEOUT = 300.0
 
@@ -69,6 +78,25 @@ def test_check_utf8_gives_the_pinned_result(
             seed=seed,
             by_bytes=True,
         )
+
+
+def test_check_utf8_gives_the_pinned_result_for_every_short_sequence(
+    compare: Compare,
+) -> None:
+    # Each state of the pinned check lies three bytes from the start at most, so the
+    # sequences of four take every transition from every state.
+    cases = [
+        (tuple(bytes((c,)) for c in sequence), ())
+        for length in range(1, 5)
+        for sequence in itertools.product(_EDGE_BYTES, repeat=length)
+    ]
+    compare(
+        "check_utf8",
+        lambda text, args: _flag(check_utf8(text)),
+        cases,
+        seed=None,
+        by_bytes=True,
+    )
 
 
 def test_utf8_length_gives_the_pinned_result(

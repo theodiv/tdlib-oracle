@@ -6,8 +6,7 @@
 # see LICENSES/BSL-1.0.txt.
 """The CRC-16 of tdutils: polynomial 0x1021, initial value 0, unreflected."""
 
-# Ported from tdutils/td/utils/crypto.cpp, crc16_table. Kept in rows, since ruff format
-# would give each value a line of its own.
+# Ported from tdutils/td/utils/crypto.cpp, crc16_table.
 # fmt: off
 _CRC16_TABLE = (
     0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50A5, 0x60C6, 0x70E7, 0x8108, 0x9129,

@@ -24,10 +24,11 @@ Compare = Callable[..., None]
 # Cleaning stops short of its 35,000-byte limit, at 34,996 bytes at most.
 _CUT = 34_996
 
-# Characters of each UTF-8 length, and characters that cleaning drops or replaces.
+# Characters of each UTF-8 length, characters that cleaning drops or replaces, and two
+# marks, the first of which stays a mark when the cut falls between them.
 _CUT_UNITS = tuple(
-    character.encode()
-    for character in (
+    unit.encode()
+    for unit in (
         "\U000000e9",
         "\U000020ac",
         "\U0001f600",
@@ -35,6 +36,7 @@ _CUT_UNITS = tuple(
         "\U00002028",
         "\x01",
         "\U0000200e",
+        "\U0000200e\U0000200e",
     )
 )
 

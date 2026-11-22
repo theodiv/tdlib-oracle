@@ -63,9 +63,9 @@ The steps run in this order; steps 5 to 7 run in the HTML parse mode only:
   without `href` nested around the same text, whose link TDLib checks once per
   level: doubling both the levels and the link multiplies the time and the
   memory by about four. The worst 32,768-byte text found, 2,340 such levels
-  around a 16,388-byte link, takes seconds and is refused as too long; the
-  slowest accepted one, 4,096 levels around a 4,096-byte link, takes under half
-  as long.
+  around a 16,388-byte link whose path is U+200E marks, takes seconds and is
+  refused as too long; the slowest accepted one, 2,929 levels around a
+  12,264-byte link of the same kind, takes nearly as long.
 
 Threats and how to report them: [`SECURITY.md`](../SECURITY.md).
 

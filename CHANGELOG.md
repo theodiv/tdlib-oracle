@@ -19,8 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - Ship the package alone in the sdist, with `pyproject.toml`, `README.md`, and
-  the license texts. Previously, it carried every file of the repository, the
-  tests included.
+  the license texts; what installs from it stays the same. Previously, it
+  carried every file of the repository, the tests included.
+- Check a plain message text in about half the time; every verdict stays
+  the same.
 
 ## [0.1.0] - 2026-11-15
 
