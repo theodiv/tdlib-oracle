@@ -503,3 +503,35 @@ def compare_entities(harness: Path) -> Callable[..., None]:
         )
 
     return check
+
+
+@pytest.fixture
+def compare_by(harness: Path) -> Callable[..., None]:
+    """Return a check that `matches` finds the port's result in each pinned answer.
+
+    The port's result may take any form, such as a verdict of the public API, and
+    `matches` holds it against the fields the harness answers with. A differing case is
+    shrunk before it fails the test, its text and then its numeric arguments.
+    """
+
+    def check(
+        function: str,
+        port: Callable[[bytes, tuple[int, ...]], _Result],
+        matches: Callable[[_Result, tuple[bytes, ...]], bool],
+        cases: Sequence[Case],
+        *,
+        seed: int | None,
+        by_bytes: bool,
+    ) -> None:
+        _check(
+            harness,
+            function,
+            lambda text, args, entities: port(text, args),
+            matches,
+            [(units, args, ()) for units, args in cases],
+            seed=seed,
+            by_bytes=by_bytes,
+            form=_FORMS["message"],
+        )
+
+    return check

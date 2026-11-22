@@ -970,6 +970,51 @@ Fields run(const std::string &function, const Fields &request) {
     write_text_entities(response, text->entities_);
     return response;
   }
+  if (function == "send_message") {
+    expect_fields(request, 3);
+    // A bot's message text, through the pinned calls that the Bot API server and TDLib
+    // make for it: a parseTextEntities request in the HTML parse mode, or none; the
+    // fixing of get_formatted_text(const Td *td, ...), which finds entities of its own
+    // for a bot with one session and none for more; the length check of
+    // create_input_message_content(); and the entities SendMessageQuery::send() sends.
+    auto text = request[0];
+    td::vector<td::td_api::object_ptr<td::td_api::textEntity>> text_entities;
+    if (to_flag(request[1])) {
+      auto result = td::SynchronousRequests::run_request(td::td_api::make_object<td::td_api::parseTextEntities>(
+          text, td::td_api::make_object<td::td_api::textParseModeHTML>()));
+      if (result->get_id() == td::td_api::error::ID) {
+        auto error = td::move_tl_object_as<td::td_api::error>(result);
+        return {std::to_string(error->code_), error->message_, std::string()};
+      }
+      auto formatted_text = td::move_tl_object_as<td::td_api::formattedText>(result);
+      text = std::move(formatted_text->text_);
+      text_entities = std::move(formatted_text->entities_);
+    }
+    // A bot's user manager lets any valid user be named, and the parser names no other,
+    // so no user manager checks them here.
+    auto r_entities = td::get_message_entities(nullptr, std::move(text_entities), false);
+    if (r_entities.is_error()) {
+      return {std::to_string(r_entities.error().code()), r_entities.error().message().str(), std::string()};
+    }
+    auto entities = r_entities.move_as_ok();
+    // A bot's chat is valid, so need_always_skip_bot_commands() is false, and the Bot API
+    // server never sets the always_parse_markdown option.
+    auto skip_new_entities = to_flag(request[2]);
+    auto status =
+        td::fix_formatted_text(text, entities, false, false, skip_new_entities, skip_new_entities, true, false);
+    if (status.is_error()) {
+      return {std::to_string(status.code()), status.message().str(), std::string()};
+    }
+    // remove_unallowed_entities() needs a Td, and it removes nothing from a bot's text. The
+    // limit is the default of message_text_length_max (td/telegram/OptionManager.cpp,
+    // OptionManager::OptionManager()).
+    if (td::utf8_length(text) > 4096) {
+      return {"400", "Message is too long", std::string()};
+    }
+    Fields response{"0", std::string(), text};
+    write_input_message_entities(response, td::get_input_message_entities(bot_user_manager(), entities, "harness"));
+    return response;
+  }
   if (function == "get_formatted_date(td_api)") {
     expect_fields(request, 6);
     // The date, then the date format as read_formatting_type() reads it, by the index

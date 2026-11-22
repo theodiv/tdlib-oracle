@@ -32,6 +32,7 @@ body:
       description: The part of TDLib Oracle the feature concerns.
       options:
         - Plain text
+        - HTML
     validations:
       required: true
 

@@ -11,11 +11,11 @@ Catch Telegram's refusals and silent edits before sending.
 ## Overview
 
 TDLib Oracle tells a test whether the Telegram Bot API server would accept a
-bot's plain message text and what it would keep, by running the text through the
-server's own checks and TDLib's processing, ported from their code at a pinned
-Bot API release. It serves the test suites of Telegram bots and of the libraries
-that build their messages, with no token and no network request. Sending the
-message stays with the caller.
+bot's message text, plain or in HTML, and what it would keep, by running the
+text through the server's own checks and TDLib's processing, ported from their
+code at a pinned Bot API release. It serves the test suites of Telegram bots and
+of the libraries that build their messages, with no token and no network
+request. Sending the message stays with the caller.
 
 ## Features
 
@@ -24,6 +24,12 @@ message stays with the caller.
 - **The text Telegram keeps** — an accepted text comes back as the pinned code
   keeps it: `\r` dropped, other control characters turned into spaces, both
   ends trimmed.
+- **HTML as TDLib parses it** — an accepted HTML text comes back with the
+  entities TDLib sends, in the Bot API's form, and a refused one with the byte
+  offset of the markup TDLib refuses.
+- **Uncertainty marked** — `depends_on_backend` marks an entity that Telegram's
+  backend judges after TDLib, and `depends_on_build` one that the server's C++
+  library picks from a tie.
 - **Pinned to a Bot API release** — each step is ported from the code of the Bot
   API server and TDLib at the commits that `BOT_API_COMMIT` and
   `TDLIB_COMMIT` name.
@@ -36,6 +42,8 @@ message stays with the caller.
 'Total: 42'
 >>> check("\N{ZERO WIDTH SPACE}").refusal
 Refusal(description='Bad Request: text must be non-empty', offset=None)
+>>> check("<b>Total:</b> 42", parse_mode="HTML").entities[0].type
+'bold'
 ```
 
 ## Requirements
