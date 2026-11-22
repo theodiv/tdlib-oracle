@@ -75,6 +75,22 @@ def test_clean_input_string_cuts_before_the_character_at_offset_34996(
     assert clean_input_string(text) == (character * kept).encode()
 
 
+def test_clean_input_string_cuts_at_offset_34996_of_the_cleaned_text() -> None:
+    assert clean_input_string(("\r" * 10 + "a" * 36000).encode()) == b"a" * 34996
+
+
+def test_clean_input_string_keeps_a_mark_whose_follower_it_cuts() -> None:
+    # The marks are replaced after the cut (td/telegram/misc.cpp, clean_input_string()),
+    # so no mark follows the last one kept.
+    text = ("a" * 34993 + "\U0000200e\U0000200e").encode()
+    assert clean_input_string(text) == ("a" * 34993 + "\U0000200e").encode()
+
+
+def test_clean_input_string_joins_the_marks_around_a_dropped_character() -> None:
+    text = "\U0000200e\U00002028\U0000200e".encode()
+    assert clean_input_string(text) == "\U0000200c\U0000200e".encode()
+
+
 def test_replace_offending_characters_changes_all_but_the_last_mark_of_a_run() -> None:
     text = "\U0000200e\U0000200f\U0000200ex\U0000200f".encode()
     assert replace_offending_characters(text) == (

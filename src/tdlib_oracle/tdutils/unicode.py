@@ -26,7 +26,6 @@ class CATEGORY:
 
 # Ported from tdutils/td/utils/unicode.cpp, unicode_simple_category_ranges. Each value
 # is the first code point of a range, shifted left by 5, plus the category of the range.
-# Kept in rows, since ruff format would give each value a line of its own.
 # fmt: off
 _UNICODE_SIMPLE_CATEGORY_RANGES = (
     0, 1028, 1056, 1538, 1856, 2081, 2912, 3105, 3936, 5124, 5152, 5441, 5472, 5699,
@@ -206,7 +205,6 @@ _UNICODE_SIMPLE_CATEGORY_RANGES = (
 
 # Ported from tdutils/td/utils/unicode.cpp, unicode_simple_category_jump_pos. For each
 # block of code points, the value is the index of the range to start the search from.
-# Kept in rows, since ruff format would give each value a line of its own.
 # fmt: off
 _UNICODE_SIMPLE_CATEGORY_JUMP_POS = (
     1, 9, 27, 27, 27, 27, 36, 44, 55, 55, 57, 63, 70, 77, 88, 93, 104, 116, 121, 132,
@@ -281,8 +279,7 @@ _UNICODE_SIMPLE_CATEGORY_JUMP_POS = (
 # fmt: on
 
 # Ported from tdutils/td/utils/unicode.cpp, unicode_simple_category_table, its
-# characters as numbers. Each value is the category of an ASCII code point. Kept in
-# rows, since ruff format would give each value a line of its own.
+# characters as numbers. Each value is the category of an ASCII code point.
 # fmt: off
 _UNICODE_SIMPLE_CATEGORY_TABLE = (
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -297,8 +294,7 @@ _UNICODE_SIMPLE_CATEGORY_TABLE = (
 _TABLE_SIZE = 1280
 
 # Ported from tdutils/td/utils/unicode.cpp, to_lower_table. Each value is the lowercase
-# form of a code point below _TABLE_SIZE. Kept in rows, since ruff format would give
-# each value a line of its own.
+# form of a code point below _TABLE_SIZE.
 # fmt: off
 _TO_LOWER_TABLE = (
     0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22,
@@ -384,8 +380,8 @@ _TO_LOWER_TABLE = (
 # fmt: on
 
 # Ported from tdutils/td/utils/unicode.cpp, to_lower_ranges. Each pair holds the first
-# code point of a range and how binary_search_ranges() maps the code points of the
-# range. Kept in rows, since ruff format would give each value a line of its own.
+# code point of a range and how binary_search_ranges() maps the code points of
+# the range.
 # fmt: off
 _TO_LOWER_RANGES = (
     1280, 2097153, 1328, 1328, 1329, -1378, 1367, -1368, 4256, -11521, 4294, 4294, 4295,

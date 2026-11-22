@@ -3,7 +3,14 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's cleaning of input strings, and its test for a text of blank characters."""
+"""TDLib's cleaning of input strings, and its test for a text of blank characters.
+
+HTML cleans the link of each nested link again, so `clean_input_string` passes over a
+string a fixed number of times in bytes methods and regular expressions; a Python loop
+reads 4 of its bytes at most.
+"""
+
+import re
 
 from tdlib_oracle.runtime.cstring import byte_at
 from tdlib_oracle.tdutils.misc import trim
@@ -15,6 +22,28 @@ from tdlib_oracle.tdutils.utf8 import (
 
 # Ported from td/telegram/misc.cpp, LENGTH_LIMIT in clean_input_string().
 _LENGTH_LIMIT = 35000  # server-side limit
+
+# Ported from td/telegram/misc.cpp, clean_input_string(), the control characters it
+# turns into spaces: each byte below 0x20 but the line feed, which it keeps, and the
+# carriage return, which it drops.
+_CONTROLS_TO_SPACES = bytes.maketrans(
+    bytes(c for c in range(0x20) if c not in (0x0A, 0x0D)), b" " * 30
+)
+
+# Ported from td/telegram/misc.cpp, clean_input_string(), the characters it drops
+# besides the carriage return: U+2028 to U+202E, and the vertical lines U+030A, U+0333,
+# and U+033F. Each is a whole character of valid UTF-8, so dropping one never
+# forms another.
+_DROPPED_CHARACTERS = tuple(
+    chr(code_point).encode()
+    for code_point in (*range(0x2028, 0x202F), 0x030A, 0x0333, 0x033F)
+)
+
+# Ported from td/telegram/misc.cpp, replace_offending_characters(), the marks it
+# replaces: each U+200E or U+200F that another follows. A match starts only at 0xE2,
+# which no mark holds after its first byte, so the search finds each mark the C++ loop
+# finds, in valid UTF-8 or not.
+_OFFENDING_MARK = re.compile(rb"\xe2\x80[\x8e\x8f](?=\xe2\x80[\x8e\x8f])")
 
 # Ported from td/telegram/misc.cpp, space_characters in strip_empty_characters(). Each
 # space character takes 3 bytes.
@@ -57,24 +86,7 @@ def replace_offending_characters(text: bytes) -> bytes:
 
     Each mark and its replacement take 3 bytes, so the text keeps its length.
     """
-    result = bytearray(text)
-    pos = 0
-    while pos < len(result):
-        if (
-            result[pos] == 0xE2
-            and byte_at(result, pos + 1) == 0x80
-            and byte_at(result, pos + 2) in (0x8E, 0x8F)
-        ):
-            while (
-                byte_at(result, pos + 3) == 0xE2
-                and byte_at(result, pos + 4) == 0x80
-                and byte_at(result, pos + 5) in (0x8E, 0x8F)
-            ):
-                result[pos + 2] = 0x8C
-                pos += 3
-            pos += 2
-        pos += 1
-    return bytes(result)
+    return _OFFENDING_MARK.sub(b"\xe2\x80\x8c", text)  # U+200C
 
 
 # Ported from td/telegram/misc.cpp, clean_input_string().
@@ -90,34 +102,17 @@ def clean_input_string(text: bytes) -> bytes | None:
     if not check_utf8(text):
         return None
 
-    result = bytearray()
-    size = len(text)
-    pos = 0
-    while pos < size:
-        c = text[pos]
-        if c <= 0x20 and c not in (0x0A, 0x0D):
-            result.append(0x20)
-        elif c == 0x0D:
-            pass  # a carriage return is dropped
-        elif (
-            c == 0xE2
-            and pos + 2 < size
-            and text[pos + 1] == 0x80
-            and 0xA8 <= text[pos + 2] <= 0xAE
-        ):
-            pos += 2
-        elif c == 0xCC and pos + 1 < size and text[pos + 1] in (0xB3, 0xBF, 0x8A):
-            pos += 1
-        else:
-            result.append(c)
-        if len(result) >= _LENGTH_LIMIT - 3 and (
-            is_utf8_character_first_code_unit(result[-1])
-        ):
-            del result[-1]
-            break
-        pos += 1
+    result = text.translate(_CONTROLS_TO_SPACES, b"\r")
+    for character in _DROPPED_CHARACTERS:
+        result = result.replace(character, b"")
 
-    return replace_offending_characters(bytes(result))
+    # The C++ checks the length after each byte it keeps, so it stops before the first
+    # character that starts at offset LENGTH_LIMIT - 4 or later.
+    end = _LENGTH_LIMIT - 4
+    while end < len(result) and not is_utf8_character_first_code_unit(result[end]):
+        end += 1
+
+    return replace_offending_characters(result[:end])
 
 
 # Ported from td/telegram/misc.cpp, strip_empty_characters().
