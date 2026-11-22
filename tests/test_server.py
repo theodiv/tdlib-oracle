@@ -189,3 +189,205 @@ def test_entity_fields_after_length_default_to_none_and_false() -> None:
     )
     assert optional == (None,) * 6
     assert entity.depends_on_backend is False
+    assert entity.depends_on_build is False
+
+
+def test_verdict_depends_on_no_build_by_default() -> None:
+    assert _accepted("a").depends_on_build is False
+
+
+def test_parses_html_into_the_entities_tdlib_sends(sent: Sent) -> None:
+    verdict = check(sent("<b>bold</b> and <i>it</i>"), parse_mode="HTML")
+    assert verdict == Verdict(
+        accepted=True,
+        text="bold and it",
+        entities=(
+            Entity(type="bold", offset=0, length=4),
+            Entity(type="italic", offset=9, length=2),
+        ),
+        refusal=None,
+        depends_on_backend=False,
+    )
+
+
+@pytest.mark.parametrize("parse_mode", ["HTML", "html", "hTmL"])
+def test_reads_the_html_parse_mode_in_any_letter_case(parse_mode: str) -> None:
+    verdict = check("<s>x</s>", parse_mode=parse_mode)
+    assert verdict.entities == (Entity(type="strikethrough", offset=0, length=1),)
+
+
+@pytest.mark.parametrize("parse_mode", [None, "", "none", "NONE"])
+def test_parses_nothing_without_a_parse_mode(parse_mode: str | None) -> None:
+    assert check("<b>x</b>", parse_mode=parse_mode) == _accepted("<b>x</b>")
+
+
+@pytest.mark.parametrize("parse_mode", ["BBCode", "htm", " HTML", "MarkdownV3"])
+def test_refuses_any_other_parse_mode(parse_mode: str) -> None:
+    verdict = check("<b>x</b>", parse_mode=parse_mode)
+    assert verdict == _refused("Bad Request: unsupported parse_mode")
+
+
+def test_checks_emptiness_and_size_before_the_parse_mode() -> None:
+    assert check("", parse_mode="BBCode") == _refused(_EMPTY)
+    assert check("a" * 32769, parse_mode="BBCode") == _refused(_TOO_LONG)
+
+
+def test_refuses_html_that_is_not_utf8() -> None:
+    verdict = check(b"\xff<b>x</b>", parse_mode="HTML")
+    assert verdict == _refused("Bad Request: text must be encoded in UTF-8")
+
+
+@pytest.mark.parametrize(
+    ("text", "message", "offset"),
+    [
+        ("<abbr>x</abbr>", 'Unsupported start tag "abbr" at byte offset 0', 0),
+        (
+            "\N{EURO SIGN}<b>x</i>",
+            'Unmatched end tag at byte offset 7, expected "</b>", found "</i>"',
+            7,
+        ),
+        ("<b>x", 'Can\'t find end tag corresponding to start tag "b"', None),
+    ],
+)
+def test_refuses_markup_naming_the_byte_offset_the_description_names(
+    text: str, message: str, offset: int | None
+) -> None:
+    description = f"Bad Request: can't parse entities: {message}"
+    verdict = check(text, parse_mode="HTML")
+    assert verdict.refusal == Refusal(description=description, offset=offset)
+
+
+def test_keeps_the_value_of_each_type_in_the_bot_apis_form() -> None:
+    text = (
+        '<pre><code class="language-python">p</code></pre>'
+        '<a href="https://t.me/x">l</a>'
+        '<tg-time unix="1700000000" format="wDT">d</tg-time>'
+        "<blockquote expandable>q</blockquote>"
+    )
+    assert check(text, parse_mode="HTML").entities == (
+        Entity(type="pre", offset=0, length=1, language="python"),
+        Entity(type="text_link", offset=1, length=1, url="https://t.me/x"),
+        Entity(
+            type="date_time",
+            offset=2,
+            length=1,
+            unix_time=1700000000,
+            date_time_format="wDT",
+        ),
+        Entity(type="expandable_blockquote", offset=3, length=1),
+    )
+
+
+def test_marks_the_entities_whose_survival_telegrams_backend_decides() -> None:
+    text = (
+        '<tg-emoji emoji-id="5368324170671202286">\N{THUMBS UP SIGN}</tg-emoji>'
+        ' <a href="tg://user?id=123">Bob</a> <b>!</b>'
+    )
+    verdict = check(text, parse_mode="HTML")
+    assert verdict.entities == (
+        Entity(
+            type="custom_emoji",
+            offset=0,
+            length=2,
+            custom_emoji_id="5368324170671202286",
+            depends_on_backend=True,
+        ),
+        Entity(
+            type="text_mention",
+            offset=3,
+            length=3,
+            user_id=123,
+            depends_on_backend=True,
+        ),
+        Entity(type="bold", offset=7, length=1),
+    )
+    assert verdict.depends_on_backend is True
+    assert verdict.depends_on_build is False
+
+
+def test_marks_the_entity_a_sort_keeps_of_a_tie() -> None:
+    # Closing <i> last leaves the entities out of order, so std::sort meets the two
+    # links, which tie, and the C++ library decides which comes first.
+    verdict = check(
+        '<i>y<a href="t.me/a"><a href="t.me/b">x</a></a></i>', parse_mode="HTML"
+    )
+    assert verdict.entities == (
+        Entity(
+            type="text_link",
+            offset=1,
+            length=1,
+            url="http://t.me/b",
+            depends_on_build=True,
+        ),
+        Entity(type="italic", offset=0, length=2),
+    )
+    assert verdict.depends_on_build is True
+    assert verdict.depends_on_backend is False
+
+
+def test_leaves_a_tie_unmarked_where_no_sort_meets_it() -> None:
+    verdict = check('<a href="t.me/a"><a href="t.me/b">x</a></a>', parse_mode="HTML")
+    assert verdict.entities == (
+        Entity(type="text_link", offset=0, length=1, url="http://t.me/b"),
+    )
+    assert verdict.depends_on_build is False
+
+
+def test_sends_splittable_entities_whole_and_last() -> None:
+    verdict = check("<b>a</b><b>#b</b> <code>c</code>", parse_mode="HTML")
+    assert verdict.entities == (
+        Entity(type="code", offset=4, length=1),
+        Entity(type="bold", offset=0, length=3),
+    )
+
+
+def test_sends_at_most_100_entities_besides_custom_emoji() -> None:
+    text = "<code>x</code> " * 101 + '<tg-emoji emoji-id="5">y</tg-emoji>'
+    types = [entity.type for entity in check(text, parse_mode="HTML").entities]
+    assert types.count("code") == 100
+    assert types.count("custom_emoji") == 1
+
+
+@pytest.mark.parametrize("parse_mode", ["Markdown", "MarkdownV2", "markdownv2"])
+def test_raises_value_error_for_a_markdown_parse_mode(parse_mode: str) -> None:
+    with pytest.raises(ValueError, match=r"^parse_mode '\w+' is not supported yet$"):
+        check("*x*", parse_mode=parse_mode)
+
+
+@pytest.mark.parametrize("parse_mode", [b"HTML", 1, ["HTML"]])
+def test_raises_type_error_for_a_parse_mode_of_another_type(parse_mode: object) -> None:
+    with pytest.raises(TypeError, match=r"^parse_mode must be str or None, not "):
+        check("x", parse_mode=parse_mode)  # type: ignore[arg-type]  # the wrong type is the point
+
+
+@pytest.mark.parametrize(
+    ("text", "description"),
+    [
+        (
+            '<pre><code class="language-&#xd800;">x</code></pre>',
+            "Bad Request: messageEntityPreCode.language must be encoded in UTF-8",
+        ),
+        (
+            '<a href="t.me/&#xd800;">x</a>',
+            "Bad Request: messageEntityTextUrl.url must be encoded in UTF-8",
+        ),
+    ],
+)
+def test_refuses_a_value_that_a_reference_to_a_surrogate_leaves_invalid(
+    text: str, description: str
+) -> None:
+    assert check(text, parse_mode="HTML") == _refused(description)
+
+
+def test_turns_a_link_that_cleaning_makes_a_user_link_into_a_mention() -> None:
+    # The parser keeps the link as it is; TDLib cleans it before it reads the user.
+    verdict = check('<a href="tg://user?id=5&#x2028;">x</a>', parse_mode="HTML")
+    assert verdict.entities == (
+        Entity(
+            type="text_mention",
+            offset=0,
+            length=1,
+            user_id=5,
+            depends_on_backend=True,
+        ),
+    )

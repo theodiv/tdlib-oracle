@@ -7,12 +7,13 @@
 """TDLib's processing of an input message text."""
 
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib.message_entity import get_formatted_text
+from tdlib_oracle.tdlib import td_api
+from tdlib_oracle.tdlib.message_entity import FormattedText, get_formatted_text
 
 
 # Ported from td/telegram/InputMessageText.cpp, process_input_message_text(), for a text
 # without link preview options.
-def process_input_message_text(text: bytes) -> bytes | Failure:
+def process_input_message_text(text: td_api.FormattedText) -> FormattedText | Failure:
     """Return a bot's message text as TDLib keeps it, or the `Failure` that refuses it.
 
     Without a link preview URL, an empty text is refused and the text is trimmed.

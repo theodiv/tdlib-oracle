@@ -20,6 +20,10 @@ A formatting entity of the kept text, in the Bot API's `MessageEntity` form.
   default `None`.
 - `depends_on_backend` — whether Telegram's backend, not TDLib, decides if the
   entity survives; default `False`.
+- `depends_on_build` — whether the C++ library the server is built with decides
+  which of the entities that tie in TDLib's sort survives here, so another build
+  may keep another entity with these bounds; default `False`.
+  *Added in the next release.*
 
 ## `Refusal`
 
@@ -27,8 +31,8 @@ The pinned Bot API server's refusal of a text.
 
 - `description` — the error description the server returns, such
   as `Bad Request: message is too long`.
-- `offset` — the byte offset the description names, or `None` when it
-  names none.
+- `offset` — the byte offset the description names, in the text as the server
+  receives it, or `None` when it names none.
 
 ## `Verdict`
 
@@ -37,17 +41,21 @@ it keeps.
 
 - `accepted` — whether the server accepts the text.
 - `text` — the text the server keeps, or `None` when it refuses the text.
-- `entities` — the formatting entities of the kept text, as `Entity` values;
-  empty, since a plain text carries none.
+- `entities` — the formatting entities TDLib sends with the kept text, as
+  `Entity` values, in the order it sends them; empty for a plain text.
+  *Changed in the next release: holds the entities of an HTML text.*
 - `refusal` — the server's refusal as a `Refusal`, or `None` when it accepts
   the text.
 - `depends_on_backend` — whether Telegram's backend decides if an entity of the
   kept text survives.
+- `depends_on_build` — whether the C++ library the server is built with decides
+  which entity survives somewhere in the text; default `False`.
+  *Added in the next release.*
 
 ## `check`
 
 ```python
-check(text: str | bytes) -> Verdict
+check(text: str | bytes, *, parse_mode: str | None = None) -> Verdict
 ```
 
 Runs a bot's message text through the pinned Bot API server's checks and
@@ -56,16 +64,26 @@ TDLib's processing.
 - `text` — the message text. A `str` stands for what a client sends and is
   encoded as UTF-8, with a surrogate code point kept in its 3-byte form; `bytes`
   stand for the field as the server receives it.
+- `parse_mode` — the markup of the text: `HTML` in any letter case parses it,
+  and `None`, an empty string, or `none` in any letter case parses nothing; any
+  other name gets the server's refusal; default `None`.
+  *Added in the next release.*
 
-Returns the `Verdict`. Raises `TypeError` when `text` is neither `str`
-nor `bytes`.
+Returns the `Verdict`. Raises `TypeError` when `text` is neither `str` nor
+`bytes`, or `parse_mode` is neither `str` nor `None`, and `ValueError` when
+`parse_mode` is `Markdown` or `MarkdownV2` in any letter case, which a later
+release supports.
 
 ```pycon
 >>> from tdlib_oracle import check
 >>> check("Total:\t42 \r\n")
-Verdict(accepted=True, text='Total: 42', entities=(), refusal=None, depends_on_backend=False)
+Verdict(accepted=True, text='Total: 42', entities=(), refusal=None, depends_on_backend=False, depends_on_build=False)
 >>> check("\N{ZERO WIDTH SPACE}")
-Verdict(accepted=False, text=None, entities=(), refusal=Refusal(description='Bad Request: text must be non-empty', offset=None), depends_on_backend=False)
+Verdict(accepted=False, text=None, entities=(), refusal=Refusal(description='Bad Request: text must be non-empty', offset=None), depends_on_backend=False, depends_on_build=False)
+>>> check("<b>Total:</b> 42", parse_mode="HTML").entities
+(Entity(type='bold', offset=0, length=6, url=None, user_id=None, language=None, custom_emoji_id=None, unix_time=None, date_time_format=None, depends_on_backend=False, depends_on_build=False),)
+>>> check("<b>Total:</i> 42", parse_mode="HTML").refusal
+Refusal(description='Bad Request: can\'t parse entities: Unmatched end tag at byte offset 9, expected "</b>", found "</i>"', offset=9)
 ```
 
 ## Constants

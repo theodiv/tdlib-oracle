@@ -47,6 +47,17 @@ body:
     validations:
       required: true
 
+  - type: dropdown
+    id: parse-mode
+    attributes:
+      label: Parse mode
+      description: The `parse_mode` the text was checked with.
+      options:
+        - None (plain text)
+        - HTML
+    validations:
+      required: true
+
   - type: textarea
     id: description
     attributes:

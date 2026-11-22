@@ -6,6 +6,7 @@ from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib import td_api
 from tdlib_oracle.tdlib.message_entity import (
     TYPE,
+    FormattedText,
     MessageEntity,
     get_formatted_text,
     get_input_message_entities,
@@ -89,9 +90,31 @@ def _object(entity_type: td_api.TextEntityType) -> td_api.TextEntity:
 
 
 def test_get_formatted_text_keeps_blanks_only_when_empty_is_allowed() -> None:
-    blank = "\u200b".encode()
-    assert get_formatted_text(blank, allow_empty=True, skip_trim=False) == blank
+    blank = td_api.FormattedText("\u200b".encode(), ())
+    result = get_formatted_text(blank, allow_empty=True, skip_trim=False)
+    assert result == FormattedText(blank.text)
     assert get_formatted_text(blank, allow_empty=False, skip_trim=False) == _NON_EMPTY
+
+
+def test_get_formatted_text_converts_and_fixes_the_entities() -> None:
+    # No entity is looked for, so the bold part around the hashtag stays whole, and a
+    # mention, which no user sets, goes.
+    text = td_api.FormattedText(
+        b" see #tag here ",
+        (
+            td_api.TextEntity(1, 13, td_api.TextEntityTypeBold()),
+            td_api.TextEntity(0, 3, td_api.TextEntityTypeMention()),
+        ),
+    )
+    result = get_formatted_text(text, allow_empty=False, skip_trim=False)
+    assert result == FormattedText(b"see #tag here", (MessageEntity(TYPE.BOLD, 0, 13),))
+
+
+def test_get_formatted_text_refuses_an_entity_with_a_wrong_value() -> None:
+    date = td_api.TextEntity(0, 1, td_api.TextEntityTypeDateTime(0, None))
+    text = td_api.FormattedText(b"a", (date,))
+    result = get_formatted_text(text, allow_empty=False, skip_trim=False)
+    assert result == Failure(400, "Invalid date specified")
 
 
 @pytest.mark.parametrize(("entity", "entity_type"), [*_USER_TYPES, *_OTHER_TYPES])

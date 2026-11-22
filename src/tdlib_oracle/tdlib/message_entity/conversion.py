@@ -6,8 +6,8 @@
 # see LICENSES/BSL-1.0.txt.
 """TDLib's conversions of formatted texts and their entities.
 
-Entities become TDLib's API objects and come back from them, the text a bot sends
-becomes the text TDLib keeps, and the entities it keeps become the ones it sends to
+Entities become TDLib's API objects and come back from them, the formatted text a bot
+sends becomes the one TDLib keeps, and the entities it keeps become the ones it sends to
 Telegram. The tie an entity is in travels with it through each conversion, converted as
 the entity is, since the pinned code may hold any entity of the tie in its place.
 """
@@ -25,6 +25,7 @@ from tdlib_oracle.tdlib.formatted_date import (
 from tdlib_oracle.tdlib.link_manager import check_link, get_link_user_id
 from tdlib_oracle.tdlib.message_entity.entity import (
     TYPE,
+    FormattedText,
     MessageEntity,
     _is_splittable_entity,
     _is_user_entity,
@@ -274,30 +275,35 @@ def get_message_entities(  # noqa: PLR0915  # mirrors upstream
 
 
 # Ported from td/telegram/MessageEntity.cpp, get_formatted_text(const Td *td, ...), for
-# a bot's text without entities.
+# a bot's text in a chat that is not secret.
 def get_formatted_text(
-    text: bytes, *, allow_empty: bool, skip_trim: bool
-) -> bytes | Failure:
+    text: td_api.FormattedText, *, allow_empty: bool, skip_trim: bool
+) -> FormattedText | Failure:
     """Return a bot's `text` as TDLib fixes it, or the `Failure` that refuses it.
 
-    A bot sends the text, so a text of blank characters is kept exactly when an empty
-    text is allowed. The Bot API server never sets the `always_parse_markdown` option,
-    so no Markdown is parsed. The entities TDLib finds in the text leave the text as it
-    is, and only the text comes back, so none are looked for, as for a bot with more
-    than one session.
+    The entities are checked and converted first, then fixed with the text. A bot sends
+    the text, so a text of blank characters is kept exactly when an empty text is
+    allowed. The Bot API server never sets the `always_parse_markdown` option, so no
+    Markdown is parsed. TDLib finds entities of its own in the text of a bot with one
+    session; it sends none of them, and the splits they make in other entities merge
+    again when it sends those, so the port finds none, as TDLib does for a bot with
+    more sessions.
     """
-    result = fix_formatted_text(
-        text,
-        (),
+    entities = get_message_entities(text.entities)
+    if isinstance(entities, Failure):
+        return entities
+
+    # remove_unallowed_entities() comes last, and it removes nothing from a bot's text:
+    # a bot has no secret chats and may use any custom emoji.
+    return fix_formatted_text(
+        text.text,
+        entities,
         allow_empty=allow_empty,
         allow_empty_string=allow_empty,
         skip_new_entities=True,
         skip_bot_commands=True,
         skip_trim=skip_trim,
     )
-    if isinstance(result, Failure):
-        return result
-    return result.text
 
 
 # Ported from td/telegram/MessageEntity.cpp, MAX_USER_ENTITY_COUNT

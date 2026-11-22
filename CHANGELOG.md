@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Add the `parse_mode` keyword to `check`: in the HTML parse mode, an accepted
+  verdict lists the entities TDLib sends, `depends_on_backend` marking those
+  Telegram's backend decides, and a refusal of the markup names its byte offset.
+  `Markdown` and `MarkdownV2` raise `ValueError` until a later release.
+- Add `depends_on_build` to `Verdict` and `Entity`, which marks an entity that
+  the C++ library of the server's build picks from a tie in TDLib's sort.
+
 ### Changed
 
 - Ship the package alone in the sdist, with `pyproject.toml`, `README.md`, and
