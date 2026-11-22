@@ -13,7 +13,7 @@ Public surface
 
 from tdlib_oracle.server import Entity, Refusal, Verdict, check
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 BOT_API_VERSION = "10.4"
 BOT_API_COMMIT = "7232881b39dfcd048a0d569f1983c5184249ee05"
 TDLIB_COMMIT = "c8828d50f5eac2fc7089ce1089d7ce9095c61b5e"
