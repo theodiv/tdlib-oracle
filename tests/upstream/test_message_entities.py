@@ -185,7 +185,7 @@ def _check_cashtag(text: bytes, expected: list[bytes]) -> None:
 
 
 # Ported from test/message_entities.cpp, TEST(MessageEntities, cashtag).
-def test_cashtag() -> None:  # noqa: PLR0915  # mirrors upstream
+def test_cashtag() -> None:
     _check_cashtag(b"", [])
     _check_cashtag(b"$", [])
     _check_cashtag(b"$$", [])
@@ -556,7 +556,7 @@ def _check_url(
 
 
 # Ported from test/message_entities.cpp, TEST(MessageEntities, url).
-def test_url() -> None:  # noqa: PLR0915  # mirrors upstream
+def test_url() -> None:
     _check_url(b"telegram.org", [b"telegram.org"])
     _check_url(b"(telegram.org)", [b"telegram.org"])
     _check_url(b"\ntelegram.org)", [b"telegram.org"])
@@ -990,7 +990,7 @@ def _check_fix_formatted_text_fails(
 # Ported from test/message_entities.cpp, TEST(MessageEntities, fix_formatted_text), its
 # loop over random texts. It stays out of the test's body, since CPython 3.12 traces
 # each line in a time that grows with the length of the function holding it.
-def _check_fix_formatted_text_on_random_texts() -> None:  # noqa: PLR0912, PLR0915  # mirrors upstream
+def _check_fix_formatted_text_on_random_texts() -> None:
     # td::Random, seeded so that a failure reproduces.
     rng = random.Random(20261119)
     for test_n in range(100000):
@@ -1102,7 +1102,7 @@ def _check_fix_formatted_text_on_random_texts() -> None:  # noqa: PLR0912, PLR09
 
 
 # Ported from test/message_entities.cpp, TEST(MessageEntities, fix_formatted_text).
-def test_fix_formatted_text() -> None:  # noqa: PLR0912, PLR0915  # mirrors upstream
+def test_fix_formatted_text() -> None:
     text = b""
     fixed_text = b""
     for i in range(33):
@@ -1741,7 +1741,7 @@ def _check_parse_html_fails(text: bytes, error_message: str) -> None:
 
 
 # Ported from test/message_entities.cpp, TEST(MessageEntities, parse_html).
-def test_parse_html() -> None:  # noqa: PLR0915  # mirrors upstream
+def test_parse_html() -> None:
     invalid_surrogate_pair_error_message = (
         "Text contains invalid Unicode characters after decoding HTML entities, check"
         " for unmatched surrogate code units"
@@ -2397,7 +2397,7 @@ def _check_parse_markdown_fails(text: bytes, error_message: str) -> None:
 
 
 # Ported from test/message_entities.cpp, TEST(MessageEntities, parse_markdown).
-def test_parse_markdown() -> None:  # noqa: PLR0915  # mirrors upstream
+def test_parse_markdown() -> None:
     reserved_characters = b"]()>#+-=|{}.!"
     begin_characters = b"_*[~`>"
     for c in range(1, 126):

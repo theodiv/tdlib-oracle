@@ -116,7 +116,7 @@ def clean_input_string(text: bytes) -> bytes | None:
 
 
 # Ported from td/telegram/misc.cpp, strip_empty_characters().
-def strip_empty_characters(  # noqa: PLR0912  # mirrors upstream
+def strip_empty_characters(
     text: bytes, max_length: int, strip_rtlo: bool = False
 ) -> bytes:
     """Return `text` trimmed and cut to `max_length` code points, or empty if blank.

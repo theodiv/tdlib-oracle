@@ -39,9 +39,7 @@ from tdlib_oracle.tdlib.user_manager import get_input_user
 
 # Ported from td/telegram/MessageEntity.cpp,
 # MessageEntity::get_text_entity_type_object(), without a user manager.
-def get_text_entity_type_object(  # noqa: PLR0911, PLR0912  # mirrors upstream
-    entity: MessageEntity,
-) -> td_api.TextEntityType:
+def get_text_entity_type_object(entity: MessageEntity) -> td_api.TextEntityType:
     """Return the API object of the type of `entity`, with the value the type takes.
 
     A media timestamp shows `-1`, the value of an entity built without one, since the
@@ -140,7 +138,7 @@ def get_text_entities_object(
 # *user_manager, vector<tl_object_ptr<td_api::textEntity>> &&input_entities, bool
 # allow_all), with a bot's user manager and allow_all false, as get_formatted_text()
 # calls it.
-def get_message_entities(  # noqa: PLR0915  # mirrors upstream
+def get_message_entities(
     input_entities: Sequence[td_api.TextEntity | None],
 ) -> tuple[MessageEntity, ...] | Failure:
     """Return the entities that the API objects `input_entities` give, or a `Failure`.
@@ -154,7 +152,7 @@ def get_message_entities(  # noqa: PLR0915  # mirrors upstream
     entities the same way, and the tie ends when they all become one entity.
     """
 
-    def convert(  # noqa: PLR0911, PLR0912  # mirrors upstream
+    def convert(
         offset: int, length: int, entity_type: td_api.TextEntityType
     ) -> MessageEntity | Failure:
         match entity_type:

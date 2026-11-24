@@ -154,7 +154,7 @@ def _is_hashtag_letter(c: int) -> tuple[bool, int]:
 
 
 # Ported from td/telegram/MessageEntity.cpp, match_hashtags().
-def _match_hashtags(text: bytes) -> list[Span]:  # noqa: PLR0912  # mirrors upstream
+def _match_hashtags(text: bytes) -> list[Span]:
     result = []
     end = len(text)
     ptr = 0
@@ -210,7 +210,7 @@ def _match_hashtags(text: bytes) -> list[Span]:  # noqa: PLR0912  # mirrors upst
 
 
 # Ported from td/telegram/MessageEntity.cpp, match_cashtags().
-def _match_cashtags(text: bytes) -> list[Span]:  # noqa: PLR0912  # mirrors upstream
+def _match_cashtags(text: bytes) -> list[Span]:
     result = []
     end = len(text)
     ptr = 0
@@ -256,7 +256,7 @@ def _match_cashtags(text: bytes) -> list[Span]:  # noqa: PLR0912  # mirrors upst
 
 
 # Ported from td/telegram/MessageEntity.cpp, match_bank_card_numbers().
-def _match_bank_card_numbers(text: bytes) -> list[Span]:  # noqa: PLR0912  # mirrors upstream
+def _match_bank_card_numbers(text: bytes) -> list[Span]:
     result = []
     end = len(text)
     ptr = 0
@@ -344,7 +344,7 @@ def _is_url_path_symbol(c: int) -> bool:
 
 
 # Ported from td/telegram/MessageEntity.cpp, match_tg_urls().
-def _match_tg_urls(text: bytes) -> list[Span]:  # noqa: PLR0912  # mirrors upstream
+def _match_tg_urls(text: bytes) -> list[Span]:
     result = []
     end = len(text)
     ptr = 0
@@ -423,7 +423,7 @@ def _is_domain_symbol(c: int) -> bool:
 
 
 # Ported from td/telegram/MessageEntity.cpp, match_urls().
-def _match_urls(text: bytes) -> list[Span]:  # noqa: PLR0912, PLR0915  # mirrors upstream
+def _match_urls(text: bytes) -> list[Span]:
     """Return the spans that may be links or email addresses, for checks to follow.
 
     The C++ moves the start of the text it searches past each candidate; `begin` holds
@@ -607,7 +607,7 @@ def _is_valid_bank_card(text: bytes) -> bool:
 
 
 # Ported from td/telegram/MessageEntity.cpp, is_email_address().
-def is_email_address(text: bytes) -> bool:  # noqa: PLR0911, PLR0912  # mirrors upstream
+def is_email_address(text: bytes) -> bool:
     """Return whether `text` is an email address, as TDLib reads one.
 
     Before the `@`, up to 11 parts split by `.` or `+`: letters, digits, `_`, and `-`,
@@ -780,7 +780,7 @@ def _is_common_tld(text: bytes) -> bool:
 
 
 # Ported from td/telegram/MessageEntity.cpp, fix_url().
-def _fix_url(url: bytes) -> bytes:  # noqa: PLR0911, PLR0912, PLR0915  # mirrors upstream
+def _fix_url(url: bytes) -> bytes:
     """Return `url` cut to the link TDLib keeps of it, or empty if it keeps none.
 
     A path stops before a bracket that closes more than it opened and before trailing

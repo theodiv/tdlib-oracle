@@ -82,9 +82,7 @@ def remove_empty_entities(entities: Iterable[MessageEntity]) -> list[MessageEnti
 
 
 # Ported from td/telegram/MessageEntity.cpp, are_entities_valid().
-def _are_entities_valid(  # noqa: PLR0911, PLR0912  # mirrors upstream
-    entities: Sequence[MessageEntity],
-) -> bool:
+def _are_entities_valid(entities: Sequence[MessageEntity]) -> bool:
     """Return whether the sorted `entities` already nest and meet as TDLib allows."""
     if not entities:
         return True
@@ -288,7 +286,7 @@ def _merge_new_entities(
 
 
 # Ported from td/telegram/MessageEntity.cpp, clean_input_string_with_entities().
-def _clean_input_string_with_entities(  # noqa: PLR0912  # mirrors upstream
+def _clean_input_string_with_entities(
     text: bytes, entities: Sequence[MessageEntity]
 ) -> tuple[bytes, list[MessageEntity]] | Failure:
     """Return `text` cleaned as `clean_input_string` cleans it, with `entities` moved.
@@ -445,7 +443,7 @@ def _remove_invalid_entities(
 
 # Ported from td/telegram/MessageEntity.cpp, fix_formatted_text(), for
 # skip_media_timestamps set, without ltrim_count.
-def fix_formatted_text(  # noqa: PLR0911, PLR0912, PLR0913, PLR0915  # mirrors upstream
+def fix_formatted_text(
     text: bytes,
     entities: Sequence[MessageEntity],
     *,

@@ -102,7 +102,7 @@ def _check_url_part(
 
 
 # Ported from tdutils/td/utils/HttpUrl.cpp, parse_url(), for the default protocol HTTP.
-def parse_url(url: bytes) -> HttpUrl | Failure:  # noqa: PLR0912  # mirrors upstream
+def parse_url(url: bytes) -> HttpUrl | Failure:
     """Return `url` parsed as tdutils parses a URL, or the `Failure` that refuses it.
 
     A URL without `http://` or `https://` takes HTTP. The host is lowercased and

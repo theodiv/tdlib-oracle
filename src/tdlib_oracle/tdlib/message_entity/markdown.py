@@ -36,7 +36,7 @@ from tdlib_oracle.tdutils.utf8 import is_utf8_character_first_code_unit
 
 
 # Ported from td/telegram/MessageEntity.cpp, parse_markdown().
-def parse_markdown(text: bytes) -> FormattedText | Failure:  # noqa: PLR0912, PLR0915  # mirrors upstream
+def parse_markdown(text: bytes) -> FormattedText | Failure:
     """Return the text and entities `text` gives as legacy Markdown, or its `Failure`.
 
     A backslash keeps a `_`, `*`, backtick, or `[` after it as text, and stays before
@@ -207,7 +207,7 @@ class _EntityInfo:
 
 # Ported from td/telegram/MessageEntity.cpp, is_end_of_an_entity in parse_markdown_v2(),
 # for a text that ends with the string terminator and an entity of `entity_type` open.
-def _is_end_of_an_entity(  # noqa: PLR0911  # mirrors upstream
+def _is_end_of_an_entity(
     data: bytes, i: int, entity_type: int, *, have_blockquote: bool
 ) -> bool:
     c = data[i]
@@ -275,7 +275,7 @@ def _unclosed(nested: _EntityInfo) -> Failure:
 
 
 # Ported from td/telegram/MessageEntity.cpp, parse_markdown_v2().
-def parse_markdown_v2(text: bytes) -> FormattedText | Failure:  # noqa: PLR0911, PLR0912, PLR0915  # mirrors upstream
+def parse_markdown_v2(text: bytes) -> FormattedText | Failure:
     """Return the text and entities `text` gives as MarkdownV2, or its `Failure`.
 
     A backslash keeps the ASCII character after it as text, NUL and DEL aside. Outside
