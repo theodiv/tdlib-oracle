@@ -7,7 +7,7 @@ text. `Verdict`, `Refusal`, and `Entity`, the types of its result, are defined h
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from tdlib_oracle.botapi.client import (
     JsonEntity,
@@ -18,6 +18,8 @@ from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib import td_api
 from tdlib_oracle.tdlib.message_content import get_input_message_content
 from tdlib_oracle.tdlib.message_entity import (
+    TYPE,
+    MessageEntity,
     get_input_message_entities,
     get_text_entities_object,
 )
@@ -166,6 +168,24 @@ def _integer(members: Mapping[str, bytes | int], name: str) -> int | None:
     return value if isinstance(value, int) else None
 
 
+def _as_sent(entity: MessageEntity) -> MessageEntity:
+    """Return `entity` as TDLib sends it.
+
+    TDLib sends a pre block in `messageEntityPre`, whose empty language stands for none,
+    so a pre block whose language is empty goes as one without a language, which is how
+    TDLib reads it back.
+    """
+    # Stands in for td/telegram/MessageEntity.cpp, get_input_message_entities(const
+    # UserManager *user_manager, const vector<MessageEntity> &entities, const char
+    # *source), the object it sends a pre block in.
+    # Stands in for td/telegram/MessageEntity.cpp, get_message_entities(const
+    # UserManager *user_manager, vector<tl_object_ptr<telegram_api::MessageEntity>>
+    # &&server_entities, const char *source), its read of that object.
+    if entity.type == TYPE.PRE_CODE and not entity.argument:
+        return replace(entity, type=TYPE.PRE)
+    return entity
+
+
 def _entity(text_entity: td_api.TextEntity) -> Entity:
     """Return the API object `text_entity` as the Bot API server writes it, marked.
 
@@ -234,7 +254,8 @@ def check(text: str | bytes, *, parse_mode: str | None = None) -> Verdict:
 
     # The entities TDLib sends with the text, once the message goes out.
     # Stands in for td/telegram/MessagesManager.cpp, SendMessageQuery::send().
-    sent = get_text_entities_object(get_input_message_entities(result.entities))
+    sending = get_input_message_entities(result.entities)
+    sent = get_text_entities_object(tuple(_as_sent(entity) for entity in sending))
     entities = tuple(_entity(entity) for entity in sent)
     return Verdict(
         accepted=True,
