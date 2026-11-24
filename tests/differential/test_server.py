@@ -34,7 +34,8 @@ _TYPES = {
 # entities that the entities TDLib finds split, more entities than TDLib sends, kept
 # texts at and past 4,096 code points, cleaning and trimming around entities, refusals
 # of the markup and of the values of its tags, values that a reference to a surrogate
-# leaves invalid, and a link that cleaning turns into a mention.
+# leaves invalid, links that cleaning turns into a mention or leaves invalid, and
+# languages that cleaning empties or shortens.
 _FIXED_HTML = (
     tuple(unit for start, end in TAGS for unit in (start, b"x", end)),
     (b"<i>y", *(b'<a href="t.me/a"><a href="t.me/b">x</a></a>',) * 8, b"</i>"),
@@ -62,6 +63,9 @@ _FIXED_HTML = (
     (b'<pre><code class="language-&#xd800;">x</code></pre>',),
     (b'<a href="t.me/&#xd800;">x</a>',),
     (b'<a href="tg://user?id=5&#x2028;">x</a>',),
+    (b'<a href=".&#x2028;">x</a>',),
+    (b'<pre><code class="language-&#x202b;">x</code></pre>',),
+    (b'<pre><code class="language-a&#x202b;">x</code></pre>',),
 )
 
 # Plain texts the same way: tags that stay text, and texts at and past the limit.

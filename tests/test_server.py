@@ -391,3 +391,15 @@ def test_turns_a_link_that_cleaning_makes_a_user_link_into_a_mention() -> None:
             depends_on_backend=True,
         ),
     )
+
+
+@pytest.mark.parametrize(
+    ("language", "shown"), [("&#x202b;", None), ("a&#x202b;", "a")]
+)
+def test_shows_a_pre_blocks_language_as_cleaning_leaves_it(
+    language: str, shown: str | None
+) -> None:
+    # Cleaning drops U+202B, and TDLib sends a pre block's empty language as none.
+    text = f'<pre><code class="language-{language}">x</code></pre>'
+    verdict = check(text, parse_mode="HTML")
+    assert verdict.entities == (Entity(type="pre", offset=0, length=1, language=shown),)
