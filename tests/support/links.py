@@ -188,6 +188,84 @@ _USER_IDS = (
     b"1" * 25,
 )
 
+# How a tg://emoji or tg://time link starts, right and in near misses: in other cases,
+# with a slash before the parameters, without them, and with another scheme or host.
+_TG_PREFIXES = (
+    b"tg://emoji?",
+    b"tg:emoji?",
+    b"TG://EMoJI/?",
+    b"tg://emoji/?",
+    b"tg://emoji",
+    b"tg://emoji/",
+    b"tg://emojis?",
+    b"tg://emoji#?",
+    b"tg:/emoji?",
+    b"t://emoji?",
+    b"tg://time?",
+    b"tg:time?",
+    b"TG://TiME/?",
+    b"tg://time/?",
+    b"tg://time",
+    b"tg://times?",
+    b"tg://time#?",
+    b"tg:times?",
+    b"tg:///time?",
+    b"http://time?",
+)
+
+# Parameters of a tg://emoji or tg://time link, in other cases and without values, and
+# the separators between them.
+_TG_PARAMETERS = (
+    b"id=",
+    b"ID=",
+    b"id",
+    b"unix=",
+    b"UNIX=",
+    b"unix",
+    b"format=",
+    b"format",
+    b"date=",
+    b"&",
+    b"=",
+    b"x=1",
+    b"#",
+)
+
+# Values: custom emoji IDs at the bounds of a 64-bit integer and Unix times at the
+# bounds of a 32-bit one, texts that read as no number, and date formats of each part,
+# of a relative date, and refused.
+_TG_VALUES = (
+    b"0",
+    b"1",
+    b"25",
+    b"-1",
+    b"025",
+    b"+5",
+    b"-0",
+    b"5x",
+    b"2147483647",
+    b"2147483648",
+    b"-2147483648",
+    b"4294967297",
+    b"9223372036854775807",
+    b"9223372036854775808",
+    b"-9223372036854775808",
+    b"18446744073709551641",
+    b"r",
+    b"R",
+    b"t",
+    b"T",
+    b"d",
+    b"D",
+    b"w",
+    b"W",
+    b"wDT",
+    b"tttTTdDwW",
+    b"rt",
+    b"q",
+    b"%74",
+)
+
 # Every unit above, each once, and the byte sequences UTF-8 refuses.
 _UNITS = tuple(
     unit
@@ -200,6 +278,9 @@ _UNITS = tuple(
         + _USER_PREFIXES
         + _USER_PARAMETERS
         + _USER_IDS
+        + _TG_PREFIXES
+        + _TG_PARAMETERS
+        + _TG_VALUES
         + INVALID_UNITS
     )
     if unit
@@ -260,15 +341,31 @@ def _draw_user_links(seed: int, count: int) -> list[tuple[bytes, ...]]:
     return links
 
 
-def draw_links(seed: int, count: int) -> list[tuple[bytes, ...]]:
-    """Return `count` links of each kind drawn from `seed`: built, `tg://user`, random.
+def _draw_tg_links(seed: int, count: int) -> list[tuple[bytes, ...]]:
+    """Return `count` tg://emoji and tg://time links drawn from `seed`, in parts."""
+    rng = random.Random(f"{seed} tg links")
+    links = []
+    for _ in range(count):
+        parts = [rng.choice(_TG_PREFIXES)]
+        for _ in range(rng.randint(1, 4)):
+            parts.append(rng.choice(_TG_PARAMETERS))
+            if rng.random() < 0.7:
+                parts.append(rng.choice(_TG_VALUES))
+        links.append(tuple(parts))
+    return links
 
-    A built link joins a scheme, a userinfo, a host, a port, and a path, with up to two
-    parts changed; a `tg://user` link adds parameters and IDs to a right or near-miss
-    start; and a random link joins units of every kind, bytes that UTF-8 refuses
-    among them.
+
+def draw_links(seed: int, count: int) -> list[tuple[bytes, ...]]:
+    """Return `count` links of each kind drawn from `seed`.
+
+    The kinds come in this order: built, `tg://user`, `tg://emoji` and `tg://time`, and
+    random. A built link joins a scheme, a userinfo, a host, a port, and a path, with up
+    to two parts changed; a `tg://user`, `tg://emoji`, or `tg://time` link adds
+    parameters and their values to a right or near-miss start; and a random link joins
+    units of every kind, bytes that UTF-8 refuses among them.
     """
     links = _draw_links(seed, count)
     links += _draw_user_links(seed, count)
+    links += _draw_tg_links(seed, count)
     links += draw_texts(seed, count, _UNITS)
     return links

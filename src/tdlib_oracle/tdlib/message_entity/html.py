@@ -365,8 +365,9 @@ def parse_html(text: bytes) -> FormattedText | Failure:  # noqa: PLR0911, PLR091
                             )
                         )
                     case b"tg-time":
-                        # FormattedDate::get_formatted_date() keeps the date with the
-                        # flags of its format.
+                        # Stands in for td/telegram/FormattedDate.cpp,
+                        # FormattedDate::get_formatted_date(int32 date, const
+                        # string &date_format).
                         date_flags = get_date_flags(nested.argument)
                         if isinstance(date_flags, Failure):
                             return date_flags

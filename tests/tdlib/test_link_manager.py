@@ -1,9 +1,13 @@
 import pytest
 
 from tdlib_oracle.runtime.failure import Failure
+from tdlib_oracle.tdlib.formatted_date import DATE_FLAG
 from tdlib_oracle.tdlib.link_manager import (
     check_link,
+    check_tg_url_host,
     get_checked_link,
+    get_link_custom_emoji_id,
+    get_link_formatted_date,
     get_link_user_id,
 )
 
@@ -165,3 +169,118 @@ def test_get_link_user_id_reads_the_first_id_parameter(
 )
 def test_get_link_user_id_finds_no_user_id(url: bytes) -> None:
     assert get_link_user_id(url) == 0
+
+
+@pytest.mark.parametrize(
+    ("url", "query"),
+    [
+        (b"tg://emoji?id=5", b"id=5"),
+        (b"tg:emoji?id=5", b"id=5"),
+        (b"TG://EMOJI/?id=5", b"id=5"),
+        (b"tg://emoji?id=5#id=6", b"id=5"),
+        (b"tg://emoji?", b""),
+    ],
+)
+def test_check_tg_url_host_finds_the_parameters_of_a_link_to_the_host(
+    url: bytes, query: bytes
+) -> None:
+    span = check_tg_url_host(url, b"emoji")
+    assert not isinstance(span, Failure)
+    begin, end = span
+    assert url[begin:end] == query
+
+
+@pytest.mark.parametrize(
+    ("url", "message"),
+    [
+        (b"", "URL must have scheme tg"),
+        (b"http://emoji?id=5", "URL must have scheme tg"),
+        (b"tg:/emoji?id=5", 'URL must have host "emoji"'),
+        (b"tg://emojis?id=5", 'URL must have host "emoji"'),
+        (b"tg://time?id=5", 'URL must have host "emoji"'),
+        (b"tg://emoji", "URL must have parameters"),
+        (b"tg://emoji/", "URL must have parameters"),
+        (b"tg://emoji//?id=5", "URL must have parameters"),
+        (b"tg://emoji#?id=5", "URL must have parameters"),
+    ],
+)
+def test_check_tg_url_host_refuses_a_link_to_no_parameters_of_the_host(
+    url: bytes, message: str
+) -> None:
+    assert check_tg_url_host(url, b"emoji") == Failure(400, message)
+
+
+@pytest.mark.parametrize(
+    ("url", "custom_emoji_id"),
+    [
+        (b"tg://emoji?id=5", 5),
+        (b"tg://emoji?x=1&id=5&id=6", 5),
+        (b"tg://emoji?id=5&id=x", 5),
+        (b"tg://emoji?id=-5", -5),
+        (b"tg://emoji?id=9223372036854775807", 9223372036854775807),
+    ],
+)
+def test_get_link_custom_emoji_id_reads_the_first_id_parameter(
+    url: bytes, custom_emoji_id: int
+) -> None:
+    assert get_link_custom_emoji_id(url) == custom_emoji_id
+
+
+@pytest.mark.parametrize(
+    ("url", "message"),
+    [
+        (b"tg://emoji?id=0", "Invalid custom emoji identifier specified"),
+        (b"tg://emoji?id=05", "Invalid custom emoji identifier specified"),
+        (b"tg://emoji?id=", "Invalid custom emoji identifier specified"),
+        (b"tg://emoji?id=x&id=5", "Invalid custom emoji identifier specified"),
+        (
+            b"tg://emoji?id=9223372036854775808",
+            "Invalid custom emoji identifier specified",
+        ),
+        (b"tg://emoji?ID=5", "Custom emoji URL must have an emoji identifier"),
+        (b"tg://emoji?x#&id=5", "Custom emoji URL must have an emoji identifier"),
+        (b"tg://emoji?", "Custom emoji URL must have an emoji identifier"),
+        (b"tg://time?id=5", 'URL must have host "emoji"'),
+    ],
+)
+def test_get_link_custom_emoji_id_refuses_a_link_without_a_valid_first_id(
+    url: bytes, message: str
+) -> None:
+    assert get_link_custom_emoji_id(url) == Failure(400, message)
+
+
+@pytest.mark.parametrize(
+    ("url", "formatted_date"),
+    [
+        (b"tg://time?unix=5", (5, 0)),
+        (b"tg://time?unix=5&format=wDT", (5, 52)),
+        (b"tg://time?format=r&unix=5", (5, DATE_FLAG.RELATIVE)),
+        (b"tg://time?unix=5&unix=6&format=t&format=T", (6, DATE_FLAG.LONG_TIME)),
+        (b"tg://time?unix=5&format=t&format=", (5, 0)),
+        (b"tg://time?unix=2147483647#unix=0", (2147483647, 0)),
+    ],
+)
+def test_get_link_formatted_date_reads_the_last_unix_time_and_format(
+    url: bytes, formatted_date: tuple[int, int]
+) -> None:
+    assert get_link_formatted_date(url) == formatted_date
+
+
+@pytest.mark.parametrize(
+    ("url", "message"),
+    [
+        (b"tg://time?unix=0", "Invalid Unix time specified"),
+        (b"tg://time?unix=-1", "Invalid Unix time specified"),
+        (b"tg://time?unix=2147483648", "Invalid Unix time specified"),
+        (b"tg://time?unix=5&unix=x", "Invalid Unix time specified"),
+        (b"tg://time?unix", "Invalid Unix time specified"),
+        (b"tg://time?format=t", "URL must have the corresponding Unix time"),
+        (b"tg://time?UNIX=5", "URL must have the corresponding Unix time"),
+        (b"tg://time?unix=5&format=q", "Invalid date format used"),
+        (b"tg://emoji?unix=5", 'URL must have host "time"'),
+    ],
+)
+def test_get_link_formatted_date_refuses_a_link_without_a_valid_date(
+    url: bytes, message: str
+) -> None:
+    assert get_link_formatted_date(url) == Failure(400, message)

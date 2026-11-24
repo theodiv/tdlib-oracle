@@ -900,6 +900,39 @@ Fields run(const std::string &function, const Fields &request) {
     expect_fields(request, 1);
     return {std::to_string(td::LinkManager::get_link_user_id(request[0]).get())};
   }
+  if (function == "get_link_custom_emoji_id") {
+    expect_fields(request, 1);
+    auto r_custom_emoji_id = td::LinkManager::get_link_custom_emoji_id(request[0]);
+    if (r_custom_emoji_id.is_error()) {
+      return {std::to_string(r_custom_emoji_id.error().code()), r_custom_emoji_id.error().message().str(),
+              std::string()};
+    }
+    return {"0", std::string(), std::to_string(r_custom_emoji_id.ok().get())};
+  }
+  if (function == "get_link_formatted_date") {
+    expect_fields(request, 1);
+    auto r_date = td::LinkManager::get_link_formatted_date(request[0]);
+    if (r_date.is_error()) {
+      return {std::to_string(r_date.error().code()), r_date.error().message().str(), std::string()};
+    }
+    return {"0", std::string(), PSTRING() << r_date.ok()};
+  }
+  if (function == "operator<<(MessageEntity::Type)") {
+    expect_fields(request, 2);
+    auto type = to_integer(request[1], 0, static_cast<td::int64>(td::MessageEntity::Type::Size) - 1);
+    return {PSTRING() << static_cast<td::MessageEntity::Type>(type)};
+  }
+  if (function == "parse_markdown_v2") {
+    expect_fields(request, 1);
+    auto text = request[0];
+    auto r_entities = td::parse_markdown_v2(text);
+    if (r_entities.is_error()) {
+      return {std::to_string(r_entities.error().code()), r_entities.error().message().str(), std::string()};
+    }
+    Fields response{"0", std::string(), text};
+    write_entities(response, r_entities.ok());
+    return response;
+  }
   if (function == "get_formatted_date") {
     expect_fields(request, 2);
     auto r_date = td::FormattedDate::get_formatted_date(to_int32(request[1]), request[0]);

@@ -38,7 +38,7 @@ def get_formatted_text(
     or `none` in any letter case, passes on without entities. In the HTML parse mode,
     `execute`, the call `Client::execute()` makes, asks TDLib to parse the text, and
     TDLib's error refuses it; any other parse mode is refused. The Markdown parse modes
-    are left out, as their parsers are, so a caller must not pass their names.
+    are left out, so a caller must not pass their names.
     """
     if len(text) > _MAX_TEXT_SIZE:
         return Failure(400, "Text is too long")

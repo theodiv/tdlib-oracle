@@ -1,4 +1,6 @@
-from tdlib_oracle.tdlib.message_entity import TYPE, MessageEntity, order
+import pytest
+
+from tdlib_oracle.tdlib.message_entity import TYPE, MessageEntity, order, type_name
 
 
 def test_orders_by_offset_then_the_longer_entity_first_then_by_type_priority() -> None:
@@ -26,3 +28,19 @@ def test_ties_a_link_and_a_mention_of_the_same_text() -> None:
     link = MessageEntity(TYPE.TEXT_URL, 1, 3, b"t.me")
     mention = MessageEntity(TYPE.MENTION_NAME, 1, 3, user_id=7)
     assert order(link) == order(mention)
+
+
+@pytest.mark.parametrize(
+    ("entity_type", "name"),
+    [
+        (TYPE.MENTION, "Mention"),
+        (TYPE.PRE_CODE, "PreCode"),
+        (TYPE.EXPANDABLE_BLOCK_QUOTE, "ExpandableBlockQuote"),
+        (TYPE.FORMATTED_DATE, "Date"),
+        (TYPE.TON_ADDRESS, "TonAddress"),
+    ],
+)
+def test_type_name_names_a_type_as_tdlib_messages_do(
+    entity_type: int, name: str
+) -> None:
+    assert type_name(entity_type) == name

@@ -6,6 +6,8 @@ from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib.link_manager import (
     check_link,
     get_checked_link,
+    get_link_custom_emoji_id,
+    get_link_formatted_date,
     get_link_user_id,
 )
 from tests.support.links import FIXED_LINKS, draw_links
@@ -32,11 +34,30 @@ def _get_link_user_id(text: bytes, args: tuple[int, ...]) -> tuple[bytes, ...]:
     return (str(get_link_user_id(text)).encode(),)
 
 
+def _get_link_custom_emoji_id(text: bytes, args: tuple[int, ...]) -> tuple[bytes, ...]:
+    custom_emoji_id = get_link_custom_emoji_id(text)
+    if isinstance(custom_emoji_id, Failure):
+        code = str(custom_emoji_id.code).encode()
+        return (code, custom_emoji_id.message.encode(), b"")
+    return (b"0", b"", str(custom_emoji_id).encode())
+
+
+def _get_link_formatted_date(text: bytes, args: tuple[int, ...]) -> tuple[bytes, ...]:
+    formatted_date = get_link_formatted_date(text)
+    if isinstance(formatted_date, Failure):
+        code = str(formatted_date.code).encode()
+        return (code, formatted_date.message.encode(), b"")
+    date, date_flags = formatted_date
+    return (b"0", b"", f"date {date} with flags {date_flags}".encode())
+
+
 # Each function compared, by the name the harness gives it.
 _FUNCTIONS: tuple[tuple[str, Port], ...] = (
     ("check_link", _check_link),
     ("get_checked_link", _get_checked_link),
     ("get_link_user_id", _get_link_user_id),
+    ("get_link_custom_emoji_id", _get_link_custom_emoji_id),
+    ("get_link_formatted_date", _get_link_formatted_date),
 )
 
 
