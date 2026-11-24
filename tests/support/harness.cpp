@@ -922,6 +922,17 @@ Fields run(const std::string &function, const Fields &request) {
     auto type = to_integer(request[1], 0, static_cast<td::int64>(td::MessageEntity::Type::Size) - 1);
     return {PSTRING() << static_cast<td::MessageEntity::Type>(type)};
   }
+  if (function == "parse_markdown") {
+    expect_fields(request, 1);
+    auto text = request[0];
+    auto r_entities = td::parse_markdown(text);
+    if (r_entities.is_error()) {
+      return {std::to_string(r_entities.error().code()), r_entities.error().message().str(), std::string()};
+    }
+    Fields response{"0", std::string(), text};
+    write_entities(response, r_entities.ok());
+    return response;
+  }
   if (function == "parse_markdown_v2") {
     expect_fields(request, 1);
     auto text = request[0];

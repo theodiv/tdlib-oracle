@@ -5,7 +5,12 @@ from collections.abc import Callable
 import pytest
 
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib.message_entity import MessageEntity, parse_markdown_v2
+from tdlib_oracle.tdlib.message_entity import (
+    FormattedText,
+    MessageEntity,
+    parse_markdown,
+    parse_markdown_v2,
+)
 from tests.support.texts import INVALID_UNITS, LINK_UNITS, PLAIN_UNITS
 
 pytestmark = pytest.mark.differential
@@ -136,6 +141,82 @@ _TIED_PAIRS = (
     (b"![", b"](tg://time?unix=2)"),
 )
 
+# Legacy Markdown entities by the units that open them and those that may close them:
+# each markup, code blocks without and with a language and with the line breaks they
+# drop, and links, with the ends of MarkdownV2's, whose escapes legacy Markdown keeps.
+_LEGACY_PAIRS: tuple[tuple[bytes, tuple[bytes, ...]], ...] = (
+    (b"*", (b"*",)),
+    (b"_", (b"_",)),
+    (b"`", (b"`",)),
+    (b"```", (b"```",)),
+    (b"```python ", (b"```",)),
+    (b"```python\n", (b"```",)),
+    (b"```\n", (b"```",)),
+    (b"```\r\n", (b"```",)),
+    (b"```\n\n", (b"```",)),
+    (b"[", _LINK_ENDS),
+)
+
+# The characters legacy Markdown reads as markup, alone, with the parentheses of a URL,
+# and entities around no text, which drop bytes before a link without a URL.
+_LEGACY_MARKUP = (*(bytes([c]) for c in b"_*`[]()"), b"**", b"__", b"``")
+
+# The units of a legacy Markdown text between entities: characters, links, escapes,
+# markup, and byte sequences that UTF-8 refuses.
+_LEGACY_CONTENT = tuple(
+    dict.fromkeys(PLAIN_UNITS + LINK_UNITS + _ESCAPES + _LEGACY_MARKUP + INVALID_UNITS)
+)
+
+# The bytes that break a legacy Markdown text: those that open or close an entity,
+# escape, start or end a URL, or end the string, line breaks, and a letter.
+_LEGACY_BREAKS = b"\\_*[]()`\n\r\x00a"
+
+# The examples of the Markdown style in the Bot API's formatting options, and of its
+# notes on escaping.
+_MARKDOWN_STYLE_EXAMPLES = (
+    b"*bold text*",
+    b"_italic text_",
+    b"[inline URL](http://www.example.com/)",
+    b"[inline mention of a user](tg://user?id=123456789)",
+    b"`inline fixed-width code`",
+    b"```\npre-formatted fixed-width code block\n```",
+    b"```python\npre-formatted fixed-width code block written in the Python programming"
+    b" language\n```",
+)
+_MARKDOWN_STYLE_NOTE_EXAMPLES = (b"_snake_\\__case_", b"*2*\\**2=4*")
+
+# Legacy Markdown texts that reach what generated texts may miss: links without a URL
+# after no dropped byte, after escapes, after an entity and a link, after more dropped
+# bytes than their text holds, and in a row, one naming a user; an empty link; an
+# unclosed URL; an escape inside an entity; brackets that open one link; code blocks
+# with NUL and backticks; and the Bot API's examples, alone and as the one block the
+# page shows them in.
+_LEGACY_FIXED_TEXTS = (
+    b"",
+    b"\\",
+    b"`",
+    b"```",
+    b"[abc]",
+    b"[telegram.org]",
+    b"x[telegram.org]",
+    b"\\_\\_\\_[telegram.org]",
+    b"*a*[b](c)[telegram.org]",
+    b"****[t.me]",
+    b"[t.me]" * 3,
+    b"[ttg://user?id=55]",
+    b"[](t.me)",
+    b"[a](t.me",
+    b"_a\\_b_",
+    b"[" * 40 + b"t.me" + b"]" * 40,
+    b"```\x00a```",
+    b"```a\x00b```",
+    b"```a``b```",
+    b"```a`b`c```",
+    *_MARKDOWN_STYLE_EXAMPLES,
+    b"\n".join(_MARKDOWN_STYLE_EXAMPLES),
+    *_MARKDOWN_STYLE_NOTE_EXAMPLES,
+)
+
 # Texts that reach what generated texts may miss.
 _FIXED_TEXTS = (
     b"",
@@ -152,35 +233,51 @@ _FIXED_TEXTS = (
 )
 
 
-def _parse_markdown_v2(
-    text: bytes, args: tuple[int, ...], entities: tuple[MessageEntity, ...]
+def _answer(
+    result: FormattedText | Failure,
 ) -> tuple[tuple[bytes, ...], tuple[MessageEntity, ...]]:
-    result = parse_markdown_v2(text)
     if isinstance(result, Failure):
         return (str(result.code).encode(), result.message.encode(), b""), ()
     return (b"0", b"", result.text), result.entities
 
 
-def _draw_markdown(seed: int, count: int) -> list[tuple[bytes, ...]]:
-    """Return `count` MarkdownV2 texts drawn from `seed`, each split into units.
+def _parse_markdown(
+    text: bytes, args: tuple[int, ...], entities: tuple[MessageEntity, ...]
+) -> tuple[tuple[bytes, ...], tuple[MessageEntity, ...]]:
+    return _answer(parse_markdown(text))
+
+
+def _parse_markdown_v2(
+    text: bytes, args: tuple[int, ...], entities: tuple[MessageEntity, ...]
+) -> tuple[tuple[bytes, ...], tuple[MessageEntity, ...]]:
+    return _answer(parse_markdown_v2(text))
+
+
+def _draw_markdown(
+    seed: int, count: int, *, legacy: bool = False
+) -> list[tuple[bytes, ...]]:
+    """Return `count` Markdown texts drawn from `seed`, each split into units.
 
     Each text opens entities and closes the innermost one between units of text from a
     few of `_CONTENT`, opens a blockquote now and then, and closes the entities left
-    open at its end, mostly. Half the texts hold eight units or fewer.
+    open at its end, mostly. Half the texts hold eight units or fewer. The texts are
+    MarkdownV2, or with `legacy`, legacy Markdown of `_LEGACY_PAIRS` and
+    `_LEGACY_CONTENT`, without blockquotes.
     """
-    rng = random.Random(f"{seed} markdown")
+    rng = random.Random(f"{seed} {'legacy ' if legacy else ''}markdown")
+    pairs, content = (_LEGACY_PAIRS, _LEGACY_CONTENT) if legacy else (_PAIRS, _CONTENT)
     texts = []
     for _ in range(count):
-        palette = rng.sample(_CONTENT, rng.randint(1, 6))
+        palette = rng.sample(content, rng.randint(1, 6))
         units: list[bytes] = []
         open_ends: list[tuple[bytes, ...]] = []
         for _ in range(rng.randint(0, 40 if rng.random() < 0.5 else 8)):
             roll = rng.random()
             if roll < 0.27:
-                start, ends = rng.choice(_PAIRS)
+                start, ends = rng.choice(pairs)
                 units.append(start)
                 open_ends.append(ends)
-            elif roll < 0.3:
+            elif not legacy and roll < 0.3:
                 units.append(b"\n>" if units else b">")
                 open_ends.append(_BLOCKQUOTE_ENDS)
             elif roll < 0.55 and open_ends:
@@ -193,16 +290,20 @@ def _draw_markdown(seed: int, count: int) -> list[tuple[bytes, ...]]:
     return texts
 
 
-def _draw_broken_markdown(seed: int, count: int) -> list[tuple[bytes, ...]]:
-    """Return `count` MarkdownV2 texts drawn from `seed`, with up to three bytes broken.
+def _draw_broken_markdown(
+    seed: int, count: int, *, legacy: bool = False
+) -> list[tuple[bytes, ...]]:
+    """Return `count` Markdown texts drawn from `seed`, with up to three bytes broken.
 
     A text of `_draw_markdown` loses a byte, gains one of `_BREAKS`, or has one replaced
     by one, up to three times, so its entities and escapes break at any byte. The bytes
-    come back one per unit.
+    come back one per unit. With `legacy`, the texts are legacy Markdown, broken
+    with `_LEGACY_BREAKS`.
     """
-    rng = random.Random(f"{seed} broken markdown")
+    rng = random.Random(f"{seed} broken {'legacy ' if legacy else ''}markdown")
+    breaks = _LEGACY_BREAKS if legacy else _BREAKS
     texts = []
-    for units in _draw_markdown(seed, count):
+    for units in _draw_markdown(seed, count, legacy=legacy):
         text = bytearray(b"".join(units))
         for _ in range(rng.randint(1, 3)):
             pos = rng.randint(0, len(text))
@@ -210,9 +311,9 @@ def _draw_broken_markdown(seed: int, count: int) -> list[tuple[bytes, ...]]:
                 case 0:
                     del text[pos : pos + 1]
                 case 1:
-                    text.insert(pos, rng.choice(_BREAKS))
+                    text.insert(pos, rng.choice(breaks))
                 case _:
-                    text[pos : pos + 1] = bytes([rng.choice(_BREAKS)])
+                    text[pos : pos + 1] = bytes([rng.choice(breaks)])
         texts.append(tuple(bytes([c]) for c in text))
     return texts
 
@@ -235,6 +336,35 @@ def _draw_ties(seed: int, count: int) -> list[tuple[bytes, ...]]:
         units.append(b"_")
         texts.append(tuple(units))
     return texts
+
+
+def test_parse_markdown_gives_the_pinned_result(
+    compare_entities: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        cases = [(text, (), ()) for text in _draw_markdown(seed, count, legacy=True)]
+        compare_entities(
+            "parse_markdown", _parse_markdown, cases, seed=seed, by_bytes=True
+        )
+
+
+def test_parse_markdown_gives_the_pinned_result_on_broken_markdown(
+    compare_entities: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        cases = [
+            (text, (), ()) for text in _draw_broken_markdown(seed, count, legacy=True)
+        ]
+        compare_entities(
+            "parse_markdown", _parse_markdown, cases, seed=seed, by_bytes=True
+        )
+
+
+def test_parse_markdown_gives_the_pinned_result_on_the_fixed_texts(
+    compare_entities: Compare,
+) -> None:
+    cases = [(tuple(bytes([c]) for c in text), (), ()) for text in _LEGACY_FIXED_TEXTS]
+    compare_entities("parse_markdown", _parse_markdown, cases, seed=None, by_bytes=True)
 
 
 def test_parse_markdown_v2_gives_the_pinned_result(
