@@ -37,7 +37,7 @@ from tdlib_oracle.tdlib.message_entity.fixing import (
     remove_empty_entities,
 )
 from tdlib_oracle.tdlib.message_entity.html import parse_html
-from tdlib_oracle.tdlib.message_entity.markdown import parse_markdown_v2
+from tdlib_oracle.tdlib.message_entity.markdown import parse_markdown, parse_markdown_v2
 
 __all__ = [
     "TYPE",
@@ -63,6 +63,7 @@ __all__ = [
     "is_email_address",
     "order",
     "parse_html",
+    "parse_markdown",
     "parse_markdown_v2",
     "remove_empty_entities",
     "type_name",

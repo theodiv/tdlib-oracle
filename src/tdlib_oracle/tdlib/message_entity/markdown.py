@@ -4,11 +4,12 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's MarkdownV2 parser: the text without its markup, and the entities it gives.
+"""TDLib's Markdown parsers: the text without its markup, and the entities they give.
 
-A link without a URL after its text takes that text as its URL, as in the pinned code,
-so links nested that way check the text once per level, in time that grows with the
-square of the length of the text; the Bot API's 32,768-byte cap bounds it.
+Legacy Markdown nests no entity, so it checks each link once. In MarkdownV2, a link
+without a URL after its text takes that text as its URL, as in the pinned code, so links
+nested that way check the text once per level, in time that grows with the square of the
+length of the text; the Bot API's 32,768-byte cap bounds it.
 """
 
 from dataclasses import dataclass
@@ -32,6 +33,166 @@ from tdlib_oracle.tdlib.message_entity.entity import (
 from tdlib_oracle.tdlib.user_id import is_valid_user_id
 from tdlib_oracle.tdutils.misc import is_space
 from tdlib_oracle.tdutils.utf8 import is_utf8_character_first_code_unit
+
+
+# Ported from td/telegram/MessageEntity.cpp, parse_markdown().
+def parse_markdown(text: bytes) -> FormattedText | Failure:  # noqa: PLR0912, PLR0915  # mirrors upstream
+    """Return the text and entities `text` gives as legacy Markdown, or its `Failure`.
+
+    A backslash keeps a `_`, `*`, backtick, or `[` after it as text, and stays before
+    any other byte. Each of those four characters opens an entity, which the next of the
+    same character closes, or the next `]` for a `[`, with every byte between kept as
+    text: entities never nest, and nothing inside one escapes. Three backticks open a
+    code block, which the next three close. The bytes after the opening name its
+    language when a space, tab, CR, LF, vertical tab, or NUL ends them before any
+    backtick and before the end of the text, and one line break right after the opening
+    or the language goes. An entity that nothing closes refuses the text, naming the
+    byte offset where it opens.
+
+    A link takes the URL in parentheses after it, up to the next `)` or the end of the
+    text. Without one, it takes its text past the first `n` bytes, followed by the
+    text's last `n` bytes, where `n` counts the bytes the parser has dropped up to and
+    including the `[`; once `n` reaches the text's length, the URL is the text itself.
+    The pinned code reads that URL from the string it parses, after writing the kept
+    text over its start. A `tg://user?id=` link to a valid user gives a mention of that
+    user, and any other link gives a link in the form TDLib's link check keeps, or none
+    when the check refuses it. An entity around no text gives none; after such a link,
+    the URL in parentheses stays as text. The entities come back in the order of
+    the text.
+    """
+    size = len(text)
+    # Past the end, the C++ reads the string terminator.
+    data = text + b"\x00"
+    # The C++ writes the text it keeps over the string it parses, always behind the byte
+    # it reads next, so a new buffer holds the same bytes, which the URL of a link reads
+    # back below.
+    result = bytearray()
+
+    entities: list[MessageEntity] = []
+    utf16_offset = 0
+    i = 0
+    while i < size:
+        c = data[i]
+        if c == 0x5C and data[i + 1] in b"_*`[":  # '\\'
+            i += 1
+            result.append(data[i])
+            utf16_offset += 1
+            i += 1
+            continue
+        if c not in b"_*`[":
+            if is_utf8_character_first_code_unit(c):
+                # A character of 4 bytes takes a surrogate pair, and any byte from 0xf0
+                # up counts as leading one.
+                utf16_offset += 1 + (c >= 0xF0)
+            result.append(c)
+            i += 1
+            continue
+
+        begin_pos = i
+        end_character = 0x5D if c == 0x5B else c  # ']' for '['
+        is_pre = False
+        i += 1
+
+        language = b""
+        if c == 0x60 and data[i] == 0x60 and data[i + 1] == 0x60:  # '`'
+            i += 2
+            is_pre = True
+            # The terminator counts as a space, so the language ends there.
+            language_end = i
+            while not is_space(data[language_end]) and data[language_end] != 0x60:
+                language_end += 1
+            if i != language_end and language_end < size and data[language_end] != 0x60:
+                language = data[i:language_end]
+                i = language_end
+            # One line break right after the start or the language goes, whether "\n",
+            # "\r", "\r\n", or "\n\r".
+            if data[i] in b"\n\r":
+                if data[i + 1] in b"\n\r" and data[i] != data[i + 1]:
+                    i += 2
+                else:
+                    i += 1
+
+        entity_offset = utf16_offset
+        while i < size and (
+            data[i] != end_character
+            or (is_pre and not (data[i + 1] == 0x60 and data[i + 2] == 0x60))
+        ):
+            cur_ch = data[i]
+            if is_utf8_character_first_code_unit(cur_ch):
+                utf16_offset += 1 + (cur_ch >= 0xF0)
+            result.append(cur_ch)
+            i += 1
+        if i == size:
+            return Failure(
+                400, f"Can't find end of the entity starting at byte offset {begin_pos}"
+            )
+
+        if entity_offset != utf16_offset:
+            entity_length = utf16_offset - entity_offset
+            match c:
+                case 0x5F:  # '_'
+                    entities.append(
+                        MessageEntity(TYPE.ITALIC, entity_offset, entity_length)
+                    )
+                case 0x2A:  # '*'
+                    entities.append(
+                        MessageEntity(TYPE.BOLD, entity_offset, entity_length)
+                    )
+                case 0x5B:  # '['
+                    if data[i + 1] != 0x28:  # '('
+                        # The kept text up to its length, then the input past it.
+                        kept = len(result)
+                        overwritten = bytes(result[begin_pos + 1 : kept])
+                        url = overwritten + data[max(begin_pos + 1, kept) : i]
+                    else:
+                        i += 2
+                        url_end = data.find(b")", i, size)
+                        if url_end < 0:
+                            url_end = size
+                        url = data[i:url_end]
+                        i = url_end
+                    user_id = get_link_user_id(url)
+                    if is_valid_user_id(user_id):
+                        entities.append(
+                            MessageEntity(
+                                TYPE.MENTION_NAME,
+                                entity_offset,
+                                entity_length,
+                                user_id=user_id,
+                            )
+                        )
+                    else:
+                        url = get_checked_link(url)
+                        if url:
+                            entities.append(
+                                MessageEntity(
+                                    TYPE.TEXT_URL, entity_offset, entity_length, url
+                                )
+                            )
+                case _:  # '`'
+                    if is_pre:
+                        if not language:
+                            entities.append(
+                                MessageEntity(TYPE.PRE, entity_offset, entity_length)
+                            )
+                        else:
+                            entities.append(
+                                MessageEntity(
+                                    TYPE.PRE_CODE,
+                                    entity_offset,
+                                    entity_length,
+                                    language,
+                                )
+                            )
+                    else:
+                        entities.append(
+                            MessageEntity(TYPE.CODE, entity_offset, entity_length)
+                        )
+        if is_pre:
+            i += 2
+        i += 1
+
+    return FormattedText(bytes(result), tuple(entities))
 
 
 # Ported from td/telegram/MessageEntity.cpp, EntityInfo in parse_markdown_v2().
