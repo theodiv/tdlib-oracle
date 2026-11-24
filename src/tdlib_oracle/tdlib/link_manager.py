@@ -4,15 +4,20 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's checks of a link: whether it survives, and in what form.
+"""TDLib's checks of a link: whether it survives, in what form, and what it names.
 
-A link survives in the form `check_link()` gives it, and a `tg://user?id=` link names
-the user that `get_link_user_id()` reads. HTML checks the text inside each nested link
-again, so each check passes over a link a fixed number of times in bytes methods and
-regular expressions; a Python loop reads 20 of its bytes at most.
+A link survives in the form `check_link()` gives it. A `tg://user?id=` link names the
+user that `get_link_user_id()` reads, and a `tg://emoji` or `tg://time` link the custom
+emoji or the date that `get_link_custom_emoji_id()` or `get_link_formatted_date()`
+reads. HTML and MarkdownV2 check the text inside each nested link again, so
+`check_link()`, `get_checked_link()`, and `get_link_user_id()` pass over a link a fixed
+number of times in bytes methods and regular expressions, and a Python loop in them
+reads 20 of its bytes at most.
 """
 
+from tdlib_oracle.runtime.cstring import Span
 from tdlib_oracle.runtime.failure import Failure
+from tdlib_oracle.tdlib.formatted_date import get_date_flags
 from tdlib_oracle.tdutils.http_url import PROTOCOL, parse_url
 from tdlib_oracle.tdutils.misc import to_integer_safe
 from tdlib_oracle.tdutils.utf8 import check_utf8
@@ -143,3 +148,92 @@ def get_link_user_id(url: bytes) -> int:
     value = parameters[start + 4 : parameters.index(b"&", start + 4)]
     user_id = to_integer_safe(value, 64)
     return 0 if user_id is None else user_id
+
+
+# Ported from td/telegram/LinkManager.cpp, LinkManager::check_tg_url_host().
+def check_tg_url_host(url: bytes, host: bytes) -> Span | Failure:
+    """Return where the parameters of the `tg:` link `url` lie, or its `Failure`.
+
+    The link must lead to `host`, which the caller writes in lowercase: the scheme and
+    the host may be in any letter case, and the `//` after the scheme may be left out.
+    The host ends the link or stands before `/`, `?`, or `#`, and the parameters follow
+    a `?` right after it or after one `/` behind it, up to the first `#`.
+    """
+    # The C++ lowercases only as many bytes as `tg://`, the host, and one more take.
+    lower_cased_url = url[: 3 + 2 + len(host) + 1].lower()
+
+    if not lower_cased_url.startswith(b"tg:"):
+        return Failure(400, "URL must have scheme tg")
+    lower_cased_url = lower_cased_url[3:]
+    begin = 3
+    if url.startswith(b"//", begin):
+        lower_cased_url = lower_cased_url[2:]
+        begin += 2
+
+    if not lower_cased_url.startswith(host) or (
+        len(url) - begin > len(host) and url[begin + len(host)] not in b"/?#"
+    ):
+        return Failure(400, f'URL must have host "{host.decode()}"')
+    begin += len(host)
+    if url.startswith(b"/", begin):
+        begin += 1
+    if not url.startswith(b"?", begin):
+        return Failure(400, "URL must have parameters")
+    begin += 1
+    end = url.find(b"#", begin)
+    return begin, len(url) if end == -1 else end
+
+
+# Ported from td/telegram/LinkManager.cpp, LinkManager::get_link_custom_emoji_id().
+def get_link_custom_emoji_id(url: bytes) -> int | Failure:
+    """Return the custom emoji ID that a `tg://emoji` link names, or its `Failure`.
+
+    The ID is the first `id` parameter, which must write a 64-bit integer other than `0`
+    in its decimal form.
+    """
+    query = check_tg_url_host(url, b"emoji")
+    if isinstance(query, Failure):
+        return query
+    begin, end = query
+    for parameter in url[begin:end].split(b"&"):
+        key, _, value = parameter.partition(b"=")
+        if key == b"id":
+            document_id = to_integer_safe(value, 64)
+            if document_id is None or document_id == 0:
+                return Failure(400, "Invalid custom emoji identifier specified")
+            return document_id
+    return Failure(400, "Custom emoji URL must have an emoji identifier")
+
+
+# Ported from td/telegram/LinkManager.cpp, LinkManager::get_link_formatted_date().
+def get_link_formatted_date(url: bytes) -> tuple[int, int] | Failure:
+    """Return the date and the flags a `tg://time` link names, or its `Failure`.
+
+    Each `unix` parameter must write a positive 32-bit integer in its decimal form, and
+    the last one gives the date. The last `format` parameter, or an empty format without
+    one, gives the flags as `get_date_flags()` reads them.
+    """
+    query = check_tg_url_host(url, b"time")
+    if isinstance(query, Failure):
+        return query
+    begin, end = query
+    date = 0
+    date_format = b""
+    for parameter in url[begin:end].split(b"&"):
+        key, _, value = parameter.partition(b"=")
+        if key == b"unix":
+            unix_time = to_integer_safe(value, 32)
+            if unix_time is None or unix_time <= 0:
+                return Failure(400, "Invalid Unix time specified")
+            date = unix_time
+        elif key == b"format":
+            date_format = value
+    if date == 0:
+        return Failure(400, "URL must have the corresponding Unix time")
+
+    # Stands in for td/telegram/FormattedDate.cpp,
+    # FormattedDate::get_formatted_date(int32 date, const string &date_format).
+    date_flags = get_date_flags(date_format)
+    if isinstance(date_flags, Failure):
+        return date_flags
+    return date, date_flags

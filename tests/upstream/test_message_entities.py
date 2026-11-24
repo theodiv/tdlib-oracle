@@ -26,6 +26,7 @@ from tdlib_oracle.tdlib.message_entity import (
     fix_formatted_text,
     is_email_address,
     parse_html,
+    parse_markdown_v2,
 )
 from tdlib_oracle.tdutils.utf8 import utf8_utf16_length
 
@@ -2379,3 +2380,589 @@ def test_parse_html() -> None:  # noqa: PLR0915  # mirrors upstream
             MessageEntity(TYPE.PRE, 2, 2),
         ),
     )
+
+
+# Ported from test/message_entities.cpp, check_parse_markdown(td::string text, const
+# td::string &result, ...).
+def _check_parse_markdown(
+    text: bytes, result: bytes, entities: tuple[MessageEntity, ...]
+) -> None:
+    assert parse_markdown_v2(text) == FormattedText(result, entities), text
+
+
+# Ported from test/message_entities.cpp, check_parse_markdown(td::string text,
+# td::Slice error_message).
+def _check_parse_markdown_fails(text: bytes, error_message: str) -> None:
+    assert parse_markdown_v2(text) == Failure(400, error_message), text
+
+
+# Ported from test/message_entities.cpp, TEST(MessageEntities, parse_markdown).
+def test_parse_markdown() -> None:  # noqa: PLR0915  # mirrors upstream
+    reserved_characters = b"]()>#+-=|{}.!"
+    begin_characters = b"_*[~`>"
+    for c in range(1, 126):
+        if c in begin_characters:
+            continue
+
+        text = bytes([c])
+        if c not in reserved_characters:
+            _check_parse_markdown(text, text, ())
+        else:
+            _check_parse_markdown_fails(
+                text,
+                f"Character '{chr(c)}' is reserved and must be escaped with the"
+                " preceding '\\'",
+            )
+
+            escaped_text = b"\\" + text
+            _check_parse_markdown(escaped_text, text, ())
+
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df_abacaba".encode(),
+        "Can't find end of Italic entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df_abac * asd ".encode(),
+        "Can't find end of Bold entity at byte offset 15",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df_abac * asd _".encode(),
+        "Can't find end of Italic entity at byte offset 21",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df`".encode(),
+        "Can't find end of Code entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df```".encode(),
+        "Can't find end of Pre entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df```a".encode(),
+        "Can't find end of Pre entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df```a ".encode(),
+        "Can't find end of PreCode entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df__\U0001f3df \U0001f3df_".encode(),
+        "Can't find end of Italic entity at byte offset 20",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df_\U0001f3df \U0001f3df__".encode(),
+        "Can't find end of Underline entity at byte offset 19",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df```\U0001f3df \U0001f3df`".encode(),
+        "Can't find end of Code entity at byte offset 21",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df```\U0001f3df \U0001f3df_".encode(),
+        "Can't find end of PreCode entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df```\U0001f3df \U0001f3df\\`".encode(),
+        "Can't find end of PreCode entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        b"[telegram\\.org](asd\\)", "Can't find end of a URL at byte offset 16"
+    )
+    _check_parse_markdown_fails(
+        b"[telegram\\.org](", "Can't find end of a URL at byte offset 16"
+    )
+    _check_parse_markdown_fails(
+        b"[telegram\\.org](asd", "Can't find end of a URL at byte offset 16"
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df__\U0001f3df _\U0001f3df___".encode(),
+        "Can't find end of Italic entity at byte offset 23",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df__".encode(),
+        "Can't find end of Underline entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df||test\\|".encode(),
+        "Can't find end of Spoiler entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df!".encode(),
+        "Character '!' is reserved and must be escaped with the preceding '\\'",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df>".encode(),
+        "Character '>' is reserved and must be escaped with the preceding '\\'",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![".encode(),
+        "Can't find end of CustomEmoji entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d".encode(),
+        "Can't find end of CustomEmoji entity at byte offset 9",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d]".encode(),
+        "The entity must contain a tg://emoji or tg://time URL",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg://emoji?id=1234".encode(),
+        "Can't find end of a URL at byte offset 17",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](t://emoji?id=1234)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg:emojis?id=1234)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg://emoji#test)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg://emoji?test=1#&id=25)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg://emoji?test=1231&id=025)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg://time?id=1234".encode(),
+        "Can't find end of a URL at byte offset 17",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](t://time?id=1234)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg:times?id=1234)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg://time#test)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg://time?test=1#&date=25)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        "\U0001f3df \U0001f3df![\U0001f44d](tg://time?test=1231&date=025)".encode(),
+        "Invalid tg://emoji or tg://time URL specified",
+    )
+    _check_parse_markdown_fails(
+        b">*b\n>ld \n>bo\nld*\nasd\ndef",
+        "Can't find end of Bold entity at byte offset 1",
+    )
+    _check_parse_markdown_fails(
+        b">\n*a*>2",
+        "Character '>' is reserved and must be escaped with the preceding '\\'",
+    )
+    _check_parse_markdown_fails(
+        b">asd\n>q||e||w||\n||asdad",
+        "Can't find end of Spoiler entity at byte offset 16",
+    )
+    _check_parse_markdown_fails(
+        b">asd\n>q||ew\n||asdad", "Can't find end of Spoiler entity at byte offset 7"
+    )
+    _check_parse_markdown_fails(
+        b">asd\n>q||e||w__\n||asdad",
+        "Can't find end of Underline entity at byte offset 13",
+    )
+    _check_parse_markdown_fails(
+        b">asd\n>q||e||w||a\n||asdad",
+        "Can't find end of Spoiler entity at byte offset 13",
+    )
+    _check_parse_markdown(b"", b"", ())
+    _check_parse_markdown(b"\\\\", b"\\", ())
+    _check_parse_markdown(b"\\\\\\", b"\\\\", ())
+    _check_parse_markdown(b"\\\\\\\\\\_\\*\\`", b"\\\\_*`", ())
+    _check_parse_markdown(
+        "\U000027a1\U0000fe0f \U000027a1\U0000fe0f".encode(),
+        "\U000027a1\U0000fe0f \U000027a1\U0000fe0f".encode(),
+        (),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df``".encode(), "\U0001f3df \U0001f3df".encode(), ()
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df_abac \\* asd _".encode(),
+        "\U0001f3df \U0001f3dfabac * asd ".encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 11),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \\.\U0001f3df_\U0001f3df\\. \U0001f3df_".encode(),
+        "\U0001f3df .\U0001f3df\U0001f3df. \U0001f3df".encode(),
+        (MessageEntity(TYPE.ITALIC, 6, 6),),
+    )
+    _check_parse_markdown(
+        "\\\\\\a\\b\\c\\d\\e\\f\\1\\2\\3\\4\\\U000027a1\U0000fe0f\\".encode(),
+        "\\abcdef1234\\\U000027a1\U0000fe0f\\".encode(),
+        (),
+    )
+    _check_parse_markdown(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f_\U000027a1\U0000fe0f"
+            " \U000027a1\U0000fe0f_"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f"
+            " \U000027a1\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 5),),
+    )
+    _check_parse_markdown(
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f_\U000027a1\U0000fe0f"
+            " \U000027a1\U0000fe0f_*\U000027a1\U0000fe0f"
+            " \U000027a1\U0000fe0f*"
+        ).encode(),
+        (
+            "\U000027a1\U0000fe0f \U000027a1\U0000fe0f\U000027a1\U0000fe0f"
+            " \U000027a1\U0000fe0f\U000027a1\U0000fe0f"
+            " \U000027a1\U0000fe0f"
+        ).encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 5), MessageEntity(TYPE.BOLD, 10, 5)),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df_\U0001f3df \\.\U0001f3df_".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df .\U0001f3df".encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 6),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df_\U0001f3df *\U0001f3df*_".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df \U0001f3df".encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 5), MessageEntity(TYPE.BOLD, 8, 2)),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df_\U0001f3df __\U0001f3df___".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df \U0001f3df".encode(),
+        (MessageEntity(TYPE.ITALIC, 5, 5), MessageEntity(TYPE.UNDERLINE, 8, 2)),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df__\U0001f3df _\U0001f3df_ __".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df \U0001f3df ".encode(),
+        (MessageEntity(TYPE.UNDERLINE, 5, 6), MessageEntity(TYPE.ITALIC, 8, 2)),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df__\U0001f3df _\U0001f3df_\\___".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df \U0001f3df_".encode(),
+        (MessageEntity(TYPE.UNDERLINE, 5, 6), MessageEntity(TYPE.ITALIC, 8, 2)),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df`\U0001f3df \U0001f3df```".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df \U0001f3df".encode(),
+        (MessageEntity(TYPE.CODE, 5, 5),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df```\U0001f3df \U0001f3df```".encode(),
+        "\U0001f3df \U0001f3df \U0001f3df".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 5, 3, "\U0001f3df".encode()),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df```\U0001f3df\n\U0001f3df```".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 5, 2, "\U0001f3df".encode()),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df```\U0001f3df\r\U0001f3df```".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 5, 2, "\U0001f3df".encode()),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df```\U0001f3df\n\r\U0001f3df```".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 5, 2, "\U0001f3df".encode()),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df```\U0001f3df\r\n\U0001f3df```".encode(),
+        "\U0001f3df \U0001f3df\U0001f3df".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 5, 2, "\U0001f3df".encode()),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df```\U0001f3df\n\n\U0001f3df```".encode(),
+        "\U0001f3df \U0001f3df\n\U0001f3df".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 5, 3, "\U0001f3df".encode()),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df```\U0001f3df\r\r\U0001f3df```".encode(),
+        "\U0001f3df \U0001f3df\r\U0001f3df".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 5, 3, "\U0001f3df".encode()),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df```\U0001f3df \\\\\\`\U0001f3df```".encode(),
+        "\U0001f3df \U0001f3df \\`\U0001f3df".encode(),
+        (MessageEntity(TYPE.PRE_CODE, 5, 5, "\U0001f3df".encode()),),
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df**".encode(), "\U0001f3df \U0001f3df".encode(), ()
+    )
+    _check_parse_markdown(b"||test||", b"test", (MessageEntity(TYPE.SPOILER, 0, 4),))
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df``".encode(), "\U0001f3df \U0001f3df".encode(), ()
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df``````".encode(), "\U0001f3df \U0001f3df".encode(), ()
+    )
+    _check_parse_markdown(
+        "\U0001f3df \U0001f3df____".encode(), "\U0001f3df \U0001f3df".encode(), ()
+    )
+    _check_parse_markdown(
+        b"`_* *_`__*` `*__",
+        b"_* *_ ",
+        (
+            MessageEntity(TYPE.CODE, 0, 5),
+            MessageEntity(TYPE.CODE, 5, 1),
+            MessageEntity(TYPE.BOLD, 5, 1),
+            MessageEntity(TYPE.UNDERLINE, 5, 1),
+        ),
+    )
+    _check_parse_markdown(
+        b"_* * ` `_",
+        b"   ",
+        (
+            MessageEntity(TYPE.ITALIC, 0, 3),
+            MessageEntity(TYPE.BOLD, 0, 1),
+            MessageEntity(TYPE.CODE, 2, 1),
+        ),
+    )
+    _check_parse_markdown(b"[](telegram.org)", b"", ())
+    _check_parse_markdown(
+        b"[ ](telegram.org)",
+        b" ",
+        (MessageEntity(TYPE.TEXT_URL, 0, 1, b"http://telegram.org/"),),
+    )
+    _check_parse_markdown(b"[ ](as)", b" ", ())
+    _check_parse_markdown(
+        b"[telegram\\.org]",
+        b"telegram.org",
+        (MessageEntity(TYPE.TEXT_URL, 0, 12, b"http://telegram.org/"),),
+    )
+    _check_parse_markdown(
+        b"[telegram\\.org]a",
+        b"telegram.orga",
+        (MessageEntity(TYPE.TEXT_URL, 0, 12, b"http://telegram.org/"),),
+    )
+    _check_parse_markdown(
+        b"[telegram\\.org](telegram.dog)",
+        b"telegram.org",
+        (MessageEntity(TYPE.TEXT_URL, 0, 12, b"http://telegram.dog/"),),
+    )
+    _check_parse_markdown(
+        b"[telegram\\.org](https://telegram.dog?)",
+        b"telegram.org",
+        (MessageEntity(TYPE.TEXT_URL, 0, 12, b"https://telegram.dog/?"),),
+    )
+    _check_parse_markdown(
+        b"[telegram\\.org](https://telegram.dog?\\\\\\()",
+        b"telegram.org",
+        (MessageEntity(TYPE.TEXT_URL, 0, 12, b"https://telegram.dog/?\\("),),
+    )
+    _check_parse_markdown(b"[telegram\\.org]()", b"telegram.org", ())
+    _check_parse_markdown(b"[telegram\\.org](asdasd)", b"telegram.org", ())
+    _check_parse_markdown(
+        b"[telegram\\.org](tg:user?id=123456)",
+        b"telegram.org",
+        (MessageEntity(TYPE.MENTION_NAME, 0, 12, user_id=123456),),
+    )
+    _check_parse_markdown(
+        (
+            "\U0001f3df \U0001f3df![\U0001f44d](TG://EMoJI/?test=1231&id=25#id=32)a"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f44da".encode(),
+        (MessageEntity(TYPE.CUSTOM_EMOJI, 5, 2, custom_emoji_id=25),),
+    )
+    _check_parse_markdown(
+        (
+            "\U0001f3df \U0001f3df![\U0001f44d](TG://TiME/?test=1231&unix=25#unix=32)a"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f44da".encode(),
+        (MessageEntity(TYPE.FORMATTED_DATE, 5, 2, date=25, date_flags=0),),
+    )
+    _check_parse_markdown(
+        (
+            "\U0001f3df \U0001f3df![\U0001f44d](TG://TiME/?test=1231&format=R&unix=25"
+            "#unix=32)a"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f44da".encode(),
+        (MessageEntity(TYPE.FORMATTED_DATE, 5, 2, date=25, date_flags=1),),
+    )
+    _check_parse_markdown(
+        (
+            "\U0001f3df \U0001f3df![\U0001f44d](TG://TiME/?test=1231&format=dt&unix=25"
+            "#unix=32)a"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f44da".encode(),
+        (MessageEntity(TYPE.FORMATTED_DATE, 5, 2, date=25, date_flags=10),),
+    )
+    _check_parse_markdown(
+        (
+            "\U0001f3df \U0001f3df![\U0001f44d](TG://TiME/?test=1231&format=DT&unix=25"
+            "#unix=32)a"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f44da".encode(),
+        (MessageEntity(TYPE.FORMATTED_DATE, 5, 2, date=25, date_flags=20),),
+    )
+    _check_parse_markdown(
+        (
+            "\U0001f3df \U0001f3df![\U0001f44d](TG://TiME/?test=1231&format=w&unix=25"
+            "#unix=32)a"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f44da".encode(),
+        (MessageEntity(TYPE.FORMATTED_DATE, 5, 2, date=25, date_flags=32),),
+    )
+    _check_parse_markdown(
+        (
+            "\U0001f3df \U0001f3df![\U0001f44d](TG://TiME/?test=1231&format=Wt&unix=25"
+            "#unix=32)a"
+        ).encode(),
+        "\U0001f3df \U0001f3df\U0001f44da".encode(),
+        (MessageEntity(TYPE.FORMATTED_DATE, 5, 2, date=25, date_flags=34),),
+    )
+    _check_parse_markdown(
+        b"> \n> \n>", b" \n \n", (MessageEntity(TYPE.BLOCK_QUOTE, 0, 4),)
+    )
+    _check_parse_markdown(
+        b"> \\>\n \\> \n>", b" >\n > \n", (MessageEntity(TYPE.BLOCK_QUOTE, 0, 3),)
+    )
+    _check_parse_markdown(
+        b"abc\n> \n> \n>\ndef",
+        b"abc\n \n \n\ndef",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 4, 5),),
+    )
+    _check_parse_markdown(b">", b"", ())
+    _check_parse_markdown(b">a", b"a", (MessageEntity(TYPE.BLOCK_QUOTE, 0, 1),))
+    _check_parse_markdown(b"\r>a", b"\ra", (MessageEntity(TYPE.BLOCK_QUOTE, 1, 1),))
+    _check_parse_markdown(
+        b"\r\r>\r\ra\r\n\r",
+        b"\r\r\r\ra\r\n\r",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 2, 5),),
+    )
+    _check_parse_markdown(
+        (
+            b">*bold _italic bold ~italic bold strikethrough ||italic bold"
+            b" strikethrough spoiler||~ __underline italic bold___ bold*"
+        ),
+        (
+            b"bold italic bold italic bold strikethrough italic bold strikethrough"
+            b" spoiler underline italic bold bold"
+        ),
+        (
+            MessageEntity(TYPE.BLOCK_QUOTE, 0, 103),
+            MessageEntity(TYPE.BOLD, 0, 103),
+            MessageEntity(TYPE.ITALIC, 5, 93),
+            MessageEntity(TYPE.STRIKETHROUGH, 17, 59),
+            MessageEntity(TYPE.SPOILER, 43, 33),
+            MessageEntity(TYPE.UNDERLINE, 77, 21),
+        ),
+    )
+    _check_parse_markdown(
+        b">*b\n>ld \n>bo\n>ld*\nasd\ndef",
+        b"b\nld \nbo\nld\nasd\ndef",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 12), MessageEntity(TYPE.BOLD, 0, 11)),
+    )
+    _check_parse_markdown(
+        b"*a\n>b\n>ld \n>bo\n>ld\nasd*\ndef",
+        b"a\nb\nld \nbo\nld\nasd\ndef",
+        (MessageEntity(TYPE.BOLD, 0, 17), MessageEntity(TYPE.BLOCK_QUOTE, 2, 12)),
+    )
+    _check_parse_markdown(
+        b">`b\n>ld \n>bo\nld`\n>asd\ndef",
+        b"b\n>ld \n>bo\nld\nasd\ndef",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 18), MessageEntity(TYPE.CODE, 0, 13)),
+    )
+    _check_parse_markdown(
+        b"`>b\n>ld \n>bo\nld`\n>asd\ndef",
+        b">b\n>ld \n>bo\nld\nasd\ndef",
+        (MessageEntity(TYPE.CODE, 0, 14), MessageEntity(TYPE.BLOCK_QUOTE, 15, 4)),
+    )
+    _check_parse_markdown(b">1", b"1", (MessageEntity(TYPE.BLOCK_QUOTE, 0, 1),))
+    _check_parse_markdown(b">\n1", b"\n1", (MessageEntity(TYPE.BLOCK_QUOTE, 0, 1),))
+    _check_parse_markdown(
+        b">\n\r>2",
+        b"\n\r2",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 1), MessageEntity(TYPE.BLOCK_QUOTE, 2, 1)),
+    )
+    _check_parse_markdown(
+        b">\n**>2",
+        b"\n2",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 1), MessageEntity(TYPE.BLOCK_QUOTE, 1, 1)),
+    )
+    _check_parse_markdown(b">**\n>2", b"\n2", (MessageEntity(TYPE.BLOCK_QUOTE, 0, 2),))
+    _check_parse_markdown(
+        b">*abcd*",
+        b"abcd",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 4), MessageEntity(TYPE.BOLD, 0, 4)),
+    )
+    _check_parse_markdown(
+        b">*abcd*\n",
+        b"abcd\n",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 5), MessageEntity(TYPE.BOLD, 0, 4)),
+    )
+    _check_parse_markdown(
+        b"*>abcd\n*",
+        b"abcd\n",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 5), MessageEntity(TYPE.BOLD, 0, 5)),
+    )
+    _check_parse_markdown(
+        b"abc\n>def\n>def\n\r>ghi2\njkl",
+        b"abc\ndef\ndef\n\rghi2\njkl",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 4, 8), MessageEntity(TYPE.BLOCK_QUOTE, 13, 5)),
+    )
+    _check_parse_markdown(
+        b">asd\n>q||e||w||\nasdad",
+        b"asd\nqew\nasdad",
+        (
+            MessageEntity(TYPE.EXPANDABLE_BLOCK_QUOTE, 0, 8),
+            MessageEntity(TYPE.SPOILER, 5, 1),
+        ),
+    )
+    _check_parse_markdown(
+        b">asd\n>q||ew||\nasdad",
+        b"asd\nqew\nasdad",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 8), MessageEntity(TYPE.SPOILER, 5, 2)),
+    )
+    _check_parse_markdown(
+        b">asd\r\n>q||e||w||\r\nasdad",
+        b"asd\r\nqew\r\nasdad",
+        (
+            MessageEntity(TYPE.EXPANDABLE_BLOCK_QUOTE, 0, 10),
+            MessageEntity(TYPE.SPOILER, 6, 1),
+        ),
+    )
+    _check_parse_markdown(
+        b">asd\r\n>q||ew||\r\nasdad",
+        b"asd\r\nqew\r\nasdad",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 10), MessageEntity(TYPE.SPOILER, 6, 2)),
+    )
+    _check_parse_markdown(
+        b">asd\r\n>q||e||w||\r\n",
+        b"asd\r\nqew\r\n",
+        (
+            MessageEntity(TYPE.EXPANDABLE_BLOCK_QUOTE, 0, 10),
+            MessageEntity(TYPE.SPOILER, 6, 1),
+        ),
+    )
+    _check_parse_markdown(
+        b">asd\r\n>q||ew||\r\n",
+        b"asd\r\nqew\r\n",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 10), MessageEntity(TYPE.SPOILER, 6, 2)),
+    )
+    _check_parse_markdown(
+        b">asd\r\n>q||e||w||",
+        b"asd\r\nqew",
+        (
+            MessageEntity(TYPE.EXPANDABLE_BLOCK_QUOTE, 0, 8),
+            MessageEntity(TYPE.SPOILER, 6, 1),
+        ),
+    )
+    _check_parse_markdown(
+        b">asd\r\n>q||ew||",
+        b"asd\r\nqew",
+        (MessageEntity(TYPE.BLOCK_QUOTE, 0, 8), MessageEntity(TYPE.SPOILER, 6, 2)),
+    )
+    _check_parse_markdown(b">||", b"", ())

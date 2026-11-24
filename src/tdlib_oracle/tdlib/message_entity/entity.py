@@ -4,7 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's message entities: their types, the classes of types, and their order.
+"""TDLib's message entities: their types, type names and classes, and their order.
 
 The pinned code sorts entities with `std::sort`, which leaves the order of entities that
 compare equal to the C++ library, so a server built with another library can keep
@@ -82,6 +82,35 @@ _PRIORITIES = (
     50,  # TON_ADDRESS
 )
 
+# Ported from td/telegram/MessageEntity.cpp, operator<<(StringBuilder &string_builder,
+# const MessageEntity::Type &message_entity_type), the names it writes.
+_TYPE_NAMES = (
+    "Mention",
+    "Hashtag",
+    "BotCommand",
+    "Url",
+    "EmailAddress",
+    "Bold",
+    "Italic",
+    "Code",
+    "Pre",
+    "PreCode",
+    "TextUrl",
+    "MentionName",
+    "Cashtag",
+    "PhoneNumber",
+    "Underline",
+    "Strikethrough",
+    "BlockQuote",
+    "BankCardNumber",
+    "MediaTimestamp",
+    "Spoiler",
+    "CustomEmoji",
+    "ExpandableBlockQuote",
+    "Date",
+    "TonAddress",
+)
+
 
 # Ported from td/telegram/MessageEntity.h, MessageEntity, without media_timestamp, which
 # no entity of a bot's text carries.
@@ -132,6 +161,16 @@ class FormattedText:
 
     text: bytes
     entities: tuple[MessageEntity, ...] = ()
+
+
+# Ported from td/telegram/MessageEntity.cpp, operator<<(StringBuilder &string_builder,
+# const MessageEntity::Type &message_entity_type).
+def type_name(entity_type: int) -> str:
+    """Return the name TDLib's messages give `entity_type`, one of `TYPE`.
+
+    Each type goes by its own name in PascalCase, but a formatted date is a `Date`.
+    """
+    return _TYPE_NAMES[entity_type]
 
 
 # Ported from td/telegram/MessageEntity.h, MessageEntity::operator<(), as a sort key.

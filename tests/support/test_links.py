@@ -8,6 +8,10 @@ def test_a_seed_draws_the_same_links_each_time() -> None:
 
 def test_a_seed_draws_count_links_of_each_kind_without_an_empty_part() -> None:
     links = draw_links(7, 100)
-    assert len(links) == 300
+    assert len(links) == 400
     assert all(part for link in links for part in link)
     assert all(b"user" in b"".join(link).lower() for link in links[100:200])
+    assert all(
+        b"emoji" in b"".join(link).lower() or b"time" in b"".join(link).lower()
+        for link in links[200:300]
+    )
