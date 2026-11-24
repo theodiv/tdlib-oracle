@@ -137,6 +137,13 @@ ignore = ["D105", "D107", "PLR2004"]
   "S603",
 ]
 "tests/**/test_*.py" = ["D103"]
+# Ported code follows the structure of the upstream functions it cites.
+"{src/tdlib_oracle/{botapi,tdlib,tdutils},tests/upstream}/**" = [
+  "PLR0911",
+  "PLR0912",
+  "PLR0913",
+  "PLR0915",
+]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"

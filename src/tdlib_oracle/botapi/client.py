@@ -155,9 +155,7 @@ class JsonEntity:
 
     # Ported from telegram-bot-api/Client.cpp, Client::JsonEntity::store(), with the ID
     # of a mentioned user in place of the user's details.
-    def store(  # noqa: PLR0912, PLR0915  # mirrors upstream
-        self,
-    ) -> tuple[tuple[str, bytes | int], ...]:
+    def store(self) -> tuple[tuple[str, bytes | int], ...]:
         """Return the members of the object, each a name and its value, in their order.
 
         Each type takes its name in the Bot API, and a type that holds a value adds it.

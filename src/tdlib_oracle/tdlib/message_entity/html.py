@@ -72,7 +72,7 @@ _TAG_NAMES = frozenset(
 
 
 # Ported from td/telegram/MessageEntity.cpp, decode_html_entity().
-def _decode_html_entity(text: bytes, pos: int) -> tuple[int, int]:  # noqa: PLR0912  # mirrors upstream
+def _decode_html_entity(text: bytes, pos: int) -> tuple[int, int]:
     """Return the code point of the reference at `pos` of `text`, and where it ends.
 
     `text` ends with the string terminator, and `pos` holds an `&`. A reference that
@@ -126,7 +126,7 @@ class _EntityInfo:
 
 
 # Ported from td/telegram/MessageEntity.cpp, parse_html().
-def parse_html(text: bytes) -> FormattedText | Failure:  # noqa: PLR0911, PLR0912, PLR0915  # mirrors upstream
+def parse_html(text: bytes) -> FormattedText | Failure:
     """Return the text and entities `text` gives as HTML, or the `Failure` refusing it.
 
     The tags are removed, and the references `&lt;`, `&gt;`, `&amp;`, and `&quot;` and
