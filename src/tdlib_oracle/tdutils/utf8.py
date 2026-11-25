@@ -16,8 +16,8 @@ def check_utf8(text: bytes) -> bool:
     Overlong encodings, surrogates, and code points past U+10FFFF are invalid.
     """
     # TDLib runs a DFA built from these transitions; Python's UTF-8 codec refuses
-    # exactly the bytes it refuses, in one pass in C, which HTML makes for the link of
-    # each nested link.
+    # exactly the bytes it refuses, in one pass in C, which HTML and MarkdownV2 make for
+    # the link of each nested link.
     # Stands in for tdutils/td/utils/utf8.cpp, get_utf8_transitions().
     try:
         text.decode()

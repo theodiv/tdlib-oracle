@@ -64,15 +64,15 @@ TDLib's processing.
 - `text` — the message text. A `str` stands for what a client sends and is
   encoded as UTF-8, with a surrogate code point kept in its 3-byte form; `bytes`
   stand for the field as the server receives it.
-- `parse_mode` — the markup of the text: `HTML` in any letter case parses it,
-  and `None`, an empty string, or `none` in any letter case parses nothing; any
-  other name gets the server's refusal; default `None`.
-  *Added in 0.2.0.*
+- `parse_mode` — the markup of the text: `HTML`, `MarkdownV2`, or `Markdown` in
+  any letter case parses it, and `None`, an empty string, or `none` in any
+  letter case parses nothing; any other name gets the server's refusal;
+  default `None`.
+  *Added in 0.2.0.* *Changed in the next release: parses `MarkdownV2`
+  and `Markdown`.*
 
 Returns the `Verdict`. Raises `TypeError` when `text` is neither `str` nor
-`bytes`, or `parse_mode` is neither `str` nor `None`, and `ValueError` when
-`parse_mode` is `Markdown` or `MarkdownV2` in any letter case, which a later
-release supports.
+`bytes`, or `parse_mode` is neither `str` nor `None`.
 
 ```pycon
 >>> from tdlib_oracle import check
@@ -84,6 +84,8 @@ Verdict(accepted=False, text=None, entities=(), refusal=Refusal(description='Bad
 (Entity(type='bold', offset=0, length=6, url=None, user_id=None, language=None, custom_emoji_id=None, unix_time=None, date_time_format=None, depends_on_backend=False, depends_on_build=False),)
 >>> check("<b>Total:</i> 42", parse_mode="HTML").refusal
 Refusal(description='Bad Request: can\'t parse entities: Unmatched end tag at byte offset 9, expected "</b>", found "</i>"', offset=9)
+>>> check("Total: 42.", parse_mode="MarkdownV2").refusal
+Refusal(description="Bad Request: can't parse entities: Character '.' is reserved and must be escaped with the preceding '\\'", offset=None)
 ```
 
 ## Constants

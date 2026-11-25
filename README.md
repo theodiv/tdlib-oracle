@@ -11,11 +11,11 @@ Catch Telegram's refusals and silent edits before sending.
 ## Overview
 
 TDLib Oracle tells a test whether the Telegram Bot API server would accept a
-bot's message text, plain or in HTML, and what it would keep, by running the
-text through the server's own checks and TDLib's processing, ported from their
-code at a pinned Bot API release. It serves the test suites of Telegram bots and
-of the libraries that build their messages, with no token and no network
-request. Sending the message stays with the caller.
+bot's message text, plain or in HTML, MarkdownV2, or Markdown, and what it would
+keep, by running the text through the server's own checks and TDLib's
+processing, ported from their code at a pinned Bot API release. It serves the
+test suites of Telegram bots and of the libraries that build their messages,
+with no token and no network request. Sending the message stays with the caller.
 
 ## Features
 
@@ -24,9 +24,10 @@ request. Sending the message stays with the caller.
 - **The text Telegram keeps** — an accepted text comes back as the pinned code
   keeps it: `\r` dropped, other control characters turned into spaces, both
   ends trimmed.
-- **HTML as TDLib parses it** — an accepted HTML text comes back with the
-  entities TDLib sends, in the Bot API's form, and a refused one with the byte
-  offset of the markup TDLib refuses.
+- **Markup as TDLib parses it** — an accepted HTML, MarkdownV2, or Markdown text
+  comes back with the entities TDLib sends, in the Bot API's form, and a refused
+  one with the byte offset of the markup TDLib refuses, when its error
+  names one.
 - **Uncertainty marked** — `depends_on_backend` marks an entity that Telegram's
   backend judges after TDLib, and `depends_on_build` one that the server's C++
   library picks from a tie.

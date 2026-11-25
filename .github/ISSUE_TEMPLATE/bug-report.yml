@@ -55,6 +55,8 @@ body:
       options:
         - None (plain text)
         - HTML
+        - MarkdownV2
+        - Markdown
     validations:
       required: true
 

@@ -28,10 +28,11 @@ Report vulnerabilities privately; never open a public issue for one.
 
 - **Unbounded work** — `check` takes text of any size and refuses one over
   32,768 bytes before TDLib's steps run. Each step runs in time and memory
-  linear in the text, except for HTML `a` tags without `href` nested around the
-  same text, whose link TDLib checks once per level: time and memory grow with
-  the square of the text's length, and the worst 32,768-byte text found takes
-  seconds, as the Guarantees of [Behavior](docs/behavior.md) state.
+  linear in the text, except for HTML `a` tags without `href` and MarkdownV2
+  links without a URL nested around the same text, whose link TDLib checks once
+  per level: time and memory grow with the square of the text's length, and the
+  worst 32,768-byte texts found take seconds, as the Guarantees of
+  [Behavior](docs/behavior.md) state.
 - **Malformed input** — invalid UTF-8, lone surrogates, and control characters
   get a verdict, never an exception, so a hostile text cannot make
   `check` raise.

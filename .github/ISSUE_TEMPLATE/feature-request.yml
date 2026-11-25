@@ -33,6 +33,8 @@ body:
       options:
         - Plain text
         - HTML
+        - MarkdownV2
+        - Markdown
     validations:
       required: true
 

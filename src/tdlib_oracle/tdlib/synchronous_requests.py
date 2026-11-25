@@ -12,6 +12,8 @@ from tdlib_oracle.tdlib.message_entity import (
     FormattedText,
     get_text_entities_object,
     parse_html,
+    parse_markdown,
+    parse_markdown_v2,
 )
 from tdlib_oracle.tdutils.utf8 import check_utf8, utf8_length
 
@@ -31,15 +33,16 @@ def run_request(
 
 
 # Ported from td/telegram/SynchronousRequests.cpp,
-# SynchronousRequests::do_request(td_api::parseTextEntities &request), for the HTML
-# parse mode.
+# SynchronousRequests::do_request(td_api::parseTextEntities &request).
 def do_request(
     request: td_api.ParseTextEntities,
 ) -> td_api.FormattedText | td_api.Error:
     """Return the text of `request` without markup, with its entities, or the error.
 
-    The text must be UTF-8 and at most 65,536 code points long, and the parser's refusal
-    comes back with its message after `Can't parse entities: `.
+    The text must be UTF-8, and the parse mode set. HTML goes to the HTML parser,
+    Markdown of version 0 or 1 to the legacy Markdown parser, and Markdown of version 2
+    to the MarkdownV2 parser. A text over 65,536 code points, any other version, and the
+    parser's refusal come back with their message after `Can't parse entities: `.
     """
     # A carriage return can separate parts of the text, so it is checked, not cleaned.
     if not check_utf8(request.text):
@@ -51,8 +54,15 @@ def do_request(
     if utf8_length(request.text) > _MAX_TEXT_LENGTH:
         result = Failure(0, "Text is too long")
     else:
-        # The HTML parse mode is the only one ported.
-        result = parse_html(request.text)
+        match request.parse_mode:
+            case td_api.TextParseModeHTML():
+                result = parse_html(request.text)
+            case td_api.TextParseModeMarkdown(version=0 | 1):
+                result = parse_markdown(request.text)
+            case td_api.TextParseModeMarkdown(version=2):
+                result = parse_markdown_v2(request.text)
+            case _:
+                result = Failure(0, "Wrong Markdown version specified")
     if isinstance(result, Failure):
         message = result.message.encode("utf-8", "surrogateescape")
         return td_api.Error(400, b"Can't parse entities: " + message)

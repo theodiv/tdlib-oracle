@@ -314,15 +314,27 @@ class FormattedText:
     entities: tuple[TextEntity | None, ...]
 
 
+# Ported from td/generate/scheme/td_api.tl, textParseModeMarkdown.
+@dataclass(frozen=True)
+class TextParseModeMarkdown:
+    """The Bot API's Markdown parse modes, by the version of the parser.
+
+    Attributes:
+        version: The version of the parser: 0 or 1 for the Bot API's `Markdown` parse
+            mode, and 2 for `MarkdownV2`.
+    """
+
+    version: int
+
+
 # Ported from td/generate/scheme/td_api.tl, textParseModeHTML.
 @dataclass(frozen=True)
 class TextParseModeHTML:
     """The Bot API's HTML parse mode."""
 
 
-# Ported from td/generate/scheme/td_api.tl, TextParseMode, of which only the HTML parse
-# mode is ported.
-TextParseMode = TextParseModeHTML
+# Ported from td/generate/scheme/td_api.tl, TextParseMode.
+TextParseMode = TextParseModeMarkdown | TextParseModeHTML
 
 
 # Ported from td/generate/scheme/td_api.tl, parseTextEntities.

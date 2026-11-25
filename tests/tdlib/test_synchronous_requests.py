@@ -1,3 +1,5 @@
+import pytest
+
 from tdlib_oracle.tdlib import td_api
 from tdlib_oracle.tdlib.synchronous_requests import run_request
 
@@ -53,3 +55,19 @@ def test_run_request_answers_a_refusal_of_the_parser_with_its_message() -> None:
         'Can\'t parse entities: Unsupported start tag "\U000000e9" at byte offset 0'
     )
     assert result == td_api.Error(400, message.encode())
+
+
+def test_run_request_parses_markdown_of_version_0_as_legacy_markdown() -> None:
+    # The Bot API server sends version 1 for Markdown, which TDLib reads as it does 0.
+    request = td_api.ParseTextEntities(b"*a.b*", td_api.TextParseModeMarkdown(0))
+    assert run_request(request) == td_api.FormattedText(
+        b"a.b", (td_api.TextEntity(0, 3, td_api.TextEntityTypeBold()),)
+    )
+
+
+@pytest.mark.parametrize("version", [3, -1])
+def test_run_request_refuses_any_other_markdown_version(version: int) -> None:
+    request = td_api.ParseTextEntities(b"*a*", td_api.TextParseModeMarkdown(version))
+    assert run_request(request) == td_api.Error(
+        400, b"Can't parse entities: Wrong Markdown version specified"
+    )
