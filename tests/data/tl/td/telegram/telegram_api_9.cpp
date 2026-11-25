@@ -2925,12 +2925,16 @@ updateChannelTooLong::updateChannelTooLong()
   : flags_()
   , channel_id_()
   , pts_()
+  , last_msg_id_()
+  , last_msg_date_()
 {}
 
-updateChannelTooLong::updateChannelTooLong(int32 flags_, int64 channel_id_, int32 pts_)
+updateChannelTooLong::updateChannelTooLong(int32 flags_, int64 channel_id_, int32 pts_, int32 last_msg_id_, int32 last_msg_date_)
   : flags_(flags_)
   , channel_id_(channel_id_)
   , pts_(pts_)
+  , last_msg_id_(last_msg_id_)
+  , last_msg_date_(last_msg_date_)
 {}
 
 const std::int32_t updateChannelTooLong::ID;
@@ -2942,6 +2946,8 @@ object_ptr<Update> updateChannelTooLong::fetch(TlBufferParser &p) {
   if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
   res->channel_id_ = TlFetchLong::parse(p);
   if (var0 & 1) { res->pts_ = TlFetchInt::parse(p); }
+  if (var0 & 2) { res->last_msg_id_ = TlFetchInt::parse(p); }
+  if (var0 & 2) { res->last_msg_date_ = TlFetchInt::parse(p); }
   if (p.get_error()) { FAIL(""); }
   return std::move(res);
 #undef FAIL
@@ -2954,6 +2960,8 @@ void updateChannelTooLong::store(TlStorerToString &s, const char *field_name) co
     s.store_field("flags", (var0 = flags_));
     s.store_field("channel_id", channel_id_);
     if (var0 & 1) { s.store_field("pts", pts_); }
+    if (var0 & 2) { s.store_field("last_msg_id", last_msg_id_); }
+    if (var0 & 2) { s.store_field("last_msg_date", last_msg_date_); }
     s.store_class_end();
   }
 }
@@ -4000,7 +4008,7 @@ object_ptr<Update> updatePeerSettings::fetch(TlBufferParser &p) {
 
 updatePeerSettings::updatePeerSettings(TlBufferParser &p)
   : peer_(TlFetchObject<Peer>::parse(p))
-  , settings_(TlFetchBoxed<TlFetchObject<peerSettings>, -193510921>::parse(p))
+  , settings_(TlFetchBoxed<TlFetchObject<peerSettings>, 608290891>::parse(p))
 {}
 
 void updatePeerSettings::store(TlStorerToString &s, const char *field_name) const {
@@ -7289,7 +7297,7 @@ object_ptr<userFull> userFull::fetch(TlBufferParser &p) {
   res->unofficial_security_risk_ = (var1 & 67108864) != 0;
   res->id_ = TlFetchLong::parse(p);
   if (var0 & 2) { res->about_ = TlFetchString<string>::parse(p); }
-  res->settings_ = TlFetchBoxed<TlFetchObject<peerSettings>, -193510921>::parse(p);
+  res->settings_ = TlFetchBoxed<TlFetchObject<peerSettings>, 608290891>::parse(p);
   if (var0 & 2097152) { res->personal_photo_ = TlFetchObject<Photo>::parse(p); }
   if (var0 & 4) { res->profile_photo_ = TlFetchObject<Photo>::parse(p); }
   if (var0 & 4194304) { res->fallback_photo_ = TlFetchObject<Photo>::parse(p); }
@@ -9416,6 +9424,102 @@ void bots_reorderUsernames::store(TlStorerToString &s, const char *field_name) c
 bots_reorderUsernames::ReturnType bots_reorderUsernames::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
   return TlFetchBool::parse(p);
+#undef FAIL
+}
+
+bots_setBotSettings::bots_setBotSettings(int32 flags_, object_ptr<InputUser> &&bot_, bool inline_mode_, string const &inline_placeholder_, bool inline_geo_, int32 inline_feedback_, bool nochats_, bool chat_history_, bool business_, bool can_manage_bots_, bool guestchat_, bool guard_, bool forum_view_, bool forum_can_manage_topics_, bool forum_sidebar_, bool bot_to_bot_communication_mode_, string const &callback_mode_)
+  : flags_(flags_)
+  , bot_(std::move(bot_))
+  , inline_mode_(inline_mode_)
+  , inline_placeholder_(inline_placeholder_)
+  , inline_geo_(inline_geo_)
+  , inline_feedback_(inline_feedback_)
+  , nochats_(nochats_)
+  , chat_history_(chat_history_)
+  , business_(business_)
+  , can_manage_bots_(can_manage_bots_)
+  , guestchat_(guestchat_)
+  , guard_(guard_)
+  , forum_view_(forum_view_)
+  , forum_can_manage_topics_(forum_can_manage_topics_)
+  , forum_sidebar_(forum_sidebar_)
+  , bot_to_bot_communication_mode_(bot_to_bot_communication_mode_)
+  , callback_mode_(callback_mode_)
+{}
+
+const std::int32_t bots_setBotSettings::ID;
+
+void bots_setBotSettings::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(2093007050);
+  TlStoreBinary::store((var0 = flags_ | ((bot_ != nullptr) << 0) | ((!inline_placeholder_.empty()) << 2) | ((!callback_mode_.empty()) << 15)), s);
+  if (var0 & 1) { TlStoreBoxedUnknown<TlStoreObject>::store(bot_, s); }
+  if (var0 & 2) { TlStoreBool::store(inline_mode_, s); }
+  if (var0 & 4) { TlStoreString::store(inline_placeholder_, s); }
+  if (var0 & 8) { TlStoreBool::store(inline_geo_, s); }
+  if (var0 & 16) { TlStoreBinary::store(inline_feedback_, s); }
+  if (var0 & 32) { TlStoreBool::store(nochats_, s); }
+  if (var0 & 64) { TlStoreBool::store(chat_history_, s); }
+  if (var0 & 128) { TlStoreBool::store(business_, s); }
+  if (var0 & 256) { TlStoreBool::store(can_manage_bots_, s); }
+  if (var0 & 512) { TlStoreBool::store(guestchat_, s); }
+  if (var0 & 1024) { TlStoreBool::store(guard_, s); }
+  if (var0 & 2048) { TlStoreBool::store(forum_view_, s); }
+  if (var0 & 4096) { TlStoreBool::store(forum_can_manage_topics_, s); }
+  if (var0 & 8192) { TlStoreBool::store(forum_sidebar_, s); }
+  if (var0 & 16384) { TlStoreBool::store(bot_to_bot_communication_mode_, s); }
+  if (var0 & 32768) { TlStoreString::store(callback_mode_, s); }
+}
+
+void bots_setBotSettings::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(2093007050);
+  TlStoreBinary::store((var0 = flags_ | ((bot_ != nullptr) << 0) | ((!inline_placeholder_.empty()) << 2) | ((!callback_mode_.empty()) << 15)), s);
+  if (var0 & 1) { TlStoreBoxedUnknown<TlStoreObject>::store(bot_, s); }
+  if (var0 & 2) { TlStoreBool::store(inline_mode_, s); }
+  if (var0 & 4) { TlStoreString::store(inline_placeholder_, s); }
+  if (var0 & 8) { TlStoreBool::store(inline_geo_, s); }
+  if (var0 & 16) { TlStoreBinary::store(inline_feedback_, s); }
+  if (var0 & 32) { TlStoreBool::store(nochats_, s); }
+  if (var0 & 64) { TlStoreBool::store(chat_history_, s); }
+  if (var0 & 128) { TlStoreBool::store(business_, s); }
+  if (var0 & 256) { TlStoreBool::store(can_manage_bots_, s); }
+  if (var0 & 512) { TlStoreBool::store(guestchat_, s); }
+  if (var0 & 1024) { TlStoreBool::store(guard_, s); }
+  if (var0 & 2048) { TlStoreBool::store(forum_view_, s); }
+  if (var0 & 4096) { TlStoreBool::store(forum_can_manage_topics_, s); }
+  if (var0 & 8192) { TlStoreBool::store(forum_sidebar_, s); }
+  if (var0 & 16384) { TlStoreBool::store(bot_to_bot_communication_mode_, s); }
+  if (var0 & 32768) { TlStoreString::store(callback_mode_, s); }
+}
+
+void bots_setBotSettings::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "bots.setBotSettings");
+    s.store_field("flags", (var0 = flags_ | ((bot_ != nullptr) << 0) | ((!inline_placeholder_.empty()) << 2) | ((!callback_mode_.empty()) << 15)));
+    if (var0 & 1) { s.store_object_field("bot", static_cast<const BaseObject *>(bot_.get())); }
+    if (var0 & 2) { s.store_field("inline_mode", inline_mode_); }
+    if (var0 & 4) { s.store_field("inline_placeholder", inline_placeholder_); }
+    if (var0 & 8) { s.store_field("inline_geo", inline_geo_); }
+    if (var0 & 16) { s.store_field("inline_feedback", inline_feedback_); }
+    if (var0 & 32) { s.store_field("nochats", nochats_); }
+    if (var0 & 64) { s.store_field("chat_history", chat_history_); }
+    if (var0 & 128) { s.store_field("business", business_); }
+    if (var0 & 256) { s.store_field("can_manage_bots", can_manage_bots_); }
+    if (var0 & 512) { s.store_field("guestchat", guestchat_); }
+    if (var0 & 1024) { s.store_field("guard", guard_); }
+    if (var0 & 2048) { s.store_field("forum_view", forum_view_); }
+    if (var0 & 4096) { s.store_field("forum_can_manage_topics", forum_can_manage_topics_); }
+    if (var0 & 8192) { s.store_field("forum_sidebar", forum_sidebar_); }
+    if (var0 & 16384) { s.store_field("bot_to_bot_communication_mode", bot_to_bot_communication_mode_); }
+    if (var0 & 32768) { s.store_field("callback_mode", callback_mode_); }
+    s.store_class_end();
+  }
+}
+
+bots_setBotSettings::ReturnType bots_setBotSettings::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchObject<User>::parse(p);
 #undef FAIL
 }
 

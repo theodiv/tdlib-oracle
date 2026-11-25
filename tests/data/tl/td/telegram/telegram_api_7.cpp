@@ -171,6 +171,7 @@ object_ptr<DraftMessage> DraftMessage::fetch(TlBufferParser &p) {
 draftMessageEmpty::draftMessageEmpty()
   : flags_()
   , date_()
+  , ai_style_()
 {}
 
 const std::int32_t draftMessageEmpty::ID;
@@ -181,6 +182,7 @@ object_ptr<DraftMessage> draftMessageEmpty::fetch(TlBufferParser &p) {
   int32 var0;
   if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
   if (var0 & 1) { res->date_ = TlFetchInt::parse(p); }
+  if (var0 & 2) { res->ai_style_ = TlFetchBoxed<TlFetchObject<inputAiComposeStyle>, -1474231824>::parse(p); }
   if (p.get_error()) { FAIL(""); }
   return std::move(res);
 #undef FAIL
@@ -190,8 +192,9 @@ void draftMessageEmpty::store(TlStorerToString &s, const char *field_name) const
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "draftMessageEmpty");
   int32 var0;
-    s.store_field("flags", (var0 = flags_));
+    s.store_field("flags", (var0 = flags_ | ((ai_style_ != nullptr) << 1)));
     if (var0 & 1) { s.store_field("date", date_); }
+    if (var0 & 2) { s.store_object_field("ai_style", static_cast<const BaseObject *>(ai_style_.get())); }
     s.store_class_end();
   }
 }
@@ -208,6 +211,7 @@ draftMessage::draftMessage()
   , effect_()
   , suggested_post_()
   , rich_message_()
+  , ai_style_()
 {}
 
 const std::int32_t draftMessage::ID;
@@ -227,6 +231,7 @@ object_ptr<DraftMessage> draftMessage::fetch(TlBufferParser &p) {
   if (var0 & 128) { res->effect_ = TlFetchLong::parse(p); }
   if (var0 & 256) { res->suggested_post_ = TlFetchBoxed<TlFetchObject<suggestedPost>, 244201445>::parse(p); }
   if (var0 & 512) { res->rich_message_ = TlFetchBoxed<TlFetchObject<richMessage>, -1158439541>::parse(p); }
+  if (var0 & 1024) { res->ai_style_ = TlFetchBoxed<TlFetchObject<inputAiComposeStyle>, -1474231824>::parse(p); }
   if (p.get_error()) { FAIL(""); }
   return std::move(res);
 #undef FAIL
@@ -236,7 +241,7 @@ void draftMessage::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "draftMessage");
   int32 var0;
-    s.store_field("flags", (var0 = flags_ | (no_webpage_ << 1) | (invert_media_ << 6) | ((reply_to_ != nullptr) << 4) | ((!entities_.empty()) << 3) | ((media_ != nullptr) << 5) | ((suggested_post_ != nullptr) << 8) | ((rich_message_ != nullptr) << 9)));
+    s.store_field("flags", (var0 = flags_ | (no_webpage_ << 1) | (invert_media_ << 6) | ((reply_to_ != nullptr) << 4) | ((!entities_.empty()) << 3) | ((media_ != nullptr) << 5) | ((suggested_post_ != nullptr) << 8) | ((rich_message_ != nullptr) << 9) | ((ai_style_ != nullptr) << 10)));
     if (var0 & 2) { s.store_field("no_webpage", true); }
     if (var0 & 64) { s.store_field("invert_media", true); }
     if (var0 & 16) { s.store_object_field("reply_to", static_cast<const BaseObject *>(reply_to_.get())); }
@@ -247,6 +252,7 @@ void draftMessage::store(TlStorerToString &s, const char *field_name) const {
     if (var0 & 128) { s.store_field("effect", effect_); }
     if (var0 & 256) { s.store_object_field("suggested_post", static_cast<const BaseObject *>(suggested_post_.get())); }
     if (var0 & 512) { s.store_object_field("rich_message", static_cast<const BaseObject *>(rich_message_.get())); }
+    if (var0 & 1024) { s.store_object_field("ai_style", static_cast<const BaseObject *>(ai_style_.get())); }
     s.store_class_end();
   }
 }
@@ -344,6 +350,67 @@ void globalPrivacySettings::store(TlStorerToString &s, const char *field_name) c
     if (var0 & 128) { s.store_field("display_gifts_button", true); }
     if (var0 & 32) { s.store_field("noncontact_peers_paid_stars", noncontact_peers_paid_stars_); }
     if (var0 & 64) { s.store_object_field("disallowed_gifts", static_cast<const BaseObject *>(disallowed_gifts_.get())); }
+    s.store_class_end();
+  }
+}
+
+inputAiComposeStyle::inputAiComposeStyle()
+  : flags_()
+  , emojify_()
+  , proofread_()
+  , tone_()
+  , to_lang_()
+{}
+
+inputAiComposeStyle::inputAiComposeStyle(int32 flags_, bool emojify_, bool proofread_, object_ptr<InputAiComposeTone> &&tone_, string const &to_lang_)
+  : flags_(flags_)
+  , emojify_(emojify_)
+  , proofread_(proofread_)
+  , tone_(std::move(tone_))
+  , to_lang_(to_lang_)
+{}
+
+const std::int32_t inputAiComposeStyle::ID;
+
+object_ptr<inputAiComposeStyle> inputAiComposeStyle::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<inputAiComposeStyle> res = make_tl_object<inputAiComposeStyle>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->emojify_ = (var0 & 4) != 0;
+  res->proofread_ = (var0 & 8) != 0;
+  if (var0 & 1) { res->tone_ = TlFetchObject<InputAiComposeTone>::parse(p); }
+  if (var0 & 2) { res->to_lang_ = TlFetchString<string>::parse(p); }
+  if (p.get_error()) { FAIL(""); }
+  return res;
+#undef FAIL
+}
+
+void inputAiComposeStyle::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  int32 var0;
+  TlStoreBinary::store((var0 = flags_ | (emojify_ << 2) | (proofread_ << 3) | ((tone_ != nullptr) << 0) | ((!to_lang_.empty()) << 1)), s);
+  if (var0 & 1) { TlStoreBoxedUnknown<TlStoreObject>::store(tone_, s); }
+  if (var0 & 2) { TlStoreString::store(to_lang_, s); }
+}
+
+void inputAiComposeStyle::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  int32 var0;
+  TlStoreBinary::store((var0 = flags_ | (emojify_ << 2) | (proofread_ << 3) | ((tone_ != nullptr) << 0) | ((!to_lang_.empty()) << 1)), s);
+  if (var0 & 1) { TlStoreBoxedUnknown<TlStoreObject>::store(tone_, s); }
+  if (var0 & 2) { TlStoreString::store(to_lang_, s); }
+}
+
+void inputAiComposeStyle::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "inputAiComposeStyle");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | (emojify_ << 2) | (proofread_ << 3) | ((tone_ != nullptr) << 0) | ((!to_lang_.empty()) << 1)));
+    if (var0 & 4) { s.store_field("emojify", true); }
+    if (var0 & 8) { s.store_field("proofread", true); }
+    if (var0 & 1) { s.store_object_field("tone", static_cast<const BaseObject *>(tone_.get())); }
+    if (var0 & 2) { s.store_field("to_lang", to_lang_); }
     s.store_class_end();
   }
 }
@@ -3266,6 +3333,46 @@ void payments_starGiftCollections::store(TlStorerToString &s, const char *field_
   }
 }
 
+payments_starGiftOnchainOfferTxMessage::payments_starGiftOnchainOfferTxMessage()
+  : flags_()
+  , destination_()
+  , value_()
+  , mode_()
+  , body_()
+  , init_state_()
+{}
+
+const std::int32_t payments_starGiftOnchainOfferTxMessage::ID;
+
+object_ptr<payments_starGiftOnchainOfferTxMessage> payments_starGiftOnchainOfferTxMessage::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<payments_starGiftOnchainOfferTxMessage> res = make_tl_object<payments_starGiftOnchainOfferTxMessage>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->destination_ = TlFetchString<string>::parse(p);
+  res->value_ = TlFetchLong::parse(p);
+  res->mode_ = TlFetchInt::parse(p);
+  res->body_ = TlFetchBytes<bytes>::parse(p);
+  if (var0 & 1) { res->init_state_ = TlFetchBoxed<TlFetchObject<payments_starGiftOnchainOfferTxInitState>, 148300917>::parse(p); }
+  if (p.get_error()) { FAIL(""); }
+  return res;
+#undef FAIL
+}
+
+void payments_starGiftOnchainOfferTxMessage::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.starGiftOnchainOfferTxMessage");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((init_state_ != nullptr) << 0)));
+    s.store_field("destination", destination_);
+    s.store_field("value", value_);
+    s.store_field("mode", mode_);
+    s.store_bytes_field("body", body_);
+    if (var0 & 1) { s.store_object_field("init_state", static_cast<const BaseObject *>(init_state_.get())); }
+    s.store_class_end();
+  }
+}
+
 const std::int32_t payments_starsRevenueWithdrawalUrl::ID;
 
 object_ptr<payments_starsRevenueWithdrawalUrl> payments_starsRevenueWithdrawalUrl::fetch(TlBufferParser &p) {
@@ -5938,6 +6045,52 @@ void payments_launchPrepaidGiveaway::store(TlStorerToString &s, const char *fiel
 payments_launchPrepaidGiveaway::ReturnType payments_launchPrepaidGiveaway::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
   return TlFetchObject<Updates>::parse(p);
+#undef FAIL
+}
+
+payments_withdrawStarsRevenueToWallet::payments_withdrawStarsRevenueToWallet(int32 flags_, bool ton_, object_ptr<InputPeer> &&peer_, int64 amount_, bytes &&tmp_password_)
+  : flags_(flags_)
+  , ton_(ton_)
+  , peer_(std::move(peer_))
+  , amount_(amount_)
+  , tmp_password_(std::move(tmp_password_))
+{}
+
+const std::int32_t payments_withdrawStarsRevenueToWallet::ID;
+
+void payments_withdrawStarsRevenueToWallet::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(1461184265);
+  TlStoreBinary::store((var0 = flags_ | (ton_ << 0)), s);
+  TlStoreBoxedUnknown<TlStoreObject>::store(peer_, s);
+  if (var0 & 2) { TlStoreBinary::store(amount_, s); }
+  TlStoreString::store(tmp_password_, s);
+}
+
+void payments_withdrawStarsRevenueToWallet::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(1461184265);
+  TlStoreBinary::store((var0 = flags_ | (ton_ << 0)), s);
+  TlStoreBoxedUnknown<TlStoreObject>::store(peer_, s);
+  if (var0 & 2) { TlStoreBinary::store(amount_, s); }
+  TlStoreString::store(tmp_password_, s);
+}
+
+void payments_withdrawStarsRevenueToWallet::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.withdrawStarsRevenueToWallet");
+    s.store_field("flags", (var0 = flags_ | (ton_ << 0)));
+    if (var0 & 1) { s.store_field("ton", true); }
+    s.store_object_field("peer", static_cast<const BaseObject *>(peer_.get()));
+    if (var0 & 2) { s.store_field("amount", amount_); }
+    s.store_field("tmp_password", "[REDACTED]");
+    s.store_class_end();
+  }
+}
+
+payments_withdrawStarsRevenueToWallet::ReturnType payments_withdrawStarsRevenueToWallet::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchBool::parse(p);
 #undef FAIL
 }
 

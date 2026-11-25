@@ -849,13 +849,19 @@ void foundChatBoosts::store(TlStorerToString &s, const char *field_name) const {
 giftResaleParameters::giftResaleParameters()
   : star_count_()
   , gram_cent_count_()
+  , gram_amount_()
   , gram_only_()
+  , is_fixed_on_chain_()
+  , can_be_managed_()
 {}
 
-giftResaleParameters::giftResaleParameters(int53 star_count_, int53 gram_cent_count_, bool gram_only_)
+giftResaleParameters::giftResaleParameters(int53 star_count_, int53 gram_cent_count_, int64 gram_amount_, bool gram_only_, bool is_fixed_on_chain_, bool can_be_managed_)
   : star_count_(star_count_)
   , gram_cent_count_(gram_cent_count_)
+  , gram_amount_(gram_amount_)
   , gram_only_(gram_only_)
+  , is_fixed_on_chain_(is_fixed_on_chain_)
+  , can_be_managed_(can_be_managed_)
 {}
 
 const std::int32_t giftResaleParameters::ID;
@@ -865,7 +871,10 @@ void giftResaleParameters::store(TlStorerToString &s, const char *field_name) co
     s.store_class_begin(field_name, "giftResaleParameters");
     s.store_field("star_count", star_count_);
     s.store_field("gram_cent_count", gram_cent_count_);
+    s.store_field("gram_amount", gram_amount_);
     s.store_field("gram_only", gram_only_);
+    s.store_field("is_fixed_on_chain", is_fixed_on_chain_);
+    s.store_field("can_be_managed", can_be_managed_);
     s.store_class_end();
   }
 }

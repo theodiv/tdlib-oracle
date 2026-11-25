@@ -2059,12 +2059,12 @@ void pageBlockBlockQuote::store(TlStorerToString &s, const char *field_name) con
 }
 
 pageBlockExpandableBlockQuote::pageBlockExpandableBlockQuote()
-  : text_()
+  : blocks_()
   , credit_()
 {}
 
-pageBlockExpandableBlockQuote::pageBlockExpandableBlockQuote(object_ptr<RichText> &&text_, object_ptr<RichText> &&credit_)
-  : text_(std::move(text_))
+pageBlockExpandableBlockQuote::pageBlockExpandableBlockQuote(array<object_ptr<PageBlock>> &&blocks_, object_ptr<RichText> &&credit_)
+  : blocks_(std::move(blocks_))
   , credit_(std::move(credit_))
 {}
 
@@ -2073,7 +2073,7 @@ const std::int32_t pageBlockExpandableBlockQuote::ID;
 void pageBlockExpandableBlockQuote::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "pageBlockExpandableBlockQuote");
-    s.store_object_field("text", static_cast<const BaseObject *>(text_.get()));
+    { s.store_vector_begin("blocks", blocks_.size()); for (const auto &_value : blocks_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     s.store_object_field("credit", static_cast<const BaseObject *>(credit_.get()));
     s.store_class_end();
   }
@@ -3223,12 +3223,12 @@ receivedGift::receivedGift()
   , drop_original_details_star_count_()
   , next_transfer_date_()
   , next_resale_date_()
-  , export_date_()
+  , mint_date_()
   , prepaid_upgrade_hash_()
   , craft_date_()
 {}
 
-receivedGift::receivedGift(string const &received_gift_id_, object_ptr<MessageSender> &&sender_id_, object_ptr<formattedText> &&text_, int32 unique_gift_number_, bool is_private_, bool is_saved_, bool is_pinned_, bool can_be_upgraded_, bool can_be_transferred_, bool can_be_deleted_, bool was_refunded_, int32 date_, object_ptr<SentGift> &&gift_, array<int32> &&collection_ids_, int53 sell_star_count_, int53 prepaid_upgrade_star_count_, bool is_upgrade_separate_, int53 transfer_star_count_, int53 drop_original_details_star_count_, int32 next_transfer_date_, int32 next_resale_date_, int32 export_date_, string const &prepaid_upgrade_hash_, int32 craft_date_)
+receivedGift::receivedGift(string const &received_gift_id_, object_ptr<MessageSender> &&sender_id_, object_ptr<formattedText> &&text_, int32 unique_gift_number_, bool is_private_, bool is_saved_, bool is_pinned_, bool can_be_upgraded_, bool can_be_transferred_, bool can_be_deleted_, bool was_refunded_, int32 date_, object_ptr<SentGift> &&gift_, array<int32> &&collection_ids_, int53 sell_star_count_, int53 prepaid_upgrade_star_count_, bool is_upgrade_separate_, int53 transfer_star_count_, int53 drop_original_details_star_count_, int32 next_transfer_date_, int32 next_resale_date_, int32 mint_date_, string const &prepaid_upgrade_hash_, int32 craft_date_)
   : received_gift_id_(received_gift_id_)
   , sender_id_(std::move(sender_id_))
   , text_(std::move(text_))
@@ -3250,7 +3250,7 @@ receivedGift::receivedGift(string const &received_gift_id_, object_ptr<MessageSe
   , drop_original_details_star_count_(drop_original_details_star_count_)
   , next_transfer_date_(next_transfer_date_)
   , next_resale_date_(next_resale_date_)
-  , export_date_(export_date_)
+  , mint_date_(mint_date_)
   , prepaid_upgrade_hash_(prepaid_upgrade_hash_)
   , craft_date_(craft_date_)
 {}
@@ -3281,7 +3281,7 @@ void receivedGift::store(TlStorerToString &s, const char *field_name) const {
     s.store_field("drop_original_details_star_count", drop_original_details_star_count_);
     s.store_field("next_transfer_date", next_transfer_date_);
     s.store_field("next_resale_date", next_resale_date_);
-    s.store_field("export_date", export_date_);
+    s.store_field("mint_date", mint_date_);
     s.store_field("prepaid_upgrade_hash", prepaid_upgrade_hash_);
     s.store_field("craft_date", craft_date_);
     s.store_class_end();
@@ -3745,17 +3745,19 @@ tonWalletTransaction::tonWalletTransaction()
   , peer_domain_()
   , date_()
   , fee_amount_()
+  , is_suspected_spam_()
   , state_()
   , type_()
 {}
 
-tonWalletTransaction::tonWalletTransaction(string const &id_, string const &peer_address_, int53 peer_user_id_, string const &peer_domain_, int32 date_, int64 fee_amount_, object_ptr<TonWalletTransactionState> &&state_, object_ptr<TonWalletTransactionType> &&type_)
+tonWalletTransaction::tonWalletTransaction(string const &id_, string const &peer_address_, int53 peer_user_id_, string const &peer_domain_, int32 date_, int64 fee_amount_, bool is_suspected_spam_, object_ptr<TonWalletTransactionState> &&state_, object_ptr<TonWalletTransactionType> &&type_)
   : id_(id_)
   , peer_address_(peer_address_)
   , peer_user_id_(peer_user_id_)
   , peer_domain_(peer_domain_)
   , date_(date_)
   , fee_amount_(fee_amount_)
+  , is_suspected_spam_(is_suspected_spam_)
   , state_(std::move(state_))
   , type_(std::move(type_))
 {}
@@ -3771,6 +3773,7 @@ void tonWalletTransaction::store(TlStorerToString &s, const char *field_name) co
     s.store_field("peer_domain", peer_domain_);
     s.store_field("date", date_);
     s.store_field("fee_amount", fee_amount_);
+    s.store_field("is_suspected_spam", is_suspected_spam_);
     s.store_object_field("state", static_cast<const BaseObject *>(state_.get()));
     s.store_object_field("type", static_cast<const BaseObject *>(type_.get()));
     s.store_class_end();
@@ -3802,15 +3805,18 @@ upgradedGift::upgradedGift()
   , backdrop_()
   , original_details_()
   , colors_()
+  , uses_on_chain_resale_()
   , resale_parameters_()
+  , fee_basis_points_()
   , can_send_purchase_offer_()
+  , min_on_chain_purchase_offer_gram_amount_()
   , craft_probability_per_mille_()
   , value_currency_()
   , value_amount_()
   , value_usd_amount_()
 {}
 
-upgradedGift::upgradedGift(int64 id_, int64 regular_gift_id_, int53 publisher_chat_id_, string const &title_, string const &name_, int32 number_, int32 total_upgraded_count_, int32 max_upgraded_count_, bool is_burned_, bool is_crafted_, bool is_premium_, bool is_theme_available_, int53 used_theme_chat_id_, object_ptr<MessageSender> &&host_id_, object_ptr<MessageSender> &&owner_id_, string const &owner_address_, string const &owner_name_, string const &gift_address_, bool can_be_ton_wallet_card_background_, object_ptr<upgradedGiftModel> &&model_, object_ptr<upgradedGiftSymbol> &&symbol_, object_ptr<upgradedGiftBackdrop> &&backdrop_, object_ptr<upgradedGiftOriginalDetails> &&original_details_, object_ptr<upgradedGiftColors> &&colors_, object_ptr<giftResaleParameters> &&resale_parameters_, bool can_send_purchase_offer_, int32 craft_probability_per_mille_, string const &value_currency_, int53 value_amount_, int53 value_usd_amount_)
+upgradedGift::upgradedGift(int64 id_, int64 regular_gift_id_, int53 publisher_chat_id_, string const &title_, string const &name_, int32 number_, int32 total_upgraded_count_, int32 max_upgraded_count_, bool is_burned_, bool is_crafted_, bool is_premium_, bool is_theme_available_, int53 used_theme_chat_id_, object_ptr<MessageSender> &&host_id_, object_ptr<MessageSender> &&owner_id_, string const &owner_address_, string const &owner_name_, string const &gift_address_, bool can_be_ton_wallet_card_background_, object_ptr<upgradedGiftModel> &&model_, object_ptr<upgradedGiftSymbol> &&symbol_, object_ptr<upgradedGiftBackdrop> &&backdrop_, object_ptr<upgradedGiftOriginalDetails> &&original_details_, object_ptr<upgradedGiftColors> &&colors_, bool uses_on_chain_resale_, object_ptr<giftResaleParameters> &&resale_parameters_, int32 fee_basis_points_, bool can_send_purchase_offer_, int64 min_on_chain_purchase_offer_gram_amount_, int32 craft_probability_per_mille_, string const &value_currency_, int53 value_amount_, int53 value_usd_amount_)
   : id_(id_)
   , regular_gift_id_(regular_gift_id_)
   , publisher_chat_id_(publisher_chat_id_)
@@ -3835,8 +3841,11 @@ upgradedGift::upgradedGift(int64 id_, int64 regular_gift_id_, int53 publisher_ch
   , backdrop_(std::move(backdrop_))
   , original_details_(std::move(original_details_))
   , colors_(std::move(colors_))
+  , uses_on_chain_resale_(uses_on_chain_resale_)
   , resale_parameters_(std::move(resale_parameters_))
+  , fee_basis_points_(fee_basis_points_)
   , can_send_purchase_offer_(can_send_purchase_offer_)
+  , min_on_chain_purchase_offer_gram_amount_(min_on_chain_purchase_offer_gram_amount_)
   , craft_probability_per_mille_(craft_probability_per_mille_)
   , value_currency_(value_currency_)
   , value_amount_(value_amount_)
@@ -3872,8 +3881,11 @@ void upgradedGift::store(TlStorerToString &s, const char *field_name) const {
     s.store_object_field("backdrop", static_cast<const BaseObject *>(backdrop_.get()));
     s.store_object_field("original_details", static_cast<const BaseObject *>(original_details_.get()));
     s.store_object_field("colors", static_cast<const BaseObject *>(colors_.get()));
+    s.store_field("uses_on_chain_resale", uses_on_chain_resale_);
     s.store_object_field("resale_parameters", static_cast<const BaseObject *>(resale_parameters_.get()));
+    s.store_field("fee_basis_points", fee_basis_points_);
     s.store_field("can_send_purchase_offer", can_send_purchase_offer_);
+    s.store_field("min_on_chain_purchase_offer_gram_amount", min_on_chain_purchase_offer_gram_amount_);
     s.store_field("craft_probability_per_mille", craft_probability_per_mille_);
     s.store_field("value_currency", value_currency_);
     s.store_field("value_amount", value_amount_);
@@ -4422,6 +4434,24 @@ void createNewStickerSet::store(TlStorerToString &s, const char *field_name) con
   }
 }
 
+declineGiftOnChainPurchaseOffer::declineGiftOnChainPurchaseOffer()
+  : message_id_()
+{}
+
+declineGiftOnChainPurchaseOffer::declineGiftOnChainPurchaseOffer(int53 message_id_)
+  : message_id_(message_id_)
+{}
+
+const std::int32_t declineGiftOnChainPurchaseOffer::ID;
+
+void declineGiftOnChainPurchaseOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "declineGiftOnChainPurchaseOffer");
+    s.store_field("message_id", message_id_);
+    s.store_class_end();
+  }
+}
+
 deleteDirectMessagesChatTopicHistory::deleteDirectMessagesChatTopicHistory()
   : chat_id_()
   , topic_id_()
@@ -4844,6 +4874,36 @@ void getGiftAuctionAcquiredGifts::store(TlStorerToString &s, const char *field_n
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "getGiftAuctionAcquiredGifts");
     s.store_field("gift_id", gift_id_);
+    s.store_class_end();
+  }
+}
+
+getGiftOnChainPurchaseTransaction::getGiftOnChainPurchaseTransaction()
+  : gift_name_()
+  , owner_id_()
+  , gram_amount_()
+  , text_()
+  , is_private_()
+{}
+
+getGiftOnChainPurchaseTransaction::getGiftOnChainPurchaseTransaction(string const &gift_name_, object_ptr<MessageSender> &&owner_id_, int64 gram_amount_, object_ptr<formattedText> &&text_, bool is_private_)
+  : gift_name_(gift_name_)
+  , owner_id_(std::move(owner_id_))
+  , gram_amount_(gram_amount_)
+  , text_(std::move(text_))
+  , is_private_(is_private_)
+{}
+
+const std::int32_t getGiftOnChainPurchaseTransaction::ID;
+
+void getGiftOnChainPurchaseTransaction::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "getGiftOnChainPurchaseTransaction");
+    s.store_field("gift_name", gift_name_);
+    s.store_object_field("owner_id", static_cast<const BaseObject *>(owner_id_.get()));
+    s.store_field("gram_amount", gram_amount_);
+    s.store_object_field("text", static_cast<const BaseObject *>(text_.get()));
+    s.store_field("is_private", is_private_);
     s.store_class_end();
   }
 }
@@ -5615,6 +5675,30 @@ void sendEmailAddressVerificationCode::store(TlStorerToString &s, const char *fi
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "sendEmailAddressVerificationCode");
     s.store_field("email_address", email_address_);
+    s.store_class_end();
+  }
+}
+
+sendGiftOnChainPurchaseOffer::sendGiftOnChainPurchaseOffer()
+  : gift_name_()
+  , gram_amount_()
+  , duration_()
+{}
+
+sendGiftOnChainPurchaseOffer::sendGiftOnChainPurchaseOffer(string const &gift_name_, int64 gram_amount_, int32 duration_)
+  : gift_name_(gift_name_)
+  , gram_amount_(gram_amount_)
+  , duration_(duration_)
+{}
+
+const std::int32_t sendGiftOnChainPurchaseOffer::ID;
+
+void sendGiftOnChainPurchaseOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "sendGiftOnChainPurchaseOffer");
+    s.store_field("gift_name", gift_name_);
+    s.store_field("gram_amount", gram_amount_);
+    s.store_field("duration", duration_);
     s.store_class_end();
   }
 }

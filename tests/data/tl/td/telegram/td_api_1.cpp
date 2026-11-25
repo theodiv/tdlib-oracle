@@ -575,10 +575,11 @@ chat::chat()
   , pending_join_requests_()
   , reply_markup_message_id_()
   , draft_message_()
+  , text_composition_parameters_()
   , client_data_()
 {}
 
-chat::chat(int53 id_, object_ptr<ChatType> &&type_, string const &title_, object_ptr<chatPhotoInfo> &&photo_, int32 accent_color_id_, int64 background_custom_emoji_id_, object_ptr<upgradedGiftColors> &&upgraded_gift_colors_, int32 profile_accent_color_id_, int64 profile_background_custom_emoji_id_, object_ptr<chatPermissions> &&permissions_, object_ptr<message> &&last_message_, array<object_ptr<chatPosition>> &&positions_, array<object_ptr<ChatList>> &&chat_lists_, object_ptr<MessageSender> &&message_sender_id_, object_ptr<BlockList> &&block_list_, bool has_protected_content_, bool is_translatable_, bool is_marked_as_unread_, bool view_as_topics_, bool has_scheduled_messages_, bool has_welcome_messages_, bool can_be_deleted_only_for_self_, bool can_be_deleted_for_all_users_, bool can_be_reported_, bool default_disable_notification_, int32 unread_count_, int53 last_read_inbox_message_id_, int53 last_read_outbox_message_id_, int32 unread_mention_count_, int32 unread_reaction_count_, int32 unread_poll_vote_count_, object_ptr<chatNotificationSettings> &&notification_settings_, object_ptr<ChatAvailableReactions> &&available_reactions_, int32 message_auto_delete_time_, object_ptr<emojiStatus> &&emoji_status_, object_ptr<chatBackground> &&background_, object_ptr<ChatTheme> &&theme_, object_ptr<ChatActionBar> &&action_bar_, object_ptr<businessBotManageBar> &&business_bot_manage_bar_, object_ptr<videoChat> &&video_chat_, object_ptr<chatJoinRequestsInfo> &&pending_join_requests_, int53 reply_markup_message_id_, object_ptr<draftMessage> &&draft_message_, string const &client_data_)
+chat::chat(int53 id_, object_ptr<ChatType> &&type_, string const &title_, object_ptr<chatPhotoInfo> &&photo_, int32 accent_color_id_, int64 background_custom_emoji_id_, object_ptr<upgradedGiftColors> &&upgraded_gift_colors_, int32 profile_accent_color_id_, int64 profile_background_custom_emoji_id_, object_ptr<chatPermissions> &&permissions_, object_ptr<message> &&last_message_, array<object_ptr<chatPosition>> &&positions_, array<object_ptr<ChatList>> &&chat_lists_, object_ptr<MessageSender> &&message_sender_id_, object_ptr<BlockList> &&block_list_, bool has_protected_content_, bool is_translatable_, bool is_marked_as_unread_, bool view_as_topics_, bool has_scheduled_messages_, bool has_welcome_messages_, bool can_be_deleted_only_for_self_, bool can_be_deleted_for_all_users_, bool can_be_reported_, bool default_disable_notification_, int32 unread_count_, int53 last_read_inbox_message_id_, int53 last_read_outbox_message_id_, int32 unread_mention_count_, int32 unread_reaction_count_, int32 unread_poll_vote_count_, object_ptr<chatNotificationSettings> &&notification_settings_, object_ptr<ChatAvailableReactions> &&available_reactions_, int32 message_auto_delete_time_, object_ptr<emojiStatus> &&emoji_status_, object_ptr<chatBackground> &&background_, object_ptr<ChatTheme> &&theme_, object_ptr<ChatActionBar> &&action_bar_, object_ptr<businessBotManageBar> &&business_bot_manage_bar_, object_ptr<videoChat> &&video_chat_, object_ptr<chatJoinRequestsInfo> &&pending_join_requests_, int53 reply_markup_message_id_, object_ptr<draftMessage> &&draft_message_, object_ptr<textCompositionParameters> &&text_composition_parameters_, string const &client_data_)
   : id_(id_)
   , type_(std::move(type_))
   , title_(title_)
@@ -622,6 +623,7 @@ chat::chat(int53 id_, object_ptr<ChatType> &&type_, string const &title_, object
   , pending_join_requests_(std::move(pending_join_requests_))
   , reply_markup_message_id_(reply_markup_message_id_)
   , draft_message_(std::move(draft_message_))
+  , text_composition_parameters_(std::move(text_composition_parameters_))
   , client_data_(client_data_)
 {}
 
@@ -673,6 +675,7 @@ void chat::store(TlStorerToString &s, const char *field_name) const {
     s.store_object_field("pending_join_requests", static_cast<const BaseObject *>(pending_join_requests_.get()));
     s.store_field("reply_markup_message_id", reply_markup_message_id_);
     s.store_object_field("draft_message", static_cast<const BaseObject *>(draft_message_.get()));
+    s.store_object_field("text_composition_parameters", static_cast<const BaseObject *>(text_composition_parameters_.get()));
     s.store_field("client_data", client_data_);
     s.store_class_end();
   }
@@ -3627,6 +3630,24 @@ void webProxyCarrierMessageBinary::store(TlStorerToString &s, const char *field_
   }
 }
 
+acceptGiftOnChainPurchaseOffer::acceptGiftOnChainPurchaseOffer()
+  : message_id_()
+{}
+
+acceptGiftOnChainPurchaseOffer::acceptGiftOnChainPurchaseOffer(int53 message_id_)
+  : message_id_(message_id_)
+{}
+
+const std::int32_t acceptGiftOnChainPurchaseOffer::ID;
+
+void acceptGiftOnChainPurchaseOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "acceptGiftOnChainPurchaseOffer");
+    s.store_field("message_id", message_id_);
+    s.store_class_end();
+  }
+}
+
 addChatToList::addChatToList()
   : chat_id_()
   , chat_list_()
@@ -6008,27 +6029,6 @@ void viewVideoMessageAdvertisement::store(TlStorerToString &s, const char *field
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "viewVideoMessageAdvertisement");
     s.store_field("advertisement_unique_id", advertisement_unique_id_);
-    s.store_class_end();
-  }
-}
-
-withdrawUpgradedGift::withdrawUpgradedGift()
-  : received_gift_id_()
-  , keep_on_profile_()
-{}
-
-withdrawUpgradedGift::withdrawUpgradedGift(string const &received_gift_id_, bool keep_on_profile_)
-  : received_gift_id_(received_gift_id_)
-  , keep_on_profile_(keep_on_profile_)
-{}
-
-const std::int32_t withdrawUpgradedGift::ID;
-
-void withdrawUpgradedGift::store(TlStorerToString &s, const char *field_name) const {
-  if (!LOG_IS_STRIPPED(ERROR)) {
-    s.store_class_begin(field_name, "withdrawUpgradedGift");
-    s.store_field("received_gift_id", received_gift_id_);
-    s.store_field("keep_on_profile", keep_on_profile_);
     s.store_class_end();
   }
 }

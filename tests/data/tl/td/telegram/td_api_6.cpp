@@ -429,6 +429,30 @@ void chatActionBarJoinRequest::store(TlStorerToString &s, const char *field_name
   }
 }
 
+chatActionBarBotInvite::chatActionBarBotInvite()
+  : can_unarchive_()
+  , inviter_user_id_()
+  , owner_user_id_()
+{}
+
+chatActionBarBotInvite::chatActionBarBotInvite(bool can_unarchive_, int53 inviter_user_id_, int53 owner_user_id_)
+  : can_unarchive_(can_unarchive_)
+  , inviter_user_id_(inviter_user_id_)
+  , owner_user_id_(owner_user_id_)
+{}
+
+const std::int32_t chatActionBarBotInvite::ID;
+
+void chatActionBarBotInvite::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "chatActionBarBotInvite");
+    s.store_field("can_unarchive", can_unarchive_);
+    s.store_field("inviter_user_id", inviter_user_id_);
+    s.store_field("owner_user_id", owner_user_id_);
+    s.store_class_end();
+  }
+}
+
 chatBoostLevelFeatures::chatBoostLevelFeatures()
   : level_()
   , story_per_day_count_()
@@ -1321,12 +1345,12 @@ void inputPageBlockBlockQuote::store(TlStorerToString &s, const char *field_name
 }
 
 inputPageBlockExpandableBlockQuote::inputPageBlockExpandableBlockQuote()
-  : text_()
+  : blocks_()
   , credit_()
 {}
 
-inputPageBlockExpandableBlockQuote::inputPageBlockExpandableBlockQuote(object_ptr<RichText> &&text_, object_ptr<RichText> &&credit_)
-  : text_(std::move(text_))
+inputPageBlockExpandableBlockQuote::inputPageBlockExpandableBlockQuote(array<object_ptr<InputPageBlock>> &&blocks_, object_ptr<RichText> &&credit_)
+  : blocks_(std::move(blocks_))
   , credit_(std::move(credit_))
 {}
 
@@ -1335,7 +1359,7 @@ const std::int32_t inputPageBlockExpandableBlockQuote::ID;
 void inputPageBlockExpandableBlockQuote::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "inputPageBlockExpandableBlockQuote");
-    s.store_object_field("text", static_cast<const BaseObject *>(text_.get()));
+    { s.store_vector_begin("blocks", blocks_.size()); for (const auto &_value : blocks_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     s.store_object_field("credit", static_cast<const BaseObject *>(credit_.get()));
     s.store_class_end();
   }
@@ -1793,6 +1817,18 @@ void linkPreviewTypeBackground::store(TlStorerToString &s, const char *field_nam
     s.store_class_begin(field_name, "linkPreviewTypeBackground");
     s.store_object_field("document", static_cast<const BaseObject *>(document_.get()));
     s.store_object_field("background_type", static_cast<const BaseObject *>(background_type_.get()));
+    s.store_class_end();
+  }
+}
+
+linkPreviewTypeBotInvite::linkPreviewTypeBotInvite() {
+}
+
+const std::int32_t linkPreviewTypeBotInvite::ID;
+
+void linkPreviewTypeBotInvite::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "linkPreviewTypeBotInvite");
     s.store_class_end();
   }
 }
@@ -3873,6 +3909,258 @@ void tonWalletTransactionTypeTelegramGiftTransfer::store(TlStorerToString &s, co
   }
 }
 
+tonWalletTransactionTypeTelegramGiftPurchase::tonWalletTransactionTypeTelegramGiftPurchase()
+  : nft_()
+  , amount_()
+{}
+
+tonWalletTransactionTypeTelegramGiftPurchase::tonWalletTransactionTypeTelegramGiftPurchase(object_ptr<tonNft> &&nft_, int64 amount_)
+  : nft_(std::move(nft_))
+  , amount_(amount_)
+{}
+
+const std::int32_t tonWalletTransactionTypeTelegramGiftPurchase::ID;
+
+void tonWalletTransactionTypeTelegramGiftPurchase::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonWalletTransactionTypeTelegramGiftPurchase");
+    s.store_object_field("nft", static_cast<const BaseObject *>(nft_.get()));
+    s.store_field("amount", amount_);
+    s.store_class_end();
+  }
+}
+
+tonWalletTransactionTypeTelegramGiftSale::tonWalletTransactionTypeTelegramGiftSale()
+  : nft_()
+  , amount_()
+{}
+
+tonWalletTransactionTypeTelegramGiftSale::tonWalletTransactionTypeTelegramGiftSale(object_ptr<tonNft> &&nft_, int64 amount_)
+  : nft_(std::move(nft_))
+  , amount_(amount_)
+{}
+
+const std::int32_t tonWalletTransactionTypeTelegramGiftSale::ID;
+
+void tonWalletTransactionTypeTelegramGiftSale::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonWalletTransactionTypeTelegramGiftSale");
+    s.store_object_field("nft", static_cast<const BaseObject *>(nft_.get()));
+    s.store_field("amount", amount_);
+    s.store_class_end();
+  }
+}
+
+tonWalletTransactionTypeTelegramGiftListing::tonWalletTransactionTypeTelegramGiftListing()
+  : nft_()
+  , old_price_()
+  , price_()
+  , amount_()
+{}
+
+tonWalletTransactionTypeTelegramGiftListing::tonWalletTransactionTypeTelegramGiftListing(object_ptr<tonNft> &&nft_, int64 old_price_, int64 price_, int64 amount_)
+  : nft_(std::move(nft_))
+  , old_price_(old_price_)
+  , price_(price_)
+  , amount_(amount_)
+{}
+
+const std::int32_t tonWalletTransactionTypeTelegramGiftListing::ID;
+
+void tonWalletTransactionTypeTelegramGiftListing::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonWalletTransactionTypeTelegramGiftListing");
+    s.store_object_field("nft", static_cast<const BaseObject *>(nft_.get()));
+    s.store_field("old_price", old_price_);
+    s.store_field("price", price_);
+    s.store_field("amount", amount_);
+    s.store_class_end();
+  }
+}
+
+tonWalletTransactionTypeTelegramGiftDelisting::tonWalletTransactionTypeTelegramGiftDelisting()
+  : nft_()
+  , amount_()
+{}
+
+tonWalletTransactionTypeTelegramGiftDelisting::tonWalletTransactionTypeTelegramGiftDelisting(object_ptr<tonNft> &&nft_, int64 amount_)
+  : nft_(std::move(nft_))
+  , amount_(amount_)
+{}
+
+const std::int32_t tonWalletTransactionTypeTelegramGiftDelisting::ID;
+
+void tonWalletTransactionTypeTelegramGiftDelisting::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonWalletTransactionTypeTelegramGiftDelisting");
+    s.store_object_field("nft", static_cast<const BaseObject *>(nft_.get()));
+    s.store_field("amount", amount_);
+    s.store_class_end();
+  }
+}
+
+tonWalletTransactionTypeTelegramGiftOfferCreation::tonWalletTransactionTypeTelegramGiftOfferCreation()
+  : nft_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , amount_()
+  , service_fee_amount_()
+  , expiration_date_()
+{}
+
+tonWalletTransactionTypeTelegramGiftOfferCreation::tonWalletTransactionTypeTelegramGiftOfferCreation(object_ptr<tonNft> &&nft_, string const &offer_address_, string const &counterparty_address_, int64 price_, int64 amount_, int64 service_fee_amount_, int32 expiration_date_)
+  : nft_(std::move(nft_))
+  , offer_address_(offer_address_)
+  , counterparty_address_(counterparty_address_)
+  , price_(price_)
+  , amount_(amount_)
+  , service_fee_amount_(service_fee_amount_)
+  , expiration_date_(expiration_date_)
+{}
+
+const std::int32_t tonWalletTransactionTypeTelegramGiftOfferCreation::ID;
+
+void tonWalletTransactionTypeTelegramGiftOfferCreation::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonWalletTransactionTypeTelegramGiftOfferCreation");
+    s.store_object_field("nft", static_cast<const BaseObject *>(nft_.get()));
+    s.store_field("offer_address", offer_address_);
+    s.store_field("counterparty_address", counterparty_address_);
+    s.store_field("price", price_);
+    s.store_field("amount", amount_);
+    s.store_field("service_fee_amount", service_fee_amount_);
+    s.store_field("expiration_date", expiration_date_);
+    s.store_class_end();
+  }
+}
+
+tonWalletTransactionTypeTelegramGiftOfferAcceptance::tonWalletTransactionTypeTelegramGiftOfferAcceptance()
+  : nft_()
+  , is_buyer_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , service_fee_amount_()
+{}
+
+tonWalletTransactionTypeTelegramGiftOfferAcceptance::tonWalletTransactionTypeTelegramGiftOfferAcceptance(object_ptr<tonNft> &&nft_, bool is_buyer_, string const &offer_address_, string const &counterparty_address_, int64 price_, int64 service_fee_amount_)
+  : nft_(std::move(nft_))
+  , is_buyer_(is_buyer_)
+  , offer_address_(offer_address_)
+  , counterparty_address_(counterparty_address_)
+  , price_(price_)
+  , service_fee_amount_(service_fee_amount_)
+{}
+
+const std::int32_t tonWalletTransactionTypeTelegramGiftOfferAcceptance::ID;
+
+void tonWalletTransactionTypeTelegramGiftOfferAcceptance::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonWalletTransactionTypeTelegramGiftOfferAcceptance");
+    s.store_object_field("nft", static_cast<const BaseObject *>(nft_.get()));
+    s.store_field("is_buyer", is_buyer_);
+    s.store_field("offer_address", offer_address_);
+    s.store_field("counterparty_address", counterparty_address_);
+    s.store_field("price", price_);
+    s.store_field("service_fee_amount", service_fee_amount_);
+    s.store_class_end();
+  }
+}
+
+tonWalletTransactionTypeTelegramGiftOfferCancellation::tonWalletTransactionTypeTelegramGiftOfferCancellation()
+  : nft_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , refund_amount_()
+  , fine_amount_()
+{}
+
+tonWalletTransactionTypeTelegramGiftOfferCancellation::tonWalletTransactionTypeTelegramGiftOfferCancellation(object_ptr<tonNft> &&nft_, string const &offer_address_, string const &counterparty_address_, int64 price_, int64 refund_amount_, int64 fine_amount_)
+  : nft_(std::move(nft_))
+  , offer_address_(offer_address_)
+  , counterparty_address_(counterparty_address_)
+  , price_(price_)
+  , refund_amount_(refund_amount_)
+  , fine_amount_(fine_amount_)
+{}
+
+const std::int32_t tonWalletTransactionTypeTelegramGiftOfferCancellation::ID;
+
+void tonWalletTransactionTypeTelegramGiftOfferCancellation::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonWalletTransactionTypeTelegramGiftOfferCancellation");
+    s.store_object_field("nft", static_cast<const BaseObject *>(nft_.get()));
+    s.store_field("offer_address", offer_address_);
+    s.store_field("counterparty_address", counterparty_address_);
+    s.store_field("price", price_);
+    s.store_field("refund_amount", refund_amount_);
+    s.store_field("fine_amount", fine_amount_);
+    s.store_class_end();
+  }
+}
+
+tonWalletTransactionTypeTelegramGiftOfferDecline::tonWalletTransactionTypeTelegramGiftOfferDecline()
+  : nft_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , refund_amount_()
+{}
+
+tonWalletTransactionTypeTelegramGiftOfferDecline::tonWalletTransactionTypeTelegramGiftOfferDecline(object_ptr<tonNft> &&nft_, string const &offer_address_, string const &counterparty_address_, int64 price_, int64 refund_amount_)
+  : nft_(std::move(nft_))
+  , offer_address_(offer_address_)
+  , counterparty_address_(counterparty_address_)
+  , price_(price_)
+  , refund_amount_(refund_amount_)
+{}
+
+const std::int32_t tonWalletTransactionTypeTelegramGiftOfferDecline::ID;
+
+void tonWalletTransactionTypeTelegramGiftOfferDecline::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonWalletTransactionTypeTelegramGiftOfferDecline");
+    s.store_object_field("nft", static_cast<const BaseObject *>(nft_.get()));
+    s.store_field("offer_address", offer_address_);
+    s.store_field("counterparty_address", counterparty_address_);
+    s.store_field("price", price_);
+    s.store_field("refund_amount", refund_amount_);
+    s.store_class_end();
+  }
+}
+
+tonWalletTransactionTypeTelegramGiftOfferExpiration::tonWalletTransactionTypeTelegramGiftOfferExpiration()
+  : nft_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , refund_amount_()
+{}
+
+tonWalletTransactionTypeTelegramGiftOfferExpiration::tonWalletTransactionTypeTelegramGiftOfferExpiration(object_ptr<tonNft> &&nft_, string const &offer_address_, string const &counterparty_address_, int64 price_, int64 refund_amount_)
+  : nft_(std::move(nft_))
+  , offer_address_(offer_address_)
+  , counterparty_address_(counterparty_address_)
+  , price_(price_)
+  , refund_amount_(refund_amount_)
+{}
+
+const std::int32_t tonWalletTransactionTypeTelegramGiftOfferExpiration::ID;
+
+void tonWalletTransactionTypeTelegramGiftOfferExpiration::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonWalletTransactionTypeTelegramGiftOfferExpiration");
+    s.store_object_field("nft", static_cast<const BaseObject *>(nft_.get()));
+    s.store_field("offer_address", offer_address_);
+    s.store_field("counterparty_address", counterparty_address_);
+    s.store_field("price", price_);
+    s.store_field("refund_amount", refund_amount_);
+    s.store_class_end();
+  }
+}
+
 tonWalletTransactionTypeKeyChange::tonWalletTransactionTypeKeyChange() {
 }
 
@@ -3949,14 +4237,14 @@ upgradedGiftValueInfo::upgradedGiftValueInfo()
   , last_sale_date_()
   , last_sale_price_()
   , is_last_sale_on_fragment_()
-  , minimum_price_()
+  , min_price_()
   , average_sale_price_()
   , telegram_listed_gift_count_()
   , fragment_listed_gift_count_()
   , fragment_url_()
 {}
 
-upgradedGiftValueInfo::upgradedGiftValueInfo(string const &currency_, int53 value_, bool is_value_average_, int32 initial_sale_date_, int53 initial_sale_star_count_, int53 initial_sale_price_, int32 last_sale_date_, int53 last_sale_price_, bool is_last_sale_on_fragment_, int53 minimum_price_, int53 average_sale_price_, int32 telegram_listed_gift_count_, int32 fragment_listed_gift_count_, string const &fragment_url_)
+upgradedGiftValueInfo::upgradedGiftValueInfo(string const &currency_, int53 value_, bool is_value_average_, int32 initial_sale_date_, int53 initial_sale_star_count_, int53 initial_sale_price_, int32 last_sale_date_, int53 last_sale_price_, bool is_last_sale_on_fragment_, int53 min_price_, int53 average_sale_price_, int32 telegram_listed_gift_count_, int32 fragment_listed_gift_count_, string const &fragment_url_)
   : currency_(currency_)
   , value_(value_)
   , is_value_average_(is_value_average_)
@@ -3966,7 +4254,7 @@ upgradedGiftValueInfo::upgradedGiftValueInfo(string const &currency_, int53 valu
   , last_sale_date_(last_sale_date_)
   , last_sale_price_(last_sale_price_)
   , is_last_sale_on_fragment_(is_last_sale_on_fragment_)
-  , minimum_price_(minimum_price_)
+  , min_price_(min_price_)
   , average_sale_price_(average_sale_price_)
   , telegram_listed_gift_count_(telegram_listed_gift_count_)
   , fragment_listed_gift_count_(fragment_listed_gift_count_)
@@ -3987,7 +4275,7 @@ void upgradedGiftValueInfo::store(TlStorerToString &s, const char *field_name) c
     s.store_field("last_sale_date", last_sale_date_);
     s.store_field("last_sale_price", last_sale_price_);
     s.store_field("is_last_sale_on_fragment", is_last_sale_on_fragment_);
-    s.store_field("minimum_price", minimum_price_);
+    s.store_field("min_price", min_price_);
     s.store_field("average_sale_price", average_sale_price_);
     s.store_field("telegram_listed_gift_count", telegram_listed_gift_count_);
     s.store_field("fragment_listed_gift_count", fragment_listed_gift_count_);
@@ -5639,6 +5927,27 @@ void hideSuggestedAction::store(TlStorerToString &s, const char *field_name) con
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "hideSuggestedAction");
     s.store_object_field("action", static_cast<const BaseObject *>(action_.get()));
+    s.store_class_end();
+  }
+}
+
+mintGift::mintGift()
+  : received_gift_id_()
+  , keep_on_profile_()
+{}
+
+mintGift::mintGift(string const &received_gift_id_, bool keep_on_profile_)
+  : received_gift_id_(received_gift_id_)
+  , keep_on_profile_(keep_on_profile_)
+{}
+
+const std::int32_t mintGift::ID;
+
+void mintGift::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "mintGift");
+    s.store_field("received_gift_id", received_gift_id_);
+    s.store_field("keep_on_profile", keep_on_profile_);
     s.store_class_end();
   }
 }

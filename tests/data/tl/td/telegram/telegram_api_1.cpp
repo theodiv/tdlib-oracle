@@ -2408,6 +2408,286 @@ void textWithEntities::store(TlStorerToString &s, const char *field_name) const 
   }
 }
 
+object_ptr<WalletOnchainGiftAction> WalletOnchainGiftAction::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  int constructor = p.fetch_int();
+  switch (constructor) {
+    case walletOnchainGiftActionBuy::ID:
+      return walletOnchainGiftActionBuy::fetch(p);
+    case walletOnchainGiftActionDelist::ID:
+      return walletOnchainGiftActionDelist::fetch(p);
+    case walletOnchainGiftActionChangePrice::ID:
+      return walletOnchainGiftActionChangePrice::fetch(p);
+    case walletOnchainGiftActionOfferCreate::ID:
+      return walletOnchainGiftActionOfferCreate::fetch(p);
+    case walletOnchainGiftActionOfferAccept::ID:
+      return walletOnchainGiftActionOfferAccept::fetch(p);
+    case walletOnchainGiftActionOfferCancel::ID:
+      return walletOnchainGiftActionOfferCancel::fetch(p);
+    case walletOnchainGiftActionOfferDecline::ID:
+      return walletOnchainGiftActionOfferDecline::fetch(p);
+    case walletOnchainGiftActionOfferExpire::ID:
+      return walletOnchainGiftActionOfferExpire::fetch(p);
+    default:
+      FAIL(PSTRING() << "Unknown constructor found " << format::as_hex(constructor));
+  }
+#undef FAIL
+}
+
+const std::int32_t walletOnchainGiftActionBuy::ID;
+
+object_ptr<WalletOnchainGiftAction> walletOnchainGiftActionBuy::fetch(TlBufferParser &p) {
+  return make_tl_object<walletOnchainGiftActionBuy>();
+}
+
+void walletOnchainGiftActionBuy::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "walletOnchainGiftActionBuy");
+    s.store_class_end();
+  }
+}
+
+const std::int32_t walletOnchainGiftActionDelist::ID;
+
+object_ptr<WalletOnchainGiftAction> walletOnchainGiftActionDelist::fetch(TlBufferParser &p) {
+  return make_tl_object<walletOnchainGiftActionDelist>();
+}
+
+void walletOnchainGiftActionDelist::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "walletOnchainGiftActionDelist");
+    s.store_class_end();
+  }
+}
+
+walletOnchainGiftActionChangePrice::walletOnchainGiftActionChangePrice()
+  : flags_()
+  , old_price_()
+  , new_price_()
+{}
+
+const std::int32_t walletOnchainGiftActionChangePrice::ID;
+
+object_ptr<WalletOnchainGiftAction> walletOnchainGiftActionChangePrice::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<walletOnchainGiftActionChangePrice> res = make_tl_object<walletOnchainGiftActionChangePrice>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  if (var0 & 1) { res->old_price_ = TlFetchLong::parse(p); }
+  res->new_price_ = TlFetchLong::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
+}
+
+void walletOnchainGiftActionChangePrice::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "walletOnchainGiftActionChangePrice");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_));
+    if (var0 & 1) { s.store_field("old_price", old_price_); }
+    s.store_field("new_price", new_price_);
+    s.store_class_end();
+  }
+}
+
+walletOnchainGiftActionOfferCreate::walletOnchainGiftActionOfferCreate()
+  : flags_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , amount_()
+  , service_fee_()
+  , expires_at_()
+{}
+
+const std::int32_t walletOnchainGiftActionOfferCreate::ID;
+
+object_ptr<WalletOnchainGiftAction> walletOnchainGiftActionOfferCreate::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<walletOnchainGiftActionOfferCreate> res = make_tl_object<walletOnchainGiftActionOfferCreate>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->offer_address_ = TlFetchString<string>::parse(p);
+  if (var0 & 1) { res->counterparty_address_ = TlFetchString<string>::parse(p); }
+  res->price_ = TlFetchLong::parse(p);
+  res->amount_ = TlFetchLong::parse(p);
+  res->service_fee_ = TlFetchLong::parse(p);
+  if (var0 & 2) { res->expires_at_ = TlFetchInt::parse(p); }
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
+}
+
+void walletOnchainGiftActionOfferCreate::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "walletOnchainGiftActionOfferCreate");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!counterparty_address_.empty()) << 0)));
+    s.store_field("offer_address", offer_address_);
+    if (var0 & 1) { s.store_field("counterparty_address", counterparty_address_); }
+    s.store_field("price", price_);
+    s.store_field("amount", amount_);
+    s.store_field("service_fee", service_fee_);
+    if (var0 & 2) { s.store_field("expires_at", expires_at_); }
+    s.store_class_end();
+  }
+}
+
+walletOnchainGiftActionOfferAccept::walletOnchainGiftActionOfferAccept()
+  : flags_()
+  , buyer_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , service_fee_()
+{}
+
+const std::int32_t walletOnchainGiftActionOfferAccept::ID;
+
+object_ptr<WalletOnchainGiftAction> walletOnchainGiftActionOfferAccept::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<walletOnchainGiftActionOfferAccept> res = make_tl_object<walletOnchainGiftActionOfferAccept>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->buyer_ = (var0 & 1) != 0;
+  res->offer_address_ = TlFetchString<string>::parse(p);
+  res->counterparty_address_ = TlFetchString<string>::parse(p);
+  res->price_ = TlFetchLong::parse(p);
+  res->service_fee_ = TlFetchLong::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
+}
+
+void walletOnchainGiftActionOfferAccept::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "walletOnchainGiftActionOfferAccept");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | (buyer_ << 0)));
+    if (var0 & 1) { s.store_field("buyer", true); }
+    s.store_field("offer_address", offer_address_);
+    s.store_field("counterparty_address", counterparty_address_);
+    s.store_field("price", price_);
+    s.store_field("service_fee", service_fee_);
+    s.store_class_end();
+  }
+}
+
+walletOnchainGiftActionOfferCancel::walletOnchainGiftActionOfferCancel()
+  : flags_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , refund_amount_()
+  , fine_()
+{}
+
+const std::int32_t walletOnchainGiftActionOfferCancel::ID;
+
+object_ptr<WalletOnchainGiftAction> walletOnchainGiftActionOfferCancel::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<walletOnchainGiftActionOfferCancel> res = make_tl_object<walletOnchainGiftActionOfferCancel>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->offer_address_ = TlFetchString<string>::parse(p);
+  if (var0 & 1) { res->counterparty_address_ = TlFetchString<string>::parse(p); }
+  if (var0 & 2) { res->price_ = TlFetchLong::parse(p); }
+  res->refund_amount_ = TlFetchLong::parse(p);
+  if (var0 & 4) { res->fine_ = TlFetchLong::parse(p); }
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
+}
+
+void walletOnchainGiftActionOfferCancel::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "walletOnchainGiftActionOfferCancel");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!counterparty_address_.empty()) << 0)));
+    s.store_field("offer_address", offer_address_);
+    if (var0 & 1) { s.store_field("counterparty_address", counterparty_address_); }
+    if (var0 & 2) { s.store_field("price", price_); }
+    s.store_field("refund_amount", refund_amount_);
+    if (var0 & 4) { s.store_field("fine", fine_); }
+    s.store_class_end();
+  }
+}
+
+walletOnchainGiftActionOfferDecline::walletOnchainGiftActionOfferDecline()
+  : flags_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , refund_amount_()
+{}
+
+const std::int32_t walletOnchainGiftActionOfferDecline::ID;
+
+object_ptr<WalletOnchainGiftAction> walletOnchainGiftActionOfferDecline::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<walletOnchainGiftActionOfferDecline> res = make_tl_object<walletOnchainGiftActionOfferDecline>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->offer_address_ = TlFetchString<string>::parse(p);
+  if (var0 & 1) { res->counterparty_address_ = TlFetchString<string>::parse(p); }
+  if (var0 & 2) { res->price_ = TlFetchLong::parse(p); }
+  res->refund_amount_ = TlFetchLong::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
+}
+
+void walletOnchainGiftActionOfferDecline::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "walletOnchainGiftActionOfferDecline");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!counterparty_address_.empty()) << 0)));
+    s.store_field("offer_address", offer_address_);
+    if (var0 & 1) { s.store_field("counterparty_address", counterparty_address_); }
+    if (var0 & 2) { s.store_field("price", price_); }
+    s.store_field("refund_amount", refund_amount_);
+    s.store_class_end();
+  }
+}
+
+walletOnchainGiftActionOfferExpire::walletOnchainGiftActionOfferExpire()
+  : flags_()
+  , offer_address_()
+  , counterparty_address_()
+  , price_()
+  , refund_amount_()
+{}
+
+const std::int32_t walletOnchainGiftActionOfferExpire::ID;
+
+object_ptr<WalletOnchainGiftAction> walletOnchainGiftActionOfferExpire::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<walletOnchainGiftActionOfferExpire> res = make_tl_object<walletOnchainGiftActionOfferExpire>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->offer_address_ = TlFetchString<string>::parse(p);
+  if (var0 & 1) { res->counterparty_address_ = TlFetchString<string>::parse(p); }
+  if (var0 & 2) { res->price_ = TlFetchLong::parse(p); }
+  res->refund_amount_ = TlFetchLong::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
+}
+
+void walletOnchainGiftActionOfferExpire::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "walletOnchainGiftActionOfferExpire");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!counterparty_address_.empty()) << 0)));
+    s.store_field("offer_address", offer_address_);
+    if (var0 & 1) { s.store_field("counterparty_address", counterparty_address_); }
+    if (var0 & 2) { s.store_field("price", price_); }
+    s.store_field("refund_amount", refund_amount_);
+    s.store_class_end();
+  }
+}
+
 object_ptr<WalletState> WalletState::fetch(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return nullptr;
   int constructor = p.fetch_int();
@@ -5015,7 +5295,7 @@ void messages_getPinnedDialogs::store(TlStorerToString &s, const char *field_nam
 
 messages_getPinnedDialogs::ReturnType messages_getPinnedDialogs::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
-  return TlFetchBoxed<TlFetchObject<messages_peerDialogs>, 863093588>::parse(p);
+  return TlFetchBoxed<TlFetchObject<messages_peerDialogs>, -1488325659>::parse(p);
 #undef FAIL
 }
 
@@ -5775,12 +6055,14 @@ payments_getOnrampBaseCurrencies::ReturnType payments_getOnrampBaseCurrencies::f
 #undef FAIL
 }
 
-payments_getResaleStarGifts::payments_getResaleStarGifts(int32 flags_, bool sort_by_price_, bool sort_by_num_, bool for_craft_, bool stars_only_, int64 attributes_hash_, int64 gift_id_, array<object_ptr<StarGiftAttributeId>> &&attributes_, string const &offset_, int32 limit_)
+payments_getResaleStarGifts::payments_getResaleStarGifts(int32 flags_, bool sort_by_price_, bool sort_by_num_, bool for_craft_, bool stars_only_, bool ton_only_, bool fragment_only_, int64 attributes_hash_, int64 gift_id_, array<object_ptr<StarGiftAttributeId>> &&attributes_, string const &offset_, int32 limit_)
   : flags_(flags_)
   , sort_by_price_(sort_by_price_)
   , sort_by_num_(sort_by_num_)
   , for_craft_(for_craft_)
   , stars_only_(stars_only_)
+  , ton_only_(ton_only_)
+  , fragment_only_(fragment_only_)
   , attributes_hash_(attributes_hash_)
   , gift_id_(gift_id_)
   , attributes_(std::move(attributes_))
@@ -5793,7 +6075,7 @@ const std::int32_t payments_getResaleStarGifts::ID;
 void payments_getResaleStarGifts::store(TlStorerCalcLength &s) const {
   (void)sizeof(s);
   s.store_binary(2053087798);
-  TlStoreBinary::store((var0 = flags_ | (sort_by_price_ << 1) | (sort_by_num_ << 2) | (for_craft_ << 4) | (stars_only_ << 5) | ((!attributes_.empty()) << 3)), s);
+  TlStoreBinary::store((var0 = flags_ | (sort_by_price_ << 1) | (sort_by_num_ << 2) | (for_craft_ << 4) | (stars_only_ << 5) | (ton_only_ << 6) | (fragment_only_ << 7) | ((!attributes_.empty()) << 3)), s);
   if (var0 & 1) { TlStoreBinary::store(attributes_hash_, s); }
   TlStoreBinary::store(gift_id_, s);
   if (var0 & 8) { TlStoreBoxed<TlStoreVector<TlStoreBoxedUnknown<TlStoreObject>>, 481674261>::store(attributes_, s); }
@@ -5804,7 +6086,7 @@ void payments_getResaleStarGifts::store(TlStorerCalcLength &s) const {
 void payments_getResaleStarGifts::store(TlStorerUnsafe &s) const {
   (void)sizeof(s);
   s.store_binary(2053087798);
-  TlStoreBinary::store((var0 = flags_ | (sort_by_price_ << 1) | (sort_by_num_ << 2) | (for_craft_ << 4) | (stars_only_ << 5) | ((!attributes_.empty()) << 3)), s);
+  TlStoreBinary::store((var0 = flags_ | (sort_by_price_ << 1) | (sort_by_num_ << 2) | (for_craft_ << 4) | (stars_only_ << 5) | (ton_only_ << 6) | (fragment_only_ << 7) | ((!attributes_.empty()) << 3)), s);
   if (var0 & 1) { TlStoreBinary::store(attributes_hash_, s); }
   TlStoreBinary::store(gift_id_, s);
   if (var0 & 8) { TlStoreBoxed<TlStoreVector<TlStoreBoxedUnknown<TlStoreObject>>, 481674261>::store(attributes_, s); }
@@ -5815,11 +6097,13 @@ void payments_getResaleStarGifts::store(TlStorerUnsafe &s) const {
 void payments_getResaleStarGifts::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "payments.getResaleStarGifts");
-    s.store_field("flags", (var0 = flags_ | (sort_by_price_ << 1) | (sort_by_num_ << 2) | (for_craft_ << 4) | (stars_only_ << 5) | ((!attributes_.empty()) << 3)));
+    s.store_field("flags", (var0 = flags_ | (sort_by_price_ << 1) | (sort_by_num_ << 2) | (for_craft_ << 4) | (stars_only_ << 5) | (ton_only_ << 6) | (fragment_only_ << 7) | ((!attributes_.empty()) << 3)));
     if (var0 & 2) { s.store_field("sort_by_price", true); }
     if (var0 & 4) { s.store_field("sort_by_num", true); }
     if (var0 & 16) { s.store_field("for_craft", true); }
     if (var0 & 32) { s.store_field("stars_only", true); }
+    if (var0 & 64) { s.store_field("ton_only", true); }
+    if (var0 & 128) { s.store_field("fragment_only", true); }
     if (var0 & 1) { s.store_field("attributes_hash", attributes_hash_); }
     s.store_field("gift_id", gift_id_);
     if (var0 & 8) { { s.store_vector_begin("attributes", attributes_.size()); for (const auto &_value : attributes_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); } }

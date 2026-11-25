@@ -6381,6 +6381,24 @@ void getForumTopicHistory::store(TlStorerToString &s, const char *field_name) co
   }
 }
 
+getGiftOnChainDelistingTransaction::getGiftOnChainDelistingTransaction()
+  : gift_name_()
+{}
+
+getGiftOnChainDelistingTransaction::getGiftOnChainDelistingTransaction(string const &gift_name_)
+  : gift_name_(gift_name_)
+{}
+
+const std::int32_t getGiftOnChainDelistingTransaction::ID;
+
+void getGiftOnChainDelistingTransaction::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "getGiftOnChainDelistingTransaction");
+    s.store_field("gift_name", gift_name_);
+    s.store_class_end();
+  }
+}
+
 getGroupCallParticipants::getGroupCallParticipants()
   : input_group_call_()
   , limit_()
@@ -7100,16 +7118,20 @@ searchGiftsForResale::searchGiftsForResale()
   , order_()
   , for_crafting_()
   , for_stars_()
+  , for_grams_()
+  , for_fragment_()
   , attributes_()
   , offset_()
   , limit_()
 {}
 
-searchGiftsForResale::searchGiftsForResale(int64 gift_id_, object_ptr<GiftForResaleOrder> &&order_, bool for_crafting_, bool for_stars_, array<object_ptr<UpgradedGiftAttributeId>> &&attributes_, string const &offset_, int32 limit_)
+searchGiftsForResale::searchGiftsForResale(int64 gift_id_, object_ptr<GiftForResaleOrder> &&order_, bool for_crafting_, bool for_stars_, bool for_grams_, bool for_fragment_, array<object_ptr<UpgradedGiftAttributeId>> &&attributes_, string const &offset_, int32 limit_)
   : gift_id_(gift_id_)
   , order_(std::move(order_))
   , for_crafting_(for_crafting_)
   , for_stars_(for_stars_)
+  , for_grams_(for_grams_)
+  , for_fragment_(for_fragment_)
   , attributes_(std::move(attributes_))
   , offset_(offset_)
   , limit_(limit_)
@@ -7124,6 +7146,8 @@ void searchGiftsForResale::store(TlStorerToString &s, const char *field_name) co
     s.store_object_field("order", static_cast<const BaseObject *>(order_.get()));
     s.store_field("for_crafting", for_crafting_);
     s.store_field("for_stars", for_stars_);
+    s.store_field("for_grams", for_grams_);
+    s.store_field("for_fragment", for_fragment_);
     { s.store_vector_begin("attributes", attributes_.size()); for (const auto &_value : attributes_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     s.store_field("offset", offset_);
     s.store_field("limit", limit_);
@@ -7877,6 +7901,18 @@ void unpinAllChatMessages::store(TlStorerToString &s, const char *field_name) co
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "unpinAllChatMessages");
     s.store_field("chat_id", chat_id_);
+    s.store_class_end();
+  }
+}
+
+withdrawGrams::withdrawGrams() {
+}
+
+const std::int32_t withdrawGrams::ID;
+
+void withdrawGrams::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "withdrawGrams");
     s.store_class_end();
   }
 }

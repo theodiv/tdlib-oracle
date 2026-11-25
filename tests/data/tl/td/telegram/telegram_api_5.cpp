@@ -2911,6 +2911,28 @@ void topPeerCategoryPeers::store(TlStorerToString &s, const char *field_name) co
   }
 }
 
+const std::int32_t transcriptionModel::ID;
+
+object_ptr<transcriptionModel> transcriptionModel::fetch(TlBufferParser &p) {
+  return make_tl_object<transcriptionModel>(p);
+}
+
+transcriptionModel::transcriptionModel(TlBufferParser &p)
+  : document_(TlFetchObject<Document>::parse(p))
+  , languages_(TlFetchBoxed<TlFetchVector<TlFetchString<string>>, 481674261>::parse(p))
+  , version_(TlFetchInt::parse(p))
+{}
+
+void transcriptionModel::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "transcriptionModel");
+    s.store_object_field("document", static_cast<const BaseObject *>(document_.get()));
+    { s.store_vector_begin("languages", languages_.size()); for (const auto &_value : languages_) { s.store_field("", _value); } s.store_class_end(); }
+    s.store_field("version", version_);
+    s.store_class_end();
+  }
+}
+
 object_ptr<UserStatus> UserStatus::fetch(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return nullptr;
   int constructor = p.fetch_int();
@@ -3700,6 +3722,58 @@ void payments_currencyRates::store(TlStorerToString &s, const char *field_name) 
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "payments.currencyRates");
     { s.store_vector_begin("rates", rates_.size()); for (const auto &_value : rates_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
+    s.store_class_end();
+  }
+}
+
+payments_starGiftOnchainOfferTx::payments_starGiftOnchainOfferTx()
+  : flags_()
+  , offer_id_()
+  , offer_address_()
+  , expires_at_()
+  , message_()
+  , gasless_message_()
+  , rent_budget_()
+  , execution_allowance_()
+  , forward_amount_()
+  , fine_()
+{}
+
+const std::int32_t payments_starGiftOnchainOfferTx::ID;
+
+object_ptr<payments_starGiftOnchainOfferTx> payments_starGiftOnchainOfferTx::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<payments_starGiftOnchainOfferTx> res = make_tl_object<payments_starGiftOnchainOfferTx>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->offer_id_ = TlFetchLong::parse(p);
+  res->offer_address_ = TlFetchString<string>::parse(p);
+  res->expires_at_ = TlFetchInt::parse(p);
+  res->message_ = TlFetchBoxed<TlFetchObject<payments_starGiftOnchainOfferTxMessage>, -2003007979>::parse(p);
+  if (var0 & 8) { res->gasless_message_ = TlFetchBoxed<TlFetchObject<payments_starGiftOnchainOfferTxMessage>, -2003007979>::parse(p); }
+  if (var0 & 1) { res->rent_budget_ = TlFetchLong::parse(p); }
+  if (var0 & 1) { res->execution_allowance_ = TlFetchLong::parse(p); }
+  if (var0 & 2) { res->forward_amount_ = TlFetchLong::parse(p); }
+  if (var0 & 4) { res->fine_ = TlFetchLong::parse(p); }
+  if (p.get_error()) { FAIL(""); }
+  return res;
+#undef FAIL
+}
+
+void payments_starGiftOnchainOfferTx::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.starGiftOnchainOfferTx");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((gasless_message_ != nullptr) << 3)));
+    s.store_field("offer_id", offer_id_);
+    s.store_field("offer_address", offer_address_);
+    s.store_field("expires_at", expires_at_);
+    s.store_object_field("message", static_cast<const BaseObject *>(message_.get()));
+    if (var0 & 8) { s.store_object_field("gasless_message", static_cast<const BaseObject *>(gasless_message_.get())); }
+    if (var0 & 1) { s.store_field("rent_budget", rent_budget_); }
+    if (var0 & 1) { s.store_field("execution_allowance", execution_allowance_); }
+    if (var0 & 2) { s.store_field("forward_amount", forward_amount_); }
+    if (var0 & 4) { s.store_field("fine", fine_); }
     s.store_class_end();
   }
 }
@@ -5625,7 +5699,7 @@ void messages_getForumTopicsByID::store(TlStorerToString &s, const char *field_n
 
 messages_getForumTopicsByID::ReturnType messages_getForumTopicsByID::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
-  return TlFetchBoxed<TlFetchObject<messages_forumTopics>, 913709011>::parse(p);
+  return TlFetchBoxed<TlFetchObject<messages_forumTopics>, -1446089067>::parse(p);
 #undef FAIL
 }
 
@@ -5717,7 +5791,7 @@ void messages_getPeerDialogs::store(TlStorerToString &s, const char *field_name)
 
 messages_getPeerDialogs::ReturnType messages_getPeerDialogs::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
-  return TlFetchBoxed<TlFetchObject<messages_peerDialogs>, 863093588>::parse(p);
+  return TlFetchBoxed<TlFetchObject<messages_peerDialogs>, -1488325659>::parse(p);
 #undef FAIL
 }
 
@@ -6007,6 +6081,42 @@ void messages_getWebPagePreview::store(TlStorerToString &s, const char *field_na
 messages_getWebPagePreview::ReturnType messages_getWebPagePreview::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
   return TlFetchBoxed<TlFetchObject<messages_webPagePreview>, -1936029524>::parse(p);
+#undef FAIL
+}
+
+messages_inviteUsersToBot::messages_inviteUsersToBot(object_ptr<InputUser> &&bot_, array<object_ptr<InputUser>> &&users_)
+  : bot_(std::move(bot_))
+  , users_(std::move(users_))
+{}
+
+const std::int32_t messages_inviteUsersToBot::ID;
+
+void messages_inviteUsersToBot::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(498593787);
+  TlStoreBoxedUnknown<TlStoreObject>::store(bot_, s);
+  TlStoreBoxed<TlStoreVector<TlStoreBoxedUnknown<TlStoreObject>>, 481674261>::store(users_, s);
+}
+
+void messages_inviteUsersToBot::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(498593787);
+  TlStoreBoxedUnknown<TlStoreObject>::store(bot_, s);
+  TlStoreBoxed<TlStoreVector<TlStoreBoxedUnknown<TlStoreObject>>, 481674261>::store(users_, s);
+}
+
+void messages_inviteUsersToBot::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "messages.inviteUsersToBot");
+    s.store_object_field("bot", static_cast<const BaseObject *>(bot_.get()));
+    { s.store_vector_begin("users", users_.size()); for (const auto &_value : users_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
+    s.store_class_end();
+  }
+}
+
+messages_inviteUsersToBot::ReturnType messages_inviteUsersToBot::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchBool::parse(p);
 #undef FAIL
 }
 
@@ -6711,6 +6821,70 @@ void payments_canPurchaseStore::store(TlStorerToString &s, const char *field_nam
 payments_canPurchaseStore::ReturnType payments_canPurchaseStore::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
   return TlFetchBool::parse(p);
+#undef FAIL
+}
+
+payments_cancelStarGiftOnchainOffer::payments_cancelStarGiftOnchainOffer(int32 offer_msg_id_)
+  : offer_msg_id_(offer_msg_id_)
+{}
+
+const std::int32_t payments_cancelStarGiftOnchainOffer::ID;
+
+void payments_cancelStarGiftOnchainOffer::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(470989500);
+  TlStoreBinary::store(offer_msg_id_, s);
+}
+
+void payments_cancelStarGiftOnchainOffer::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(470989500);
+  TlStoreBinary::store(offer_msg_id_, s);
+}
+
+void payments_cancelStarGiftOnchainOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.cancelStarGiftOnchainOffer");
+    s.store_field("offer_msg_id", offer_msg_id_);
+    s.store_class_end();
+  }
+}
+
+payments_cancelStarGiftOnchainOffer::ReturnType payments_cancelStarGiftOnchainOffer::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchBoxed<TlFetchObject<payments_starGiftOnchainOfferTx>, -27885105>::parse(p);
+#undef FAIL
+}
+
+payments_cancelStarGiftOnchainSale::payments_cancelStarGiftOnchainSale(string const &slug_)
+  : slug_(slug_)
+{}
+
+const std::int32_t payments_cancelStarGiftOnchainSale::ID;
+
+void payments_cancelStarGiftOnchainSale::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(-1571862214);
+  TlStoreString::store(slug_, s);
+}
+
+void payments_cancelStarGiftOnchainSale::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(-1571862214);
+  TlStoreString::store(slug_, s);
+}
+
+void payments_cancelStarGiftOnchainSale::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.cancelStarGiftOnchainSale");
+    s.store_field("slug", slug_);
+    s.store_class_end();
+  }
+}
+
+payments_cancelStarGiftOnchainSale::ReturnType payments_cancelStarGiftOnchainSale::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchObject<payments_StarGiftOnchainSalePayload>::parse(p);
 #undef FAIL
 }
 

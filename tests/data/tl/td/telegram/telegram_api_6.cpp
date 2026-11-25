@@ -6774,7 +6774,7 @@ object_ptr<messages_peerSettings> messages_peerSettings::fetch(TlBufferParser &p
 }
 
 messages_peerSettings::messages_peerSettings(TlBufferParser &p)
-  : settings_(TlFetchBoxed<TlFetchObject<peerSettings>, -193510921>::parse(p))
+  : settings_(TlFetchBoxed<TlFetchObject<peerSettings>, 608290891>::parse(p))
   , chats_(TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p))
   , users_(TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p))
 {}
@@ -7061,6 +7061,26 @@ void payments_starGiftAuctionAcquiredGifts::store(TlStorerToString &s, const cha
     { s.store_vector_begin("gifts", gifts_.size()); for (const auto &_value : gifts_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("users", users_.size()); for (const auto &_value : users_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("chats", chats_.size()); for (const auto &_value : chats_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
+    s.store_class_end();
+  }
+}
+
+const std::int32_t payments_starGiftOnchainOfferTxInitState::ID;
+
+object_ptr<payments_starGiftOnchainOfferTxInitState> payments_starGiftOnchainOfferTxInitState::fetch(TlBufferParser &p) {
+  return make_tl_object<payments_starGiftOnchainOfferTxInitState>(p);
+}
+
+payments_starGiftOnchainOfferTxInitState::payments_starGiftOnchainOfferTxInitState(TlBufferParser &p)
+  : code_(TlFetchBytes<bytes>::parse(p))
+  , data_(TlFetchBytes<bytes>::parse(p))
+{}
+
+void payments_starGiftOnchainOfferTxInitState::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.starGiftOnchainOfferTxInitState");
+    s.store_bytes_field("code", code_);
+    s.store_bytes_field("data", data_);
     s.store_class_end();
   }
 }
@@ -8653,10 +8673,12 @@ messages_getFavedStickers::ReturnType messages_getFavedStickers::fetch_result(Tl
 #undef FAIL
 }
 
-messages_getForumTopics::messages_getForumTopics(int32 flags_, object_ptr<InputPeer> &&peer_, string const &q_, int32 offset_date_, int32 offset_id_, int32 offset_topic_, int32 limit_)
+messages_getForumTopics::messages_getForumTopics(int32 flags_, object_ptr<InputPeer> &&peer_, string const &q_, int64 icon_emoji_id_, bool closed_, int32 offset_date_, int32 offset_id_, int32 offset_topic_, int32 limit_)
   : flags_(flags_)
   , peer_(std::move(peer_))
   , q_(q_)
+  , icon_emoji_id_(icon_emoji_id_)
+  , closed_(closed_)
   , offset_date_(offset_date_)
   , offset_id_(offset_id_)
   , offset_topic_(offset_topic_)
@@ -8667,10 +8689,12 @@ const std::int32_t messages_getForumTopics::ID;
 
 void messages_getForumTopics::store(TlStorerCalcLength &s) const {
   (void)sizeof(s);
-  s.store_binary(1000635391);
+  s.store_binary(-963894886);
   TlStoreBinary::store((var0 = flags_ | ((!q_.empty()) << 0)), s);
   TlStoreBoxedUnknown<TlStoreObject>::store(peer_, s);
   if (var0 & 1) { TlStoreString::store(q_, s); }
+  if (var0 & 2) { TlStoreBinary::store(icon_emoji_id_, s); }
+  if (var0 & 4) { TlStoreBool::store(closed_, s); }
   TlStoreBinary::store(offset_date_, s);
   TlStoreBinary::store(offset_id_, s);
   TlStoreBinary::store(offset_topic_, s);
@@ -8679,10 +8703,12 @@ void messages_getForumTopics::store(TlStorerCalcLength &s) const {
 
 void messages_getForumTopics::store(TlStorerUnsafe &s) const {
   (void)sizeof(s);
-  s.store_binary(1000635391);
+  s.store_binary(-963894886);
   TlStoreBinary::store((var0 = flags_ | ((!q_.empty()) << 0)), s);
   TlStoreBoxedUnknown<TlStoreObject>::store(peer_, s);
   if (var0 & 1) { TlStoreString::store(q_, s); }
+  if (var0 & 2) { TlStoreBinary::store(icon_emoji_id_, s); }
+  if (var0 & 4) { TlStoreBool::store(closed_, s); }
   TlStoreBinary::store(offset_date_, s);
   TlStoreBinary::store(offset_id_, s);
   TlStoreBinary::store(offset_topic_, s);
@@ -8695,6 +8721,8 @@ void messages_getForumTopics::store(TlStorerToString &s, const char *field_name)
     s.store_field("flags", (var0 = flags_ | ((!q_.empty()) << 0)));
     s.store_object_field("peer", static_cast<const BaseObject *>(peer_.get()));
     if (var0 & 1) { s.store_field("q", q_); }
+    if (var0 & 2) { s.store_field("icon_emoji_id", icon_emoji_id_); }
+    if (var0 & 4) { s.store_field("closed", closed_); }
     s.store_field("offset_date", offset_date_);
     s.store_field("offset_id", offset_id_);
     s.store_field("offset_topic", offset_topic_);
@@ -8705,7 +8733,7 @@ void messages_getForumTopics::store(TlStorerToString &s, const char *field_name)
 
 messages_getForumTopics::ReturnType messages_getForumTopics::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
-  return TlFetchBoxed<TlFetchObject<messages_forumTopics>, 913709011>::parse(p);
+  return TlFetchBoxed<TlFetchObject<messages_forumTopics>, -1446089067>::parse(p);
 #undef FAIL
 }
 
@@ -8944,6 +8972,38 @@ void messages_getShareThemeBackdrops::store(TlStorerToString &s, const char *fie
 messages_getShareThemeBackdrops::ReturnType messages_getShareThemeBackdrops::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
   return TlFetchObject<ShareThemeBackdrops>::parse(p);
+#undef FAIL
+}
+
+messages_getTranscriptionModels::messages_getTranscriptionModels(int32 version_)
+  : version_(version_)
+{}
+
+const std::int32_t messages_getTranscriptionModels::ID;
+
+void messages_getTranscriptionModels::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(136274721);
+  TlStoreBinary::store(version_, s);
+}
+
+void messages_getTranscriptionModels::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(136274721);
+  TlStoreBinary::store(version_, s);
+}
+
+void messages_getTranscriptionModels::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "messages.getTranscriptionModels");
+    s.store_field("version", version_);
+    s.store_class_end();
+  }
+}
+
+messages_getTranscriptionModels::ReturnType messages_getTranscriptionModels::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchBoxed<TlFetchVector<TlFetchBoxed<TlFetchObject<transcriptionModel>, 12676885>>, 481674261>::parse(p);
 #undef FAIL
 }
 
