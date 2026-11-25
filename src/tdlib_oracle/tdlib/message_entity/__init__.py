@@ -1,13 +1,16 @@
 """TDLib's message entities, one module per section of their upstream file.
 
-This module holds what `td/telegram/MessageEntity.h` declares, so code outside the
-package imports those names from here, whichever module of the package defines them.
+This module holds what `td/telegram/MessageEntity.h` declares, and
+`get_server_message_entities`, which `src/tdlib_oracle/server.py` calls though no header
+declares it, so code outside the package imports those names from here, whichever module
+of the package defines them.
 """
 
 from tdlib_oracle.tdlib.message_entity.conversion import (
     get_formatted_text,
     get_input_message_entities,
     get_message_entities,
+    get_server_message_entities,
     get_text_entities_object,
     get_text_entity_object,
     get_text_entity_type_object,
@@ -57,6 +60,7 @@ __all__ = [
     "get_formatted_text",
     "get_input_message_entities",
     "get_message_entities",
+    "get_server_message_entities",
     "get_text_entities_object",
     "get_text_entity_object",
     "get_text_entity_type_object",

@@ -7,20 +7,24 @@
 """TDLib's conversions of formatted texts and their entities.
 
 Entities become TDLib's API objects and come back from them, the formatted text a bot
-sends becomes the one TDLib keeps, and the entities it keeps become the ones it sends to
-Telegram. The tie an entity is in travels with it through each conversion, converted as
-the entity is, since the pinned code may hold any entity of the tie in its place.
+sends becomes the one TDLib keeps, the entities it keeps become the objects it sends to
+Telegram, and the objects Telegram returns become entities again. The tie an entity is
+in travels with it through each conversion, converted as the entity is, since the pinned
+code may hold any entity of the tie in its place.
 """
 
 from collections.abc import Sequence
 from dataclasses import replace
 
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib import td_api
+from tdlib_oracle.tdlib import td_api, telegram_api
 from tdlib_oracle.tdlib.custom_emoji_id import is_valid_custom_emoji_id
 from tdlib_oracle.tdlib.formatted_date import (
     get_date_time_formatting_type_object,
     get_formatted_date,
+    get_input_message_entity_formatted_date,
+    is_valid_formatted_date,
+    make_formatted_date,
 )
 from tdlib_oracle.tdlib.link_manager import check_link, get_link_user_id
 from tdlib_oracle.tdlib.message_entity.entity import (
@@ -34,7 +38,7 @@ from tdlib_oracle.tdlib.message_entity.entity import (
 from tdlib_oracle.tdlib.message_entity.fixing import fix_formatted_text
 from tdlib_oracle.tdlib.misc import clean_input_string
 from tdlib_oracle.tdlib.user_id import is_valid_user_id
-from tdlib_oracle.tdlib.user_manager import get_input_user
+from tdlib_oracle.tdlib.user_manager import get_input_user, get_input_user_force
 
 
 # Ported from td/telegram/MessageEntity.cpp,
@@ -272,6 +276,109 @@ def get_message_entities(
     return tuple(entities)
 
 
+# Ported from td/telegram/MessageEntity.cpp, get_message_entities(const UserManager
+# *user_manager, vector<tl_object_ptr<telegram_api::MessageEntity>> &&server_entities,
+# const char *source), for the objects get_input_message_entities() sends and
+# messageEntityMentionName, with a user manager that has met each user a mention names,
+# and without its log.
+def get_server_message_entities(
+    server_entities: Sequence[telegram_api.MessageEntity],
+) -> tuple[MessageEntity, ...]:
+    """Return the entities that TDLib reads from the objects Telegram returns.
+
+    Each object gives the entity of its type with its value, in their order: a `pre`
+    block without a language stays one without, a collapsed blockquote is an expandable
+    one, and a date keeps the parts its flags name, a relative date alone and the short
+    form of a time or a date over the long one. An object TDLib cannot read is left out:
+    a link that `check_link()` refuses, a mention of an invalid user, a date that is not
+    positive, and a mention in the form TDLib sends, which it never reads back. The
+    objects of the tie an object is in become entities the same way, and the tie ends
+    when they all become one entity.
+    """
+
+    def convert(server_entity: telegram_api.MessageEntity) -> MessageEntity | None:
+        match server_entity:
+            case telegram_api.MessageEntityBold(offset=offset, length=length):
+                return MessageEntity(TYPE.BOLD, offset, length)
+            case telegram_api.MessageEntityItalic(offset=offset, length=length):
+                return MessageEntity(TYPE.ITALIC, offset, length)
+            case telegram_api.MessageEntityUnderline(offset=offset, length=length):
+                return MessageEntity(TYPE.UNDERLINE, offset, length)
+            case telegram_api.MessageEntityStrike(offset=offset, length=length):
+                return MessageEntity(TYPE.STRIKETHROUGH, offset, length)
+            case telegram_api.MessageEntitySpoiler(offset=offset, length=length):
+                return MessageEntity(TYPE.SPOILER, offset, length)
+            case telegram_api.MessageEntityBlockquote(
+                collapsed=collapsed, offset=offset, length=length
+            ):
+                entity_type = (
+                    TYPE.EXPANDABLE_BLOCK_QUOTE if collapsed else TYPE.BLOCK_QUOTE
+                )
+                return MessageEntity(entity_type, offset, length)
+            case telegram_api.MessageEntityCode(offset=offset, length=length):
+                return MessageEntity(TYPE.CODE, offset, length)
+            case telegram_api.MessageEntityPre(
+                offset=offset, length=length, language=language
+            ):
+                if not language:
+                    return MessageEntity(TYPE.PRE, offset, length)
+                return MessageEntity(TYPE.PRE_CODE, offset, length, language)
+            case telegram_api.MessageEntityTextUrl(
+                offset=offset, length=length, url=url
+            ):
+                checked = check_link(url)
+                if isinstance(checked, Failure):
+                    return None
+                return MessageEntity(TYPE.TEXT_URL, offset, length, checked)
+            case telegram_api.MessageEntityMentionName(
+                offset=offset, length=length, user_id=user_id
+            ):
+                if not is_valid_user_id(user_id):
+                    return None
+                # Stands in for td/telegram/UserManager.cpp,
+                # UserManager::have_min_user(), for a user TDLib has met.
+                return MessageEntity(TYPE.MENTION_NAME, offset, length, user_id=user_id)
+            case telegram_api.MessageEntityCustomEmoji(
+                offset=offset, length=length, document_id=document_id
+            ):
+                return MessageEntity(
+                    TYPE.CUSTOM_EMOJI, offset, length, custom_emoji_id=document_id
+                )
+            case telegram_api.MessageEntityFormattedDate():
+                date, date_flags = make_formatted_date(
+                    server_entity.date,
+                    relative=server_entity.relative,
+                    short_time=server_entity.short_time,
+                    long_time=server_entity.long_time,
+                    short_date=server_entity.short_date,
+                    long_date=server_entity.long_date,
+                    day_of_week=server_entity.day_of_week,
+                )
+                if not is_valid_formatted_date(date):
+                    return None
+                return MessageEntity(
+                    TYPE.FORMATTED_DATE,
+                    server_entity.offset,
+                    server_entity.length,
+                    date=date,
+                    date_flags=date_flags,
+                )
+            case _:  # telegram_api.InputMessageEntityMentionName, the last type left
+                # The pinned code stops at UNREACHABLE() for a mention in the form TDLib
+                # sends, which it never expects back.
+                return None
+
+    entities = []
+    for server_entity in server_entities:
+        entity = convert(server_entity)
+        if entity is None:
+            continue
+        converted = (convert(tie) for tie in server_entity.ties)
+        ties = tuple(dict.fromkeys(tie for tie in converted if tie is not None))
+        entities.append(replace(entity, ties=ties) if len(ties) > 1 else entity)
+    return tuple(entities)
+
+
 # Ported from td/telegram/MessageEntity.cpp, get_formatted_text(const Td *td, ...), for
 # a bot's text in a chat that is not secret.
 def get_formatted_text(
@@ -311,19 +418,69 @@ _MAX_USER_ENTITY_COUNT = 100
 
 # Ported from td/telegram/MessageEntity.cpp, get_input_message_entities(const
 # UserManager *user_manager, const vector<MessageEntity> &entities, const char *source),
-# as the entities it sends.
+# with a bot's user manager.
 def get_input_message_entities(
     entities: Sequence[MessageEntity],
-) -> tuple[MessageEntity, ...]:
-    """Return the entities TDLib sends to Telegram for the sorted `entities` it keeps.
+) -> tuple[telegram_api.MessageEntity, ...]:
+    """Return the objects TDLib sends to Telegram for the sorted `entities` it keeps.
 
     Only the types a user can set go. Custom emoji go however many there are, and the
     other types up to 100 entities in all: first those that are not splittable, in their
     order, then the splittable ones, merged where they overlap or touch and cut where
-    another splittable type starts. Each goes as TDLib keeps it, though TDLib sends only
-    the value its type takes.
+    another splittable type starts. Each goes in the object of its type with the value
+    the type takes, a `pre` block without a language with an empty one, and a mention
+    names its user by ID alone, as a bot names one. The entities of the tie an entity is
+    in become objects the same way, and the tie ends when they all become one object.
     """
-    result: list[MessageEntity] = []
+
+    def convert(entity: MessageEntity) -> telegram_api.MessageEntity:
+        offset = entity.offset
+        length = entity.length
+        match entity.type:
+            case TYPE.CUSTOM_EMOJI:
+                return telegram_api.MessageEntityCustomEmoji(
+                    offset, length, entity.custom_emoji_id
+                )
+            case TYPE.BLOCK_QUOTE:
+                return telegram_api.MessageEntityBlockquote(0, False, offset, length)
+            case TYPE.CODE:
+                return telegram_api.MessageEntityCode(offset, length)
+            case TYPE.PRE:
+                return telegram_api.MessageEntityPre(offset, length, b"")
+            case TYPE.PRE_CODE:
+                return telegram_api.MessageEntityPre(offset, length, entity.argument)
+            case TYPE.TEXT_URL:
+                return telegram_api.MessageEntityTextUrl(
+                    offset, length, entity.argument
+                )
+            case TYPE.MENTION_NAME:
+                input_user = get_input_user_force(entity.user_id)
+                return telegram_api.InputMessageEntityMentionName(
+                    offset, length, input_user
+                )
+            case TYPE.EXPANDABLE_BLOCK_QUOTE:
+                return telegram_api.MessageEntityBlockquote(0, True, offset, length)
+            case TYPE.FORMATTED_DATE:
+                return get_input_message_entity_formatted_date(
+                    entity.date, entity.date_flags, offset, length
+                )
+            case TYPE.BOLD:
+                return telegram_api.MessageEntityBold(offset, length)
+            case TYPE.ITALIC:
+                return telegram_api.MessageEntityItalic(offset, length)
+            case TYPE.UNDERLINE:
+                return telegram_api.MessageEntityUnderline(offset, length)
+            case TYPE.STRIKETHROUGH:
+                return telegram_api.MessageEntityStrike(offset, length)
+            case _:  # TYPE.SPOILER, the last type a user can set
+                return telegram_api.MessageEntitySpoiler(offset, length)
+
+    def send(entity: MessageEntity) -> telegram_api.MessageEntity:
+        sent = convert(entity)
+        ties = tuple(dict.fromkeys(convert(tie) for tie in entity.ties))
+        return replace(sent, ties=ties) if len(ties) > 1 else sent
+
+    result: list[telegram_api.MessageEntity] = []
     splittable_entities: list[MessageEntity] = []
     user_entity_count = 0
     for entity in entities:
@@ -333,16 +490,16 @@ def get_input_message_entities(
             splittable_entities.append(entity)
             continue
         if entity.type == TYPE.CUSTOM_EMOJI:
-            result.append(entity)
+            result.append(send(entity))
             continue
         if user_entity_count >= _MAX_USER_ENTITY_COUNT:
             continue
         user_entity_count += 1
-        result.append(entity)
+        result.append(send(entity))
 
     for entity in _split_entities(splittable_entities, ()):
         if user_entity_count >= _MAX_USER_ENTITY_COUNT:
             break
         user_entity_count += 1
-        result.append(entity)
+        result.append(send(entity))
     return tuple(result)

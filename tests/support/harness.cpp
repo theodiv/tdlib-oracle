@@ -41,13 +41,26 @@
 
 namespace td {
 
+// get_input_message_entities() and the overload of get_message_entities() for the
+// entities Telegram returns call nothing else of a user manager, so these two functions
+// alone of UserManager.cpp are defined here.
+
 // A bot names a user it has not met by the user's ID alone
 // (td/telegram/UserManager.cpp, UserManager::get_input_user()).
-// get_input_message_entities() calls nothing else of a user manager, so this function
-// alone of UserManager.cpp is defined here.
 telegram_api::object_ptr<telegram_api::InputUser> UserManager::get_input_user_force(UserId user_id) const {
   return telegram_api::make_object<telegram_api::inputUser>(user_id.get(), 0);
 }
+
+// TDLib keeps a mention it reads back only for a user it has met, and the port reads
+// each mention as for such a user, which leaves its survival to Telegram's backend.
+bool UserManager::have_min_user(UserId /*user_id*/) const {
+  return true;
+}
+
+// td/telegram/MessageEntity.cpp defines this overload, and no header declares it.
+vector<MessageEntity> get_message_entities(const UserManager *user_manager,
+                                           vector<tl_object_ptr<telegram_api::MessageEntity>> &&server_entities,
+                                           const char *source);
 
 }  // namespace td
 
@@ -210,9 +223,9 @@ void write_entities(Fields &response, const td::vector<td::MessageEntity> &entit
   }
 }
 
-// The user manager get_input_message_entities() is given: get_input_user_force(), the
-// one function it calls, reads no member, so storage of the class's size stands in for
-// an object never built.
+// The user manager the conversions to and from Telegram's objects are given:
+// get_input_user_force() and have_min_user(), the functions they call, read no member,
+// so storage of the class's size stands in for an object never built.
 alignas(td::UserManager) unsigned char user_manager_storage[sizeof(td::UserManager)];
 
 const td::UserManager *bot_user_manager() {
@@ -551,6 +564,58 @@ void write_input_message_entities(
         fail("a sent entity has no name");
     }
   }
+}
+
+// Reads the entities that fill a request from field `first` on, in the 6 fields that
+// write_input_message_entities() writes an entity in; a mention is the
+// messageEntityMentionName that Telegram returns, which names its user by ID alone.
+td::vector<td::telegram_api::object_ptr<td::telegram_api::MessageEntity>> read_server_entities(const Fields &request,
+                                                                                               std::size_t first) {
+  if (request.size() < first || (request.size() - first) % 6 != 0) {
+    fail("a request holds the wrong number of fields");
+  }
+  td::vector<td::telegram_api::object_ptr<td::telegram_api::MessageEntity>> entities;
+  for (auto i = first; i < request.size(); i += 6) {
+    auto &name = request[i];
+    auto offset = to_int32(request[i + 1]);
+    auto length = to_int32(request[i + 2]);
+    auto &text = request[i + 3];
+    auto number = to_int64(request[i + 4]);
+    auto flags = to_int32(request[i + 5]);
+    if (name == "messageEntityBold") {
+      entities.push_back(td::telegram_api::make_object<td::telegram_api::messageEntityBold>(offset, length));
+    } else if (name == "messageEntityItalic") {
+      entities.push_back(td::telegram_api::make_object<td::telegram_api::messageEntityItalic>(offset, length));
+    } else if (name == "messageEntityUnderline") {
+      entities.push_back(td::telegram_api::make_object<td::telegram_api::messageEntityUnderline>(offset, length));
+    } else if (name == "messageEntityStrike") {
+      entities.push_back(td::telegram_api::make_object<td::telegram_api::messageEntityStrike>(offset, length));
+    } else if (name == "messageEntitySpoiler") {
+      entities.push_back(td::telegram_api::make_object<td::telegram_api::messageEntitySpoiler>(offset, length));
+    } else if (name == "messageEntityCode") {
+      entities.push_back(td::telegram_api::make_object<td::telegram_api::messageEntityCode>(offset, length));
+    } else if (name == "messageEntityPre") {
+      entities.push_back(td::telegram_api::make_object<td::telegram_api::messageEntityPre>(offset, length, text));
+    } else if (name == "messageEntityTextUrl") {
+      entities.push_back(td::telegram_api::make_object<td::telegram_api::messageEntityTextUrl>(offset, length, text));
+    } else if (name == "messageEntityMentionName") {
+      entities.push_back(
+          td::telegram_api::make_object<td::telegram_api::messageEntityMentionName>(offset, length, number));
+    } else if (name == "messageEntityCustomEmoji") {
+      entities.push_back(
+          td::telegram_api::make_object<td::telegram_api::messageEntityCustomEmoji>(offset, length, number));
+    } else if (name == "messageEntityBlockquote") {
+      entities.push_back(
+          td::telegram_api::make_object<td::telegram_api::messageEntityBlockquote>(0, flags != 0, offset, length));
+    } else if (name == "messageEntityFormattedDate") {
+      entities.push_back(td::telegram_api::make_object<td::telegram_api::messageEntityFormattedDate>(
+          0, (flags & 1) != 0, (flags & 2) != 0, (flags & 4) != 0, (flags & 8) != 0, (flags & 16) != 0,
+          (flags & 32) != 0, offset, length, to_int32(request[i + 4])));
+    } else {
+      fail("a server entity has no name the harness reads");
+    }
+  }
+  return entities;
 }
 
 // Reads the parse mode of a parseTextEntities request from the 2 fields from `first`
@@ -1017,6 +1082,15 @@ Fields run(const std::string &function, const Fields &request) {
     }
     Fields response{"0", std::string()};
     write_entities(response, r_entities.ok());
+    return response;
+  }
+  if (function == "get_message_entities(telegram_api)") {
+    auto server_entities = read_server_entities(request, 1);
+    if (!request[0].empty()) {
+      fail("get_message_entities(telegram_api) takes no text");
+    }
+    Fields response;
+    write_entities(response, td::get_message_entities(bot_user_manager(), std::move(server_entities), "harness"));
     return response;
   }
   if (function == "get_input_message_entities") {

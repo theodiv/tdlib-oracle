@@ -6,14 +6,14 @@ from typing import TypeVar
 
 import pytest
 
-from tdlib_oracle.tdlib import td_api
-from tdlib_oracle.tdlib.message_entity import TYPE, MessageEntity
+from tdlib_oracle.tdlib import td_api, telegram_api
+from tdlib_oracle.tdlib.message_entity import MessageEntity
 from tests.support.harness import cached_build, run
 from tests.support.texts import shrink
 
-# An entity of a request or of a result: TDLib's own, or its API object, which a request
-# may leave null.
-Entity = MessageEntity | td_api.TextEntity | None
+# An entity of a request or of a result: TDLib's own, its API object, which a request
+# may leave null, or the object Telegram's API holds it in.
+Entity = MessageEntity | td_api.TextEntity | telegram_api.MessageEntity | None
 
 # The port's result for a text and the function's other arguments, in the fields the
 # harness answers with.
@@ -97,8 +97,14 @@ def _message_entity(entity: Entity) -> MessageEntity:
 
 
 def _text_entity(entity: Entity) -> td_api.TextEntity | None:
-    if isinstance(entity, MessageEntity):
+    if entity is not None and not isinstance(entity, td_api.TextEntity):
         raise TypeError(f"a TextEntity is needed here, not {entity!r}")
+    return entity
+
+
+def _sent_entity(entity: Entity) -> telegram_api.MessageEntity:
+    if entity is None or isinstance(entity, MessageEntity | td_api.TextEntity):
+        raise TypeError(f"an object of Telegram's API is needed here, not {entity!r}")
     return entity
 
 
@@ -225,47 +231,45 @@ def _text_entity_ties(entity: Entity) -> Sequence[Entity]:
     return [entity] + [replace(entity, type=tie.type) for tie in entity.ties]
 
 
-# The constructor of the object TDLib sends for each type of entity a user can set
-# (td/telegram/MessageEntity.cpp, get_input_message_entities()).
-_SENT_CONSTRUCTORS = {
-    TYPE.BOLD: b"messageEntityBold",
-    TYPE.ITALIC: b"messageEntityItalic",
-    TYPE.UNDERLINE: b"messageEntityUnderline",
-    TYPE.STRIKETHROUGH: b"messageEntityStrike",
-    TYPE.SPOILER: b"messageEntitySpoiler",
-    TYPE.CODE: b"messageEntityCode",
-    TYPE.PRE: b"messageEntityPre",
-    TYPE.PRE_CODE: b"messageEntityPre",
-    TYPE.TEXT_URL: b"messageEntityTextUrl",
-    TYPE.MENTION_NAME: b"inputMessageEntityMentionName",
-    TYPE.CUSTOM_EMOJI: b"messageEntityCustomEmoji",
-    TYPE.BLOCK_QUOTE: b"messageEntityBlockquote",
-    TYPE.EXPANDABLE_BLOCK_QUOTE: b"messageEntityBlockquote",
-    TYPE.FORMATTED_DATE: b"messageEntityFormattedDate",
-}
-
-# The flags of a formatted date that TDLib sends, each as a field of its own.
-_SENT_DATE_FLAGS = 63
-
-
 def _sent_entity_fields(entity: Entity) -> tuple[bytes, ...]:
-    """Return the 6 fields the harness writes the object TDLib sends for `entity` in."""
-    entity = _message_entity(entity)
-    text = entity.argument if entity.type in (TYPE.PRE_CODE, TYPE.TEXT_URL) else b""
+    """Return an object of Telegram's API in the 6 fields the harness reads and writes.
+
+    The fields are the constructor, the offset, and the length; the language or the
+    link; the user, the custom emoji, or the date; and whether a blockquote is
+    collapsed, or the parts a date shows, as `FormattedDate`'s flags.
+    """
+    entity = _sent_entity(entity)
+    text = b""
     number = 0
     flags = 0
-    match entity.type:
-        case TYPE.MENTION_NAME:
+    match entity:
+        case telegram_api.MessageEntityPre():
+            text = entity.language
+        case telegram_api.MessageEntityTextUrl():
+            text = entity.url
+        case telegram_api.InputMessageEntityMentionName(
+            user_id=telegram_api.InputUser() as user
+        ):
+            number = user.user_id
+        case telegram_api.MessageEntityMentionName():
             number = entity.user_id
-        case TYPE.CUSTOM_EMOJI:
-            number = entity.custom_emoji_id
-        case TYPE.EXPANDABLE_BLOCK_QUOTE:
-            flags = 1
-        case TYPE.FORMATTED_DATE:
+        case telegram_api.MessageEntityCustomEmoji():
+            number = entity.document_id
+        case telegram_api.MessageEntityBlockquote():
+            flags = int(entity.collapsed)
+        case telegram_api.MessageEntityFormattedDate():
             number = entity.date
-            flags = entity.date_flags & _SENT_DATE_FLAGS
+            parts = (
+                entity.relative,
+                entity.short_time,
+                entity.long_time,
+                entity.short_date,
+                entity.long_date,
+                entity.day_of_week,
+            )
+            flags = sum(1 << bit for bit, part in enumerate(parts) if part)
     return (
-        _SENT_CONSTRUCTORS[entity.type],
+        _constructor(entity),
         str(entity.offset).encode(),
         str(entity.length).encode(),
         text,
@@ -274,26 +278,37 @@ def _sent_entity_fields(entity: Entity) -> tuple[bytes, ...]:
     )
 
 
+def _sent_entity_ties(entity: Entity) -> Sequence[Entity]:
+    """Return `entity`, then each object its tie lets the pinned code hold instead.
+
+    Each takes the constructor and the value of an object of the tie, and the bounds
+    of `entity`.
+    """
+    entity = _sent_entity(entity)
+    return [entity] + [
+        replace(tie, offset=entity.offset, length=entity.length) for tie in entity.ties
+    ]
+
+
 @dataclass(frozen=True)
 class _Form:
     """A form the harness writes entities in.
 
     Attributes:
-        request: The fields of an entity in a request, or `None` when no request holds
-            entities in this form.
+        request: The fields of an entity in a request.
         response: The fields of an entity in a response.
         size: The number of fields `response` gives.
         ties: The entity, then each entity its tie lets the pinned code hold instead.
     """
 
-    request: Callable[[Entity], list[bytes]] | None
+    request: Callable[[Entity], list[bytes]]
     response: Callable[[Entity], tuple[bytes, ...]]
     size: int
     ties: Callable[[Entity], Sequence[Entity]]
 
 
 # Each form of entity, by the name a test passes: TDLib's own entities, their API
-# objects, and the objects TDLib sends to Telegram, which no request holds.
+# objects, and the objects of Telegram's API that TDLib sends and reads back.
 _FORMS = {
     "message": _Form(_entity_request, _entity_response, 7, _entity_ties),
     "api": _Form(
@@ -302,21 +317,23 @@ _FORMS = {
         9,
         _text_entity_ties,
     ),
-    "sent": _Form(None, _sent_entity_fields, 6, _entity_ties),
+    "sent": _Form(
+        lambda e: list(_sent_entity_fields(e)),
+        _sent_entity_fields,
+        6,
+        _sent_entity_ties,
+    ),
 }
 
 
 def _pinned(
     harness: Path, function: str, requests: Sequence[_Request], form: _Form
 ) -> list[tuple[bytes, ...]]:
-    if form.request is None:
-        raise ValueError("no request holds entities in this form")
-    request = form.request
     fields = [
         [
             text,
             *(str(arg).encode() for arg in args),
-            *(field for entity in entities for field in request(entity)),
+            *(field for entity in entities for field in form.request(entity)),
         ]
         for text, args, entities in requests
     ]
@@ -474,8 +491,8 @@ def compare_entities(harness: Path) -> Callable[..., None]:
 
     The cases hold entities in the form `requests` names, and the port answers with
     entities in the form `answers` names: `message` for TDLib's own entities, `api` for
-    their API objects, and `sent` for the objects TDLib sends to Telegram, which no
-    request holds. At an entity the port marks as tied, any entity of its tie matches,
+    their API objects, and `sent` for the objects of Telegram's API that TDLib sends and
+    reads back. At an entity the port marks as tied, any entity of its tie matches,
     since `std::sort` leaves their order to the C++ library. A differing case is shrunk
     before it fails the test: its text, its entities, and then its numeric arguments.
     """

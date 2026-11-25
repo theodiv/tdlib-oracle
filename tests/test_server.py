@@ -384,6 +384,24 @@ def test_marks_the_entity_a_sort_keeps_of_a_tie() -> None:
     assert verdict.depends_on_backend is False
 
 
+def test_marks_the_link_a_sort_keeps_of_a_tie_with_a_mention() -> None:
+    # The mention of the tie comes back by its user's ID, as TDLib reads one back, so
+    # the tie stays to mark the link.
+    verdict = check(
+        '<i>y<a href="tg://user?id=5"><a href="t.me/a">x</a></a></i>', parse_mode="HTML"
+    )
+    assert verdict.entities == (
+        Entity(
+            type="text_link",
+            offset=1,
+            length=1,
+            url="http://t.me/a",
+            depends_on_build=True,
+        ),
+        Entity(type="italic", offset=0, length=2),
+    )
+
+
 def test_leaves_a_tie_unmarked_where_no_sort_meets_it() -> None:
     verdict = check('<a href="t.me/a"><a href="t.me/b">x</a></a>', parse_mode="HTML")
     assert verdict.entities == (

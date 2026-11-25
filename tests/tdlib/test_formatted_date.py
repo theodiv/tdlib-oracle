@@ -1,17 +1,41 @@
 import pytest
 
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib import td_api
+from tdlib_oracle.tdlib import td_api, telegram_api
 from tdlib_oracle.tdlib.formatted_date import (
     get_date_flags,
     get_date_time_formatting_type_object,
     get_formatted_date,
+    get_input_message_entity_formatted_date,
     is_valid_formatted_date,
+    make_formatted_date,
 )
 
 _NONE = td_api.DateTimePartPrecisionNone()
 _SHORT = td_api.DateTimePartPrecisionShort()
 _LONG = td_api.DateTimePartPrecisionLong()
+
+
+@pytest.mark.parametrize("date", [0, -1])
+def test_make_formatted_date_keeps_a_date_that_is_not_positive(date: int) -> None:
+    # The read-back drops such a date, so only this test shows that the date stays.
+    result = make_formatted_date(
+        date,
+        relative=True,
+        short_time=False,
+        long_time=False,
+        short_date=False,
+        long_date=False,
+        day_of_week=False,
+    )
+    assert result == (date, 1)
+
+
+def test_get_input_message_entity_formatted_date_sends_each_flag_alone() -> None:
+    sent = get_input_message_entity_formatted_date(9, 1 | 4 | 16, 2, 3)
+    assert sent == telegram_api.MessageEntityFormattedDate(
+        0, True, False, True, False, True, False, 2, 3, 9
+    )
 
 
 @pytest.mark.parametrize(
