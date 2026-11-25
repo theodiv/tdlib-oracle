@@ -257,6 +257,65 @@ def test_refuses_markup_naming_the_byte_offset_the_description_names(
     assert verdict.refusal == Refusal(description=description, offset=offset)
 
 
+@pytest.mark.parametrize("parse_mode", ["MarkdownV2", "Markdown"])
+def test_parses_markdown_into_the_entities_tdlib_sends(
+    sent: Sent, parse_mode: str
+) -> None:
+    verdict = check(sent("*bold* and _it_"), parse_mode=parse_mode)
+    assert verdict == Verdict(
+        accepted=True,
+        text="bold and it",
+        entities=(
+            Entity(type="bold", offset=0, length=4),
+            Entity(type="italic", offset=9, length=2),
+        ),
+        refusal=None,
+        depends_on_backend=False,
+    )
+
+
+@pytest.mark.parametrize("parse_mode", ["Markdown", "markdown", "mArKdOwN"])
+def test_reads_the_markdown_parse_mode_in_any_letter_case(parse_mode: str) -> None:
+    # Legacy Markdown keeps a period as text, where MarkdownV2 reserves it.
+    verdict = check("*a.b*", parse_mode=parse_mode)
+    assert verdict.entities == (Entity(type="bold", offset=0, length=3),)
+
+
+@pytest.mark.parametrize("parse_mode", ["MarkdownV2", "markdownv2", "mArKdOwNv2"])
+def test_reads_the_markdown_v2_parse_mode_in_any_letter_case(parse_mode: str) -> None:
+    verdict = check("*a.b*", parse_mode=parse_mode)
+    assert verdict == _refused(
+        "Bad Request: can't parse entities: Character '.' is reserved and must be"
+        " escaped with the preceding '\\'"
+    )
+
+
+@pytest.mark.parametrize(
+    ("parse_mode", "text", "message", "offset"),
+    [
+        (
+            "MarkdownV2",
+            "\N{EURO SIGN}*x",
+            "Can't find end of Bold entity at byte offset 3",
+            3,
+        ),
+        ("MarkdownV2", "[a](t.me", "Can't find end of a URL at byte offset 4", 4),
+        (
+            "Markdown",
+            "\N{EURO SIGN}_x",
+            "Can't find end of the entity starting at byte offset 3",
+            3,
+        ),
+    ],
+)
+def test_refuses_markdown_naming_the_byte_offset_the_description_names(
+    parse_mode: str, text: str, message: str, offset: int
+) -> None:
+    description = f"Bad Request: can't parse entities: {message}"
+    verdict = check(text, parse_mode=parse_mode)
+    assert verdict.refusal == Refusal(description=description, offset=offset)
+
+
 def test_keeps_the_value_of_each_type_in_the_bot_apis_form() -> None:
     text = (
         '<pre><code class="language-python">p</code></pre>'
@@ -346,12 +405,6 @@ def test_sends_at_most_100_entities_besides_custom_emoji() -> None:
     types = [entity.type for entity in check(text, parse_mode="HTML").entities]
     assert types.count("code") == 100
     assert types.count("custom_emoji") == 1
-
-
-@pytest.mark.parametrize("parse_mode", ["Markdown", "MarkdownV2", "markdownv2"])
-def test_raises_value_error_for_a_markdown_parse_mode(parse_mode: str) -> None:
-    with pytest.raises(ValueError, match=r"^parse_mode '\w+' is not supported yet$"):
-        check("*x*", parse_mode=parse_mode)
 
 
 @pytest.mark.parametrize("parse_mode", [b"HTML", 1, ["HTML"]])

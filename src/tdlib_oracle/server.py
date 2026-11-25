@@ -25,10 +25,6 @@ from tdlib_oracle.tdlib.message_entity import (
 )
 from tdlib_oracle.tdlib.synchronous_requests import run_request
 
-# The parse modes whose parsers are not ported yet, in lowercase, as the server compares
-# parse modes.
-_MARKDOWN_PARSE_MODES = (b"markdown", b"markdownv2")
-
 # A bot names any valid user with no access hash (td/telegram/UserManager.cpp,
 # UserManager::get_input_user()) and may use any custom emoji, so Telegram's backend
 # decides whether these entities survive.
@@ -40,7 +36,8 @@ _BACKEND_TYPES = frozenset({"text_mention", "custom_emoji"})
 _PARSE_REFUSAL = "Bad Request: can't parse entities: "
 
 # A refusal of the markup names the byte offset of what it refuses after this phrase. A
-# tag name it quotes ends at a space, so the phrase is the parser's own.
+# tag name the HTML parser quotes ends at a space, and the Markdown parsers quote one
+# reserved character at most, so the phrase is the parser's own.
 _OFFSET = re.compile(r" at byte offset (\d+)", re.ASCII)
 
 
@@ -136,7 +133,6 @@ def _encode_parse_mode(parse_mode: object) -> bytes:
 
     Raises:
         TypeError: If `parse_mode` is neither `str` nor `None`.
-        ValueError: If `parse_mode` names a Markdown parse mode.
     """
     if parse_mode is None:
         return b""
@@ -144,10 +140,7 @@ def _encode_parse_mode(parse_mode: object) -> bytes:
         raise TypeError(
             f"parse_mode must be str or None, not {type(parse_mode).__name__}"
         )
-    encoded = parse_mode.encode("utf-8", "surrogatepass")
-    if encoded.lower() in _MARKDOWN_PARSE_MODES:
-        raise ValueError(f"parse_mode {parse_mode!r} is not supported yet")
-    return encoded
+    return parse_mode.encode("utf-8", "surrogatepass")
 
 
 def _offset(description: str) -> int | None:
@@ -219,15 +212,13 @@ def check(text: str | bytes, *, parse_mode: str | None = None) -> Verdict:
 
     Args:
         text: The message text.
-        parse_mode: The markup of the text: `HTML` in any letter case is parsed, and
-            `None`, an empty string, or `none` in any letter case parses nothing; any
-            other name gets the server's refusal.
+        parse_mode: The markup of the text: `HTML`, `MarkdownV2`, or `Markdown` in any
+            letter case is parsed, and `None`, an empty string, or `none` in any letter
+            case parses nothing; any other name gets the server's refusal.
 
     Raises:
         TypeError: If `text` is neither `str` nor `bytes`, or `parse_mode` is neither
             `str` nor `None`.
-        ValueError: If `parse_mode` is `Markdown` or `MarkdownV2` in any letter case,
-            whose parsers no release ports yet.
     """
     data = _encode(text)
     mode = _encode_parse_mode(parse_mode)

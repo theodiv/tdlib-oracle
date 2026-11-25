@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Accept `MarkdownV2` and `Markdown`, in any letter case, as the `parse_mode` of
+  `check`: an accepted verdict lists the entities TDLib sends, and a refusal of
+  the markup names its byte offset when its description does. Previously, both
+  raised `ValueError`.
+
 ### Fixed
 
 - Show a `pre` entity without a `language` when cleaning removes every character

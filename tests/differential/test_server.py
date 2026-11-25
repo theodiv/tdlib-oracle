@@ -7,12 +7,15 @@ import pytest
 from tdlib_oracle import Entity, Refusal, Verdict, check
 from tdlib_oracle.botapi.client import get_error_description
 from tdlib_oracle.runtime.failure import Failure, decode_quoted
-from tests.support.markup import TAGS, draw_html
+from tests.support.markup import TAGS, draw_html, draw_markdown
 from tests.support.texts import INVALID_UNITS, PLAIN_UNITS, draw_texts
 
 pytestmark = pytest.mark.differential
 
 Compare = Callable[..., None]
+
+# The parse modes a bot names, by the index the harness reads them by.
+_PARSE_MODES = (None, "HTML", "Markdown", "MarkdownV2")
 
 # The Bot API's name for the type of each object TDLib sends an entity as.
 _TYPES = {
@@ -68,6 +71,56 @@ _FIXED_HTML = (
     (b'<pre><code class="language-a&#x202b;">x</code></pre>',),
 )
 
+# MarkdownV2 texts the same way: every entity, ties in the sort, links without a URL
+# nested 40 deep, more entities than TDLib sends, kept texts at and past 4,096 code
+# points, cleaning and trimming around entities, each refusal of the markup, a link that
+# cleaning turns into a mention, and a language that cleaning empties.
+_FIXED_MARKDOWN_V2 = (
+    (
+        b"*a* _b_ __c__ ~d~ ||e|| `f` ```g``` ```python\nh``` [i](t.me/i)",
+        b" [j](tg://user?id=5) ![k](tg://emoji?id=5)",
+        b" ![l](tg://time?unix=1700000000&format=wDT)\n>m\n>n||",
+    ),
+    (b">m\n>n\no",),
+    (b"_y", *(b"[[x](t.me/a)](t.me/b)",) * 8, b"_"),
+    (b"[" * 40 + b"t\\.me" + b"]" * 40,),
+    (b"`x` " * 101,),
+    (b"![x](tg://emoji?id=5)" * 120, b"*y*"),
+    (b"*" + b"a" * 4096 + b"*",),
+    (b"*" + b"a" * 4097 + b"*",),
+    (b"  * a *  ",),
+    ("*a\r\nb\x00c\u200e\u200eb*".encode(),),
+    (b"a.b",),
+    (b"*x",),
+    (b"[a](t.me",),
+    (b"![x]",),
+    (b"![x](t.me)",),
+    ("[x](tg://user?id=5\u2028)".encode(),),
+    ("```\u202b x```".encode(),),
+)
+
+# Legacy Markdown texts the same way: every entity, a link without a URL after dropped
+# bytes, more entities than TDLib sends, kept texts at and past the limit, cleaning and
+# trimming around entities, each refusal of the markup, a link that cleaning turns into
+# a mention, and languages that cleaning empties.
+_FIXED_MARKDOWN = (
+    (
+        b"*a* _b_ `c` ```d``` ```python\ne``` [f](t.me/f) [g](tg://user?id=5)",
+        b" [t.me]",
+    ),
+    (b"*a*[b](c)[telegram.org]",),
+    (b"`x` " * 101,),
+    (b"*" + b"a" * 4096 + b"*",),
+    (b"*" + b"a" * 4097 + b"*",),
+    (b"  * a *  ",),
+    ("*a\r\nb\x00c\u200e\u200eb*".encode(),),
+    (b"*x",),
+    (b"[x",),
+    ("[x](tg://user?id=5\u2028)".encode(),),
+    ("```\u202b ```y".encode(),),
+    ("`````````\u033f\r|```".encode(),),
+)
+
 # Plain texts the same way: tags that stay text, and texts at and past the limit.
 _FIXED_PLAIN = (
     (b"<b>x</b>",),
@@ -85,7 +138,7 @@ def _port(text: bytes, args: tuple[int, ...]) -> Verdict | None:
     """
     if not text:
         return None
-    return check(text, parse_mode="HTML" if args[0] else None)
+    return check(text, parse_mode=_PARSE_MODES[args[0]])
 
 
 def _offset(message: bytes) -> int | None:
@@ -177,11 +230,12 @@ def _matches(verdict: Verdict | None, theirs: tuple[bytes, ...]) -> bool:
 
 
 def _cases(
-    texts: list[tuple[bytes, ...]], html: int
+    texts: list[tuple[bytes, ...]], parse_mode: str | None
 ) -> list[tuple[tuple[bytes, ...], tuple[int, ...]]]:
-    """Return each text with a bot of one session and with a bot of more."""
+    """Return each text, in `parse_mode`, for a bot of one session and of more."""
+    mode = _PARSE_MODES.index(parse_mode)
     return [
-        (text, (html, skip_new_entities))
+        (text, (mode, skip_new_entities))
         for text in texts
         for skip_new_entities in (0, 1)
     ]
@@ -191,8 +245,24 @@ def test_check_gives_the_pinned_verdict_on_html_texts(
     compare_by: Compare, seeds: tuple[int, ...], count: int
 ) -> None:
     for seed in seeds:
-        cases = _cases(draw_html(seed, count), 1)
+        cases = _cases(draw_html(seed, count), "HTML")
         compare_by("send_message", _port, _matches, cases, seed=seed, by_bytes=False)
+
+
+def test_check_gives_the_pinned_verdict_on_markdown_v2_texts(
+    compare_by: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        cases = _cases(draw_markdown(seed, count), "MarkdownV2")
+        compare_by("send_message", _port, _matches, cases, seed=seed, by_bytes=True)
+
+
+def test_check_gives_the_pinned_verdict_on_markdown_texts(
+    compare_by: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        cases = _cases(draw_markdown(seed, count, legacy=True), "Markdown")
+        compare_by("send_message", _port, _matches, cases, seed=seed, by_bytes=True)
 
 
 def test_check_gives_the_pinned_verdict_on_plain_texts(
@@ -201,10 +271,20 @@ def test_check_gives_the_pinned_verdict_on_plain_texts(
     for seed in seeds:
         texts = draw_texts(seed, count, (*PLAIN_UNITS, *INVALID_UNITS))
         compare_by(
-            "send_message", _port, _matches, _cases(texts, 0), seed=seed, by_bytes=True
+            "send_message",
+            _port,
+            _matches,
+            _cases(texts, None),
+            seed=seed,
+            by_bytes=True,
         )
 
 
 def test_check_gives_the_pinned_verdict_on_the_fixed_texts(compare_by: Compare) -> None:
-    cases = [*_cases(list(_FIXED_HTML), 1), *_cases(list(_FIXED_PLAIN), 0)]
+    cases = [
+        *_cases(list(_FIXED_HTML), "HTML"),
+        *_cases(list(_FIXED_MARKDOWN_V2), "MarkdownV2"),
+        *_cases(list(_FIXED_MARKDOWN), "Markdown"),
+        *_cases(list(_FIXED_PLAIN), None),
+    ]
     compare_by("send_message", _port, _matches, cases, seed=None, by_bytes=False)

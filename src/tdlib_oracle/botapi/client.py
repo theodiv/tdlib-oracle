@@ -28,28 +28,35 @@ _MAX_TEXT_SIZE = 1 << 15  # 32,768 bytes
 
 
 # Ported from telegram-bot-api/Client.cpp, Client::get_formatted_text(), for a text
-# without entities, in the HTML parse mode or in none.
+# without entities.
 def get_formatted_text(
     text: bytes, parse_mode: bytes, *, execute: Execute
 ) -> td_api.FormattedText | Failure:
     """Return the formatted text the Bot API server passes on, or its `Failure`.
 
     A text over 32,768 bytes is refused. An empty text, or one whose parse mode is empty
-    or `none` in any letter case, passes on without entities. In the HTML parse mode,
-    `execute`, the call `Client::execute()` makes, asks TDLib to parse the text, and
-    TDLib's error refuses it; any other parse mode is refused. The Markdown parse modes
-    are left out, so a caller must not pass their names.
+    or `none` in any letter case, passes on without entities. Otherwise `execute`, the
+    call `Client::execute()` makes, asks TDLib to parse the text: `Markdown` and
+    `MarkdownV2`, in any letter case, as versions 1 and 2 of TDLib's Markdown, and
+    `HTML` as HTML. TDLib's error refuses the text, and any other parse mode is refused.
     """
     if len(text) > _MAX_TEXT_SIZE:
         return Failure(400, "Text is too long")
 
     parse_mode = parse_mode.lower()
     if text and parse_mode and parse_mode != b"none":
-        if parse_mode != b"html":
-            return Failure(400, "Unsupported parse_mode")
-        parsed_text = execute(
-            td_api.ParseTextEntities(text, td_api.TextParseModeHTML())
-        )
+        text_parse_mode: td_api.TextParseMode
+        match parse_mode:
+            case b"markdown":
+                text_parse_mode = td_api.TextParseModeMarkdown(1)
+            case b"markdownv2":
+                text_parse_mode = td_api.TextParseModeMarkdown(2)
+            case b"html":
+                text_parse_mode = td_api.TextParseModeHTML()
+            case _:
+                return Failure(400, "Unsupported parse_mode")
+
+        parsed_text = execute(td_api.ParseTextEntities(text, text_parse_mode))
         if isinstance(parsed_text, td_api.Error):
             return Failure(parsed_text.code, decode_quoted(parsed_text.message))
         return parsed_text

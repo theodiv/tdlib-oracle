@@ -6,9 +6,9 @@
 # see LICENSES/BSL-1.0.txt.
 """The URL parser of tdutils: a URL's parts, checked, and the URL they write back.
 
-TDLib's HTML parser checks the text inside each nested link again, so `parse_url`
-passes over a URL a fixed number of times in bytes methods and regular expressions; a
-Python loop reads 20 of its bytes at most.
+TDLib's HTML and MarkdownV2 parsers check the text inside each nested link again, so
+`parse_url` passes over a URL a fixed number of times in bytes methods and regular
+expressions; a Python loop reads 20 of its bytes at most.
 """
 
 import re

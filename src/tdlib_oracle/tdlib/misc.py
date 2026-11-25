@@ -5,9 +5,9 @@
 # see LICENSES/BSL-1.0.txt.
 """TDLib's cleaning of input strings, and its test for a text of blank characters.
 
-HTML cleans the link of each nested link again, so `clean_input_string` passes over a
-string a fixed number of times in bytes methods and regular expressions; a Python loop
-reads 4 of its bytes at most.
+HTML and MarkdownV2 clean the link of each nested link again, so `clean_input_string`
+passes over a string a fixed number of times in bytes methods and regular expressions; a
+Python loop reads 4 of its bytes at most.
 """
 
 import re

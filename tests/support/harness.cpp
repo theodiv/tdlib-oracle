@@ -553,6 +553,38 @@ void write_input_message_entities(
   }
 }
 
+// Reads the parse mode of a parseTextEntities request from the 2 fields from `first`
+// on: 0 for none, 1 for HTML, or 2 for Markdown, then the version of Markdown.
+td::td_api::object_ptr<td::td_api::TextParseMode> read_parse_mode(const Fields &request, std::size_t first) {
+  switch (to_size(request[first])) {
+    case 0:
+      return nullptr;
+    case 1:
+      return td::td_api::make_object<td::td_api::textParseModeHTML>();
+    case 2:
+      return td::td_api::make_object<td::td_api::textParseModeMarkdown>(to_int32(request[first + 1]));
+    default:
+      fail("a parse mode field names no parse mode");
+  }
+}
+
+// Reads the parse mode a bot names by its index among none, HTML, Markdown, and
+// MarkdownV2, as the object Client::get_formatted_text() makes for it.
+td::td_api::object_ptr<td::td_api::TextParseMode> read_bot_parse_mode(const std::string &field) {
+  switch (to_size(field)) {
+    case 0:
+      return nullptr;
+    case 1:
+      return td::td_api::make_object<td::td_api::textParseModeHTML>();
+    case 2:
+      return td::td_api::make_object<td::td_api::textParseModeMarkdown>(1);
+    case 3:
+      return td::td_api::make_object<td::td_api::textParseModeMarkdown>(2);
+    default:
+      fail("a parse mode field names no parse mode");
+  }
+}
+
 // Writes each slice of `text` as 2 fields: where it begins and where it ends, in bytes.
 void write_slices(Fields &response, td::Slice text, const td::vector<td::Slice> &slices) {
   for (auto slice : slices) {
@@ -997,14 +1029,10 @@ Fields run(const std::string &function, const Fields &request) {
     return response;
   }
   if (function == "run_request") {
-    expect_fields(request, 2);
-    // A parseTextEntities request for the text, in the HTML parse mode or in none.
-    td::td_api::object_ptr<td::td_api::TextParseMode> parse_mode;
-    if (to_flag(request[1])) {
-      parse_mode = td::td_api::make_object<td::td_api::textParseModeHTML>();
-    }
+    expect_fields(request, 3);
+    // A parseTextEntities request for the text, in the parse mode the next fields name.
     auto result = td::SynchronousRequests::run_request(
-        td::td_api::make_object<td::td_api::parseTextEntities>(request[0], std::move(parse_mode)));
+        td::td_api::make_object<td::td_api::parseTextEntities>(request[0], read_parse_mode(request, 1)));
     if (result->get_id() == td::td_api::error::ID) {
       auto error = td::move_tl_object_as<td::td_api::error>(result);
       return {std::to_string(error->code_), error->message_, std::string()};
@@ -1017,15 +1045,16 @@ Fields run(const std::string &function, const Fields &request) {
   if (function == "send_message") {
     expect_fields(request, 3);
     // A bot's message text, through the pinned calls that the Bot API server and TDLib
-    // make for it: a parseTextEntities request in the HTML parse mode, or none; the
-    // fixing of get_formatted_text(const Td *td, ...), which finds entities of its own
-    // for a bot with one session and none for more; the length check of
+    // make for it: a parseTextEntities request in the parse mode the bot names, or
+    // none; the fixing of get_formatted_text(const Td *td, ...), which finds entities
+    // of its own for a bot with one session and none for more; the length check of
     // create_input_message_content(); and the entities SendMessageQuery::send() sends.
     auto text = request[0];
     td::vector<td::td_api::object_ptr<td::td_api::textEntity>> text_entities;
-    if (to_flag(request[1])) {
-      auto result = td::SynchronousRequests::run_request(td::td_api::make_object<td::td_api::parseTextEntities>(
-          text, td::td_api::make_object<td::td_api::textParseModeHTML>()));
+    auto parse_mode = read_bot_parse_mode(request[1]);
+    if (parse_mode != nullptr) {
+      auto result = td::SynchronousRequests::run_request(
+          td::td_api::make_object<td::td_api::parseTextEntities>(text, std::move(parse_mode)));
       if (result->get_id() == td::td_api::error::ID) {
         auto error = td::move_tl_object_as<td::td_api::error>(result);
         return {std::to_string(error->code_), error->message_, std::string()};
