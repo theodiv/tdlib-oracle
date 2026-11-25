@@ -213,6 +213,42 @@ void basicGroupFullInfo::store(TlStorerToString &s, const char *field_name) cons
   }
 }
 
+botCallbackQueryModeDefault::botCallbackQueryModeDefault() {
+}
+
+const std::int32_t botCallbackQueryModeDefault::ID;
+
+void botCallbackQueryModeDefault::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "botCallbackQueryModeDefault");
+    s.store_class_end();
+  }
+}
+
+botCallbackQueryModeAuto::botCallbackQueryModeAuto() {
+}
+
+const std::int32_t botCallbackQueryModeAuto::ID;
+
+void botCallbackQueryModeAuto::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "botCallbackQueryModeAuto");
+    s.store_class_end();
+  }
+}
+
+botCallbackQueryModeInline::botCallbackQueryModeInline() {
+}
+
+const std::int32_t botCallbackQueryModeInline::ID;
+
+void botCallbackQueryModeInline::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "botCallbackQueryModeInline");
+    s.store_class_end();
+  }
+}
+
 botCommands::botCommands()
   : bot_user_id_()
   , commands_()
@@ -3099,6 +3135,27 @@ void tonNfts::store(TlStorerToString &s, const char *field_name) const {
   }
 }
 
+tonSmartContractInitialState::tonSmartContractInitialState()
+  : code_()
+  , data_()
+{}
+
+tonSmartContractInitialState::tonSmartContractInitialState(bytes const &code_, bytes const &data_)
+  : code_(std::move(code_))
+  , data_(std::move(data_))
+{}
+
+const std::int32_t tonSmartContractInitialState::ID;
+
+void tonSmartContractInitialState::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "tonSmartContractInitialState");
+    s.store_bytes_field("code", code_);
+    s.store_bytes_field("data", data_);
+    s.store_class_end();
+  }
+}
+
 tonWalletGaslessTransfersInfo::tonWalletGaslessTransfersInfo()
   : left_count_()
   , reset_date_()
@@ -3245,6 +3302,42 @@ const std::int32_t upgradedGiftOriginCraft::ID;
 void upgradedGiftOriginCraft::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "upgradedGiftOriginCraft");
+    s.store_class_end();
+  }
+}
+
+upgradedGiftOriginOnChainResale::upgradedGiftOriginOnChainResale()
+  : gram_amount_()
+{}
+
+upgradedGiftOriginOnChainResale::upgradedGiftOriginOnChainResale(int64 gram_amount_)
+  : gram_amount_(gram_amount_)
+{}
+
+const std::int32_t upgradedGiftOriginOnChainResale::ID;
+
+void upgradedGiftOriginOnChainResale::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "upgradedGiftOriginOnChainResale");
+    s.store_field("gram_amount", gram_amount_);
+    s.store_class_end();
+  }
+}
+
+upgradedGiftOriginOnChainOffer::upgradedGiftOriginOnChainOffer()
+  : gram_amount_()
+{}
+
+upgradedGiftOriginOnChainOffer::upgradedGiftOriginOnChainOffer(int64 gram_amount_)
+  : gram_amount_(gram_amount_)
+{}
+
+const std::int32_t upgradedGiftOriginOnChainOffer::ID;
+
+void upgradedGiftOriginOnChainOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "upgradedGiftOriginOnChainOffer");
+    s.store_field("gram_amount", gram_amount_);
     s.store_class_end();
   }
 }
@@ -4329,6 +4422,24 @@ void getSearchedForTags::store(TlStorerToString &s, const char *field_name) cons
   }
 }
 
+getSpeechRecognitionModels::getSpeechRecognitionModels()
+  : version_()
+{}
+
+getSpeechRecognitionModels::getSpeechRecognitionModels(int32 version_)
+  : version_(version_)
+{}
+
+const std::int32_t getSpeechRecognitionModels::ID;
+
+void getSpeechRecognitionModels::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "getSpeechRecognitionModels");
+    s.store_field("version", version_);
+    s.store_class_end();
+  }
+}
+
 getThemedChatEmojiStatuses::getThemedChatEmojiStatuses() {
 }
 
@@ -4829,6 +4940,48 @@ void sendPaymentForm::store(TlStorerToString &s, const char *field_name) const {
     s.store_field("shipping_option_id", shipping_option_id_);
     s.store_object_field("credentials", static_cast<const BaseObject *>(credentials_.get()));
     s.store_field("tip_amount", tip_amount_);
+    s.store_class_end();
+  }
+}
+
+sendTonWalletTransaction::sendTonWalletTransaction()
+  : regular_transaction_data_()
+  , gasless_transaction_data_()
+{}
+
+sendTonWalletTransaction::sendTonWalletTransaction(bytes const &regular_transaction_data_, bytes const &gasless_transaction_data_)
+  : regular_transaction_data_(std::move(regular_transaction_data_))
+  , gasless_transaction_data_(std::move(gasless_transaction_data_))
+{}
+
+const std::int32_t sendTonWalletTransaction::ID;
+
+void sendTonWalletTransaction::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "sendTonWalletTransaction");
+    s.store_bytes_field("regular_transaction_data", regular_transaction_data_);
+    s.store_bytes_field("gasless_transaction_data", gasless_transaction_data_);
+    s.store_class_end();
+  }
+}
+
+setBotSettings::setBotSettings()
+  : bot_user_id_()
+  , settings_()
+{}
+
+setBotSettings::setBotSettings(int53 bot_user_id_, array<object_ptr<BotSetting>> &&settings_)
+  : bot_user_id_(bot_user_id_)
+  , settings_(std::move(settings_))
+{}
+
+const std::int32_t setBotSettings::ID;
+
+void setBotSettings::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "setBotSettings");
+    s.store_field("bot_user_id", bot_user_id_);
+    { s.store_vector_begin("settings", settings_.size()); for (const auto &_value : settings_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     s.store_class_end();
   }
 }

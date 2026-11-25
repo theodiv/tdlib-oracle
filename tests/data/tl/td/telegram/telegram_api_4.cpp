@@ -5033,30 +5033,47 @@ void inputPageBlockMap::store(TlStorerToString &s, const char *field_name) const
   }
 }
 
-pageBlockBlockquoteBlocks::pageBlockBlockquoteBlocks(array<object_ptr<PageBlock>> &&blocks_, object_ptr<RichText> &&caption_)
-  : blocks_(std::move(blocks_))
+pageBlockBlockquoteBlocks::pageBlockBlockquoteBlocks()
+  : flags_()
+  , collapsed_()
+  , blocks_()
+  , caption_()
+{}
+
+pageBlockBlockquoteBlocks::pageBlockBlockquoteBlocks(int32 flags_, bool collapsed_, array<object_ptr<PageBlock>> &&blocks_, object_ptr<RichText> &&caption_)
+  : flags_(flags_)
+  , collapsed_(collapsed_)
+  , blocks_(std::move(blocks_))
   , caption_(std::move(caption_))
 {}
 
 const std::int32_t pageBlockBlockquoteBlocks::ID;
 
 object_ptr<PageBlock> pageBlockBlockquoteBlocks::fetch(TlBufferParser &p) {
-  return make_tl_object<pageBlockBlockquoteBlocks>(p);
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<pageBlockBlockquoteBlocks> res = make_tl_object<pageBlockBlockquoteBlocks>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->collapsed_ = (var0 & 1) != 0;
+  res->blocks_ = TlFetchBoxed<TlFetchVector<TlFetchObject<PageBlock>>, 481674261>::parse(p);
+  res->caption_ = TlFetchObject<RichText>::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
 }
-
-pageBlockBlockquoteBlocks::pageBlockBlockquoteBlocks(TlBufferParser &p)
-  : blocks_(TlFetchBoxed<TlFetchVector<TlFetchObject<PageBlock>>, 481674261>::parse(p))
-  , caption_(TlFetchObject<RichText>::parse(p))
-{}
 
 void pageBlockBlockquoteBlocks::store(TlStorerCalcLength &s) const {
   (void)sizeof(s);
+  int32 var0;
+  TlStoreBinary::store((var0 = flags_ | (collapsed_ << 0)), s);
   TlStoreBoxed<TlStoreVector<TlStoreBoxedUnknown<TlStoreObject>>, 481674261>::store(blocks_, s);
   TlStoreBoxedUnknown<TlStoreObject>::store(caption_, s);
 }
 
 void pageBlockBlockquoteBlocks::store(TlStorerUnsafe &s) const {
   (void)sizeof(s);
+  int32 var0;
+  TlStoreBinary::store((var0 = flags_ | (collapsed_ << 0)), s);
   TlStoreBoxed<TlStoreVector<TlStoreBoxedUnknown<TlStoreObject>>, 481674261>::store(blocks_, s);
   TlStoreBoxedUnknown<TlStoreObject>::store(caption_, s);
 }
@@ -5064,6 +5081,9 @@ void pageBlockBlockquoteBlocks::store(TlStorerUnsafe &s) const {
 void pageBlockBlockquoteBlocks::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "pageBlockBlockquoteBlocks");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | (collapsed_ << 0)));
+    if (var0 & 1) { s.store_field("collapsed", true); }
     { s.store_vector_begin("blocks", blocks_.size()); for (const auto &_value : blocks_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     s.store_object_field("caption", static_cast<const BaseObject *>(caption_.get()));
     s.store_class_end();
@@ -7075,6 +7095,11 @@ starGiftUnique::starGiftUnique()
   , theme_available_()
   , burned_()
   , crafted_()
+  , onchain_sale_()
+  , fixed_sale_()
+  , my_sale_()
+  , offer_min_amount_()
+  , fee_bps_()
   , id_()
   , gift_id_()
   , title_()
@@ -7099,13 +7124,18 @@ starGiftUnique::starGiftUnique()
   , craft_chance_permille_()
 {}
 
-starGiftUnique::starGiftUnique(int32 flags_, bool require_premium_, bool resale_ton_only_, bool theme_available_, bool burned_, bool crafted_, int64 id_, int64 gift_id_, string const &title_, string const &slug_, int32 num_, object_ptr<Peer> &&owner_id_, string const &owner_name_, string const &owner_address_, array<object_ptr<StarGiftAttribute>> &&attributes_, int32 availability_issued_, int32 availability_total_, string const &gift_address_, array<object_ptr<StarsAmount>> &&resell_amount_, object_ptr<Peer> &&released_by_, int64 value_amount_, string const &value_currency_, int64 value_usd_amount_, object_ptr<Peer> &&theme_peer_, object_ptr<PeerColor> &&peer_color_, object_ptr<Peer> &&host_id_, int32 offer_min_stars_, int32 craft_chance_permille_)
+starGiftUnique::starGiftUnique(int32 flags_, bool require_premium_, bool resale_ton_only_, bool theme_available_, bool burned_, bool crafted_, bool onchain_sale_, bool fixed_sale_, bool my_sale_, int64 offer_min_amount_, int32 fee_bps_, int64 id_, int64 gift_id_, string const &title_, string const &slug_, int32 num_, object_ptr<Peer> &&owner_id_, string const &owner_name_, string const &owner_address_, array<object_ptr<StarGiftAttribute>> &&attributes_, int32 availability_issued_, int32 availability_total_, string const &gift_address_, array<object_ptr<StarsAmount>> &&resell_amount_, object_ptr<Peer> &&released_by_, int64 value_amount_, string const &value_currency_, int64 value_usd_amount_, object_ptr<Peer> &&theme_peer_, object_ptr<PeerColor> &&peer_color_, object_ptr<Peer> &&host_id_, int32 offer_min_stars_, int32 craft_chance_permille_)
   : flags_(flags_)
   , require_premium_(require_premium_)
   , resale_ton_only_(resale_ton_only_)
   , theme_available_(theme_available_)
   , burned_(burned_)
   , crafted_(crafted_)
+  , onchain_sale_(onchain_sale_)
+  , fixed_sale_(fixed_sale_)
+  , my_sale_(my_sale_)
+  , offer_min_amount_(offer_min_amount_)
+  , fee_bps_(fee_bps_)
   , id_(id_)
   , gift_id_(gift_id_)
   , title_(title_)
@@ -7142,6 +7172,11 @@ object_ptr<StarGift> starGiftUnique::fetch(TlBufferParser &p) {
   res->theme_available_ = (var0 & 512) != 0;
   res->burned_ = (var0 & 16384) != 0;
   res->crafted_ = (var0 & 32768) != 0;
+  res->onchain_sale_ = (var0 & 131072) != 0;
+  res->fixed_sale_ = (var0 & 524288) != 0;
+  res->my_sale_ = (var0 & 2097152) != 0;
+  if (var0 & 262144) { res->offer_min_amount_ = TlFetchLong::parse(p); }
+  if (var0 & 1048576) { res->fee_bps_ = TlFetchInt::parse(p); }
   res->id_ = TlFetchLong::parse(p);
   res->gift_id_ = TlFetchLong::parse(p);
   res->title_ = TlFetchString<string>::parse(p);
@@ -7172,7 +7207,9 @@ object_ptr<StarGift> starGiftUnique::fetch(TlBufferParser &p) {
 void starGiftUnique::store(TlStorerCalcLength &s) const {
   (void)sizeof(s);
   int32 var0;
-  TlStoreBinary::store((var0 = flags_ | (require_premium_ << 6) | (resale_ton_only_ << 7) | (theme_available_ << 9) | (burned_ << 14) | (crafted_ << 15) | ((owner_id_ != nullptr) << 0) | ((!owner_name_.empty()) << 1) | ((!owner_address_.empty()) << 2) | ((!gift_address_.empty()) << 3) | ((!resell_amount_.empty()) << 4) | ((released_by_ != nullptr) << 5) | ((!value_currency_.empty()) << 8) | ((theme_peer_ != nullptr) << 10) | ((peer_color_ != nullptr) << 11) | ((host_id_ != nullptr) << 12)), s);
+  TlStoreBinary::store((var0 = flags_ | (require_premium_ << 6) | (resale_ton_only_ << 7) | (theme_available_ << 9) | (burned_ << 14) | (crafted_ << 15) | (onchain_sale_ << 17) | (fixed_sale_ << 19) | (my_sale_ << 21) | ((owner_id_ != nullptr) << 0) | ((!owner_name_.empty()) << 1) | ((!owner_address_.empty()) << 2) | ((!gift_address_.empty()) << 3) | ((!resell_amount_.empty()) << 4) | ((released_by_ != nullptr) << 5) | ((!value_currency_.empty()) << 8) | ((theme_peer_ != nullptr) << 10) | ((peer_color_ != nullptr) << 11) | ((host_id_ != nullptr) << 12)), s);
+  if (var0 & 262144) { TlStoreBinary::store(offer_min_amount_, s); }
+  if (var0 & 1048576) { TlStoreBinary::store(fee_bps_, s); }
   TlStoreBinary::store(id_, s);
   TlStoreBinary::store(gift_id_, s);
   TlStoreString::store(title_, s);
@@ -7200,7 +7237,9 @@ void starGiftUnique::store(TlStorerCalcLength &s) const {
 void starGiftUnique::store(TlStorerUnsafe &s) const {
   (void)sizeof(s);
   int32 var0;
-  TlStoreBinary::store((var0 = flags_ | (require_premium_ << 6) | (resale_ton_only_ << 7) | (theme_available_ << 9) | (burned_ << 14) | (crafted_ << 15) | ((owner_id_ != nullptr) << 0) | ((!owner_name_.empty()) << 1) | ((!owner_address_.empty()) << 2) | ((!gift_address_.empty()) << 3) | ((!resell_amount_.empty()) << 4) | ((released_by_ != nullptr) << 5) | ((!value_currency_.empty()) << 8) | ((theme_peer_ != nullptr) << 10) | ((peer_color_ != nullptr) << 11) | ((host_id_ != nullptr) << 12)), s);
+  TlStoreBinary::store((var0 = flags_ | (require_premium_ << 6) | (resale_ton_only_ << 7) | (theme_available_ << 9) | (burned_ << 14) | (crafted_ << 15) | (onchain_sale_ << 17) | (fixed_sale_ << 19) | (my_sale_ << 21) | ((owner_id_ != nullptr) << 0) | ((!owner_name_.empty()) << 1) | ((!owner_address_.empty()) << 2) | ((!gift_address_.empty()) << 3) | ((!resell_amount_.empty()) << 4) | ((released_by_ != nullptr) << 5) | ((!value_currency_.empty()) << 8) | ((theme_peer_ != nullptr) << 10) | ((peer_color_ != nullptr) << 11) | ((host_id_ != nullptr) << 12)), s);
+  if (var0 & 262144) { TlStoreBinary::store(offer_min_amount_, s); }
+  if (var0 & 1048576) { TlStoreBinary::store(fee_bps_, s); }
   TlStoreBinary::store(id_, s);
   TlStoreBinary::store(gift_id_, s);
   TlStoreString::store(title_, s);
@@ -7229,12 +7268,17 @@ void starGiftUnique::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "starGiftUnique");
   int32 var0;
-    s.store_field("flags", (var0 = flags_ | (require_premium_ << 6) | (resale_ton_only_ << 7) | (theme_available_ << 9) | (burned_ << 14) | (crafted_ << 15) | ((owner_id_ != nullptr) << 0) | ((!owner_name_.empty()) << 1) | ((!owner_address_.empty()) << 2) | ((!gift_address_.empty()) << 3) | ((!resell_amount_.empty()) << 4) | ((released_by_ != nullptr) << 5) | ((!value_currency_.empty()) << 8) | ((theme_peer_ != nullptr) << 10) | ((peer_color_ != nullptr) << 11) | ((host_id_ != nullptr) << 12)));
+    s.store_field("flags", (var0 = flags_ | (require_premium_ << 6) | (resale_ton_only_ << 7) | (theme_available_ << 9) | (burned_ << 14) | (crafted_ << 15) | (onchain_sale_ << 17) | (fixed_sale_ << 19) | (my_sale_ << 21) | ((owner_id_ != nullptr) << 0) | ((!owner_name_.empty()) << 1) | ((!owner_address_.empty()) << 2) | ((!gift_address_.empty()) << 3) | ((!resell_amount_.empty()) << 4) | ((released_by_ != nullptr) << 5) | ((!value_currency_.empty()) << 8) | ((theme_peer_ != nullptr) << 10) | ((peer_color_ != nullptr) << 11) | ((host_id_ != nullptr) << 12)));
     if (var0 & 64) { s.store_field("require_premium", true); }
     if (var0 & 128) { s.store_field("resale_ton_only", true); }
     if (var0 & 512) { s.store_field("theme_available", true); }
     if (var0 & 16384) { s.store_field("burned", true); }
     if (var0 & 32768) { s.store_field("crafted", true); }
+    if (var0 & 131072) { s.store_field("onchain_sale", true); }
+    if (var0 & 524288) { s.store_field("fixed_sale", true); }
+    if (var0 & 2097152) { s.store_field("my_sale", true); }
+    if (var0 & 262144) { s.store_field("offer_min_amount", offer_min_amount_); }
+    if (var0 & 1048576) { s.store_field("fee_bps", fee_bps_); }
     s.store_field("id", id_);
     s.store_field("gift_id", gift_id_);
     s.store_field("title", title_);
@@ -9326,6 +9370,46 @@ aicompose_getToneExample::ReturnType aicompose_getToneExample::fetch_result(TlBu
 #undef FAIL
 }
 
+aicompose_setChatStyle::aicompose_setChatStyle(int32 flags_, object_ptr<InputPeer> &&peer_, object_ptr<inputAiComposeStyle> &&style_)
+  : flags_(flags_)
+  , peer_(std::move(peer_))
+  , style_(std::move(style_))
+{}
+
+const std::int32_t aicompose_setChatStyle::ID;
+
+void aicompose_setChatStyle::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(1570322880);
+  TlStoreBinary::store((var0 = flags_ | ((style_ != nullptr) << 0)), s);
+  TlStoreBoxedUnknown<TlStoreObject>::store(peer_, s);
+  if (var0 & 1) { TlStoreBoxed<TlStoreObject, -1474231824>::store(style_, s); }
+}
+
+void aicompose_setChatStyle::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(1570322880);
+  TlStoreBinary::store((var0 = flags_ | ((style_ != nullptr) << 0)), s);
+  TlStoreBoxedUnknown<TlStoreObject>::store(peer_, s);
+  if (var0 & 1) { TlStoreBoxed<TlStoreObject, -1474231824>::store(style_, s); }
+}
+
+void aicompose_setChatStyle::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "aicompose.setChatStyle");
+    s.store_field("flags", (var0 = flags_ | ((style_ != nullptr) << 0)));
+    s.store_object_field("peer", static_cast<const BaseObject *>(peer_.get()));
+    if (var0 & 1) { s.store_object_field("style", static_cast<const BaseObject *>(style_.get())); }
+    s.store_class_end();
+  }
+}
+
+aicompose_setChatStyle::ReturnType aicompose_setChatStyle::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchBool::parse(p);
+#undef FAIL
+}
+
 auth_checkPassword::auth_checkPassword(object_ptr<InputCheckPasswordSRP> &&password_)
   : password_(std::move(password_))
 {}
@@ -11114,6 +11198,38 @@ void messages_updateDialogFilter::store(TlStorerToString &s, const char *field_n
 messages_updateDialogFilter::ReturnType messages_updateDialogFilter::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
   return TlFetchBool::parse(p);
+#undef FAIL
+}
+
+payments_acceptStarGiftOnchainOffer::payments_acceptStarGiftOnchainOffer(int32 offer_msg_id_)
+  : offer_msg_id_(offer_msg_id_)
+{}
+
+const std::int32_t payments_acceptStarGiftOnchainOffer::ID;
+
+void payments_acceptStarGiftOnchainOffer::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(-71655714);
+  TlStoreBinary::store(offer_msg_id_, s);
+}
+
+void payments_acceptStarGiftOnchainOffer::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(-71655714);
+  TlStoreBinary::store(offer_msg_id_, s);
+}
+
+void payments_acceptStarGiftOnchainOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.acceptStarGiftOnchainOffer");
+    s.store_field("offer_msg_id", offer_msg_id_);
+    s.store_class_end();
+  }
+}
+
+payments_acceptStarGiftOnchainOffer::ReturnType payments_acceptStarGiftOnchainOffer::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchBoxed<TlFetchObject<payments_starGiftOnchainOfferTx>, -27885105>::parse(p);
 #undef FAIL
 }
 

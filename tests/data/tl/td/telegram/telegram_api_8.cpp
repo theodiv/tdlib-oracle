@@ -5379,6 +5379,91 @@ void payments_giveawayInfoResults::store(TlStorerToString &s, const char *field_
   }
 }
 
+object_ptr<payments_StarGiftOnchainSalePayload> payments_StarGiftOnchainSalePayload::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  int constructor = p.fetch_int();
+  switch (constructor) {
+    case payments_starGiftOnchainSalePayload::ID:
+      return payments_starGiftOnchainSalePayload::fetch(p);
+    case payments_starGiftOnchainFixedSalePayload::ID:
+      return payments_starGiftOnchainFixedSalePayload::fetch(p);
+    default:
+      FAIL(PSTRING() << "Unknown constructor found " << format::as_hex(constructor));
+  }
+#undef FAIL
+}
+
+payments_starGiftOnchainSalePayload::payments_starGiftOnchainSalePayload()
+  : flags_()
+  , gasless_available_()
+  , nft_address_()
+  , amount_()
+  , payload_()
+{}
+
+const std::int32_t payments_starGiftOnchainSalePayload::ID;
+
+object_ptr<payments_StarGiftOnchainSalePayload> payments_starGiftOnchainSalePayload::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<payments_starGiftOnchainSalePayload> res = make_tl_object<payments_starGiftOnchainSalePayload>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->gasless_available_ = (var0 & 1) != 0;
+  res->nft_address_ = TlFetchString<string>::parse(p);
+  res->amount_ = TlFetchLong::parse(p);
+  res->payload_ = TlFetchBytes<bytes>::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
+}
+
+void payments_starGiftOnchainSalePayload::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.starGiftOnchainSalePayload");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | (gasless_available_ << 0)));
+    if (var0 & 1) { s.store_field("gasless_available", true); }
+    s.store_field("nft_address", nft_address_);
+    s.store_field("amount", amount_);
+    s.store_bytes_field("payload", payload_);
+    s.store_class_end();
+  }
+}
+
+payments_starGiftOnchainFixedSalePayload::payments_starGiftOnchainFixedSalePayload()
+  : flags_()
+  , sale_address_()
+  , messages_()
+  , gasless_messages_()
+{}
+
+const std::int32_t payments_starGiftOnchainFixedSalePayload::ID;
+
+object_ptr<payments_StarGiftOnchainSalePayload> payments_starGiftOnchainFixedSalePayload::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<payments_starGiftOnchainFixedSalePayload> res = make_tl_object<payments_starGiftOnchainFixedSalePayload>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->sale_address_ = TlFetchString<string>::parse(p);
+  res->messages_ = TlFetchBoxed<TlFetchVector<TlFetchBoxed<TlFetchObject<payments_starGiftOnchainOfferTxMessage>, -2003007979>>, 481674261>::parse(p);
+  if (var0 & 1) { res->gasless_messages_ = TlFetchBoxed<TlFetchVector<TlFetchBoxed<TlFetchObject<payments_starGiftOnchainOfferTxMessage>, -2003007979>>, 481674261>::parse(p); }
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
+}
+
+void payments_starGiftOnchainFixedSalePayload::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.starGiftOnchainFixedSalePayload");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!gasless_messages_.empty()) << 0)));
+    s.store_field("sale_address", sale_address_);
+    { s.store_vector_begin("messages", messages_.size()); for (const auto &_value : messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
+    if (var0 & 1) { { s.store_vector_begin("gasless_messages", gasless_messages_.size()); for (const auto &_value : gasless_messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); } }
+    s.store_class_end();
+  }
+}
+
 const std::int32_t payments_starGiftWithdrawalUrl::ID;
 
 object_ptr<payments_starGiftWithdrawalUrl> payments_starGiftWithdrawalUrl::fetch(TlBufferParser &p) {
@@ -8524,6 +8609,38 @@ void messages_toggleTodoCompleted::store(TlStorerToString &s, const char *field_
 }
 
 messages_toggleTodoCompleted::ReturnType messages_toggleTodoCompleted::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchObject<Updates>::parse(p);
+#undef FAIL
+}
+
+payments_declineStarGiftOnchainOffer::payments_declineStarGiftOnchainOffer(int32 offer_msg_id_)
+  : offer_msg_id_(offer_msg_id_)
+{}
+
+const std::int32_t payments_declineStarGiftOnchainOffer::ID;
+
+void payments_declineStarGiftOnchainOffer::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(1511098022);
+  TlStoreBinary::store(offer_msg_id_, s);
+}
+
+void payments_declineStarGiftOnchainOffer::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(1511098022);
+  TlStoreBinary::store(offer_msg_id_, s);
+}
+
+void payments_declineStarGiftOnchainOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.declineStarGiftOnchainOffer");
+    s.store_field("offer_msg_id", offer_msg_id_);
+    s.store_class_end();
+  }
+}
+
+payments_declineStarGiftOnchainOffer::ReturnType payments_declineStarGiftOnchainOffer::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
   return TlFetchObject<Updates>::parse(p);
 #undef FAIL

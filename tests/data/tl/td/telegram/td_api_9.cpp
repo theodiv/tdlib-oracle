@@ -3330,6 +3330,33 @@ void testVectorString::store(TlStorerToString &s, const char *field_name) const 
   }
 }
 
+textCompositionParameters::textCompositionParameters()
+  : translate_to_language_code_()
+  , style_name_()
+  , add_emojis_()
+  , fix_text_()
+{}
+
+textCompositionParameters::textCompositionParameters(string const &translate_to_language_code_, string const &style_name_, bool add_emojis_, bool fix_text_)
+  : translate_to_language_code_(translate_to_language_code_)
+  , style_name_(style_name_)
+  , add_emojis_(add_emojis_)
+  , fix_text_(fix_text_)
+{}
+
+const std::int32_t textCompositionParameters::ID;
+
+void textCompositionParameters::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "textCompositionParameters");
+    s.store_field("translate_to_language_code", translate_to_language_code_);
+    s.store_field("style_name", style_name_);
+    s.store_field("add_emojis", add_emojis_);
+    s.store_field("fix_text", fix_text_);
+    s.store_class_end();
+  }
+}
+
 textRanges::textRanges()
   : ranges_()
 {}
@@ -4205,6 +4232,27 @@ void updateChatDraftMessage::store(TlStorerToString &s, const char *field_name) 
     s.store_field("chat_id", chat_id_);
     s.store_object_field("draft_message", static_cast<const BaseObject *>(draft_message_.get()));
     { s.store_vector_begin("positions", positions_.size()); for (const auto &_value : positions_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
+    s.store_class_end();
+  }
+}
+
+updateChatTextCompositionParameters::updateChatTextCompositionParameters()
+  : chat_id_()
+  , text_composition_parameters_()
+{}
+
+updateChatTextCompositionParameters::updateChatTextCompositionParameters(int53 chat_id_, object_ptr<textCompositionParameters> &&text_composition_parameters_)
+  : chat_id_(chat_id_)
+  , text_composition_parameters_(std::move(text_composition_parameters_))
+{}
+
+const std::int32_t updateChatTextCompositionParameters::ID;
+
+void updateChatTextCompositionParameters::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "updateChatTextCompositionParameters");
+    s.store_field("chat_id", chat_id_);
+    s.store_object_field("text_composition_parameters", static_cast<const BaseObject *>(text_composition_parameters_.get()));
     s.store_class_end();
   }
 }

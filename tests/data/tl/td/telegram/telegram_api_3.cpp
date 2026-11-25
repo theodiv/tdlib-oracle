@@ -535,6 +535,7 @@ communityFull::communityFull()
   , about_()
   , chat_photo_()
   , linked_peers_()
+  , notify_settings_()
   , admins_count_()
   , kicked_count_()
   , peer_link_requests_pending_()
@@ -551,6 +552,7 @@ object_ptr<ChatFull> communityFull::fetch(TlBufferParser &p) {
   res->about_ = TlFetchString<string>::parse(p);
   res->chat_photo_ = TlFetchObject<Photo>::parse(p);
   res->linked_peers_ = TlFetchBoxed<TlFetchVector<TlFetchBoxed<TlFetchObject<communityPeer>, 1981030077>>, 481674261>::parse(p);
+  if (var0 & 8) { res->notify_settings_ = TlFetchBoxed<TlFetchObject<peerNotifySettings>, -1721619444>::parse(p); }
   if (var0 & 2) { res->admins_count_ = TlFetchInt::parse(p); }
   if (var0 & 4) { res->kicked_count_ = TlFetchInt::parse(p); }
   if (var0 & 1) { res->peer_link_requests_pending_ = TlFetchInt::parse(p); }
@@ -563,11 +565,12 @@ void communityFull::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "communityFull");
   int32 var0;
-    s.store_field("flags", (var0 = flags_));
+    s.store_field("flags", (var0 = flags_ | ((notify_settings_ != nullptr) << 3)));
     s.store_field("id", id_);
     s.store_field("about", about_);
     s.store_object_field("chat_photo", static_cast<const BaseObject *>(chat_photo_.get()));
     { s.store_vector_begin("linked_peers", linked_peers_.size()); for (const auto &_value : linked_peers_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
+    if (var0 & 8) { s.store_object_field("notify_settings", static_cast<const BaseObject *>(notify_settings_.get())); }
     if (var0 & 2) { s.store_field("admins_count", admins_count_); }
     if (var0 & 4) { s.store_field("kicked_count", kicked_count_); }
     if (var0 & 1) { s.store_field("peer_link_requests_pending", peer_link_requests_pending_); }
@@ -1394,11 +1397,37 @@ void groupCallStreamChannel::store(TlStorerToString &s, const char *field_name) 
   }
 }
 
+object_ptr<InputAiComposeTone> InputAiComposeTone::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  int constructor = p.fetch_int();
+  switch (constructor) {
+    case inputAiComposeToneDefault::ID:
+      return inputAiComposeToneDefault::fetch(p);
+    case inputAiComposeToneID::ID:
+      return inputAiComposeToneID::fetch(p);
+    case inputAiComposeToneSlug::ID:
+      return inputAiComposeToneSlug::fetch(p);
+    case inputAiComposeToneSingleUse::ID:
+      return inputAiComposeToneSingleUse::fetch(p);
+    default:
+      FAIL(PSTRING() << "Unknown constructor found " << format::as_hex(constructor));
+  }
+#undef FAIL
+}
+
 inputAiComposeToneDefault::inputAiComposeToneDefault(string const &tone_)
   : tone_(tone_)
 {}
 
 const std::int32_t inputAiComposeToneDefault::ID;
+
+object_ptr<InputAiComposeTone> inputAiComposeToneDefault::fetch(TlBufferParser &p) {
+  return make_tl_object<inputAiComposeToneDefault>(p);
+}
+
+inputAiComposeToneDefault::inputAiComposeToneDefault(TlBufferParser &p)
+  : tone_(TlFetchString<string>::parse(p))
+{}
 
 void inputAiComposeToneDefault::store(TlStorerCalcLength &s) const {
   (void)sizeof(s);
@@ -1424,6 +1453,15 @@ inputAiComposeToneID::inputAiComposeToneID(int64 id_, int64 access_hash_)
 {}
 
 const std::int32_t inputAiComposeToneID::ID;
+
+object_ptr<InputAiComposeTone> inputAiComposeToneID::fetch(TlBufferParser &p) {
+  return make_tl_object<inputAiComposeToneID>(p);
+}
+
+inputAiComposeToneID::inputAiComposeToneID(TlBufferParser &p)
+  : id_(TlFetchLong::parse(p))
+  , access_hash_(TlFetchLong::parse(p))
+{}
 
 void inputAiComposeToneID::store(TlStorerCalcLength &s) const {
   (void)sizeof(s);
@@ -1452,6 +1490,14 @@ inputAiComposeToneSlug::inputAiComposeToneSlug(string const &slug_)
 
 const std::int32_t inputAiComposeToneSlug::ID;
 
+object_ptr<InputAiComposeTone> inputAiComposeToneSlug::fetch(TlBufferParser &p) {
+  return make_tl_object<inputAiComposeToneSlug>(p);
+}
+
+inputAiComposeToneSlug::inputAiComposeToneSlug(TlBufferParser &p)
+  : slug_(TlFetchString<string>::parse(p))
+{}
+
 void inputAiComposeToneSlug::store(TlStorerCalcLength &s) const {
   (void)sizeof(s);
   TlStoreString::store(slug_, s);
@@ -1475,6 +1521,14 @@ inputAiComposeToneSingleUse::inputAiComposeToneSingleUse(string const &custom_pr
 {}
 
 const std::int32_t inputAiComposeToneSingleUse::ID;
+
+object_ptr<InputAiComposeTone> inputAiComposeToneSingleUse::fetch(TlBufferParser &p) {
+  return make_tl_object<inputAiComposeToneSingleUse>(p);
+}
+
+inputAiComposeToneSingleUse::inputAiComposeToneSingleUse(TlBufferParser &p)
+  : custom_prompt_(TlFetchString<string>::parse(p))
+{}
 
 void inputAiComposeToneSingleUse::store(TlStorerCalcLength &s) const {
   (void)sizeof(s);
@@ -3310,6 +3364,7 @@ walletTransaction::walletTransaction()
   , failed_()
   , key_change_()
   , comment_encrypted_()
+  , suspected_spam_()
   , id_()
   , amount_()
   , fee_()
@@ -3332,6 +3387,7 @@ object_ptr<walletTransaction> walletTransaction::fetch(TlBufferParser &p) {
   res->failed_ = (var0 & 4) != 0;
   res->key_change_ = (var0 & 32) != 0;
   res->comment_encrypted_ = (var0 & 64) != 0;
+  res->suspected_spam_ = (var0 & 256) != 0;
   res->id_ = TlFetchString<string>::parse(p);
   res->amount_ = TlFetchLong::parse(p);
   res->fee_ = TlFetchLong::parse(p);
@@ -3349,12 +3405,13 @@ void walletTransaction::store(TlStorerToString &s, const char *field_name) const
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "walletTransaction");
   int32 var0;
-    s.store_field("flags", (var0 = flags_ | (incoming_ << 0) | (gasless_ << 1) | (failed_ << 2) | (key_change_ << 5) | (comment_encrypted_ << 6) | ((!comment_.empty()) << 3) | ((!tx_hash_.empty()) << 4) | ((nft_ != nullptr) << 7)));
+    s.store_field("flags", (var0 = flags_ | (incoming_ << 0) | (gasless_ << 1) | (failed_ << 2) | (key_change_ << 5) | (comment_encrypted_ << 6) | (suspected_spam_ << 8) | ((!comment_.empty()) << 3) | ((!tx_hash_.empty()) << 4) | ((nft_ != nullptr) << 7)));
     if (var0 & 1) { s.store_field("incoming", true); }
     if (var0 & 2) { s.store_field("gasless", true); }
     if (var0 & 4) { s.store_field("failed", true); }
     if (var0 & 32) { s.store_field("key_change", true); }
     if (var0 & 64) { s.store_field("comment_encrypted", true); }
+    if (var0 & 256) { s.store_field("suspected_spam", true); }
     s.store_field("id", id_);
     s.store_field("amount", amount_);
     s.store_field("fee", fee_);
@@ -7273,6 +7330,56 @@ void messages_viewSponsoredMessage::store(TlStorerToString &s, const char *field
 messages_viewSponsoredMessage::ReturnType messages_viewSponsoredMessage::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
   return TlFetchBool::parse(p);
+#undef FAIL
+}
+
+payments_buyStarGiftOnchain::payments_buyStarGiftOnchain(int32 flags_, bool show_name_, string const &slug_, int64 expected_amount_, object_ptr<InputPeer> &&peer_, object_ptr<textWithEntities> &&message_)
+  : flags_(flags_)
+  , show_name_(show_name_)
+  , slug_(slug_)
+  , expected_amount_(expected_amount_)
+  , peer_(std::move(peer_))
+  , message_(std::move(message_))
+{}
+
+const std::int32_t payments_buyStarGiftOnchain::ID;
+
+void payments_buyStarGiftOnchain::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(1551278953);
+  TlStoreBinary::store((var0 = flags_ | (show_name_ << 2) | ((peer_ != nullptr) << 0) | ((message_ != nullptr) << 1)), s);
+  TlStoreString::store(slug_, s);
+  TlStoreBinary::store(expected_amount_, s);
+  if (var0 & 1) { TlStoreBoxedUnknown<TlStoreObject>::store(peer_, s); }
+  if (var0 & 2) { TlStoreBoxed<TlStoreObject, 1964978502>::store(message_, s); }
+}
+
+void payments_buyStarGiftOnchain::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(1551278953);
+  TlStoreBinary::store((var0 = flags_ | (show_name_ << 2) | ((peer_ != nullptr) << 0) | ((message_ != nullptr) << 1)), s);
+  TlStoreString::store(slug_, s);
+  TlStoreBinary::store(expected_amount_, s);
+  if (var0 & 1) { TlStoreBoxedUnknown<TlStoreObject>::store(peer_, s); }
+  if (var0 & 2) { TlStoreBoxed<TlStoreObject, 1964978502>::store(message_, s); }
+}
+
+void payments_buyStarGiftOnchain::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.buyStarGiftOnchain");
+    s.store_field("flags", (var0 = flags_ | (show_name_ << 2) | ((peer_ != nullptr) << 0) | ((message_ != nullptr) << 1)));
+    if (var0 & 4) { s.store_field("show_name", true); }
+    s.store_field("slug", slug_);
+    s.store_field("expected_amount", expected_amount_);
+    if (var0 & 1) { s.store_object_field("peer", static_cast<const BaseObject *>(peer_.get())); }
+    if (var0 & 2) { s.store_object_field("message", static_cast<const BaseObject *>(message_.get())); }
+    s.store_class_end();
+  }
+}
+
+payments_buyStarGiftOnchain::ReturnType payments_buyStarGiftOnchain::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchObject<payments_StarGiftOnchainSalePayload>::parse(p);
 #undef FAIL
 }
 

@@ -1128,6 +1128,201 @@ void giftAuctionState::store(TlStorerToString &s, const char *field_name) const 
   }
 }
 
+giftOnChainPurchaseOfferStatePending::giftOnChainPurchaseOfferStatePending() {
+}
+
+const std::int32_t giftOnChainPurchaseOfferStatePending::ID;
+
+void giftOnChainPurchaseOfferStatePending::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainPurchaseOfferStatePending");
+    s.store_class_end();
+  }
+}
+
+giftOnChainPurchaseOfferStateSettled::giftOnChainPurchaseOfferStateSettled() {
+}
+
+const std::int32_t giftOnChainPurchaseOfferStateSettled::ID;
+
+void giftOnChainPurchaseOfferStateSettled::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainPurchaseOfferStateSettled");
+    s.store_class_end();
+  }
+}
+
+giftOnChainPurchaseOfferStateAccepted::giftOnChainPurchaseOfferStateAccepted() {
+}
+
+const std::int32_t giftOnChainPurchaseOfferStateAccepted::ID;
+
+void giftOnChainPurchaseOfferStateAccepted::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainPurchaseOfferStateAccepted");
+    s.store_class_end();
+  }
+}
+
+giftOnChainPurchaseOfferStateCanceling::giftOnChainPurchaseOfferStateCanceling() {
+}
+
+const std::int32_t giftOnChainPurchaseOfferStateCanceling::ID;
+
+void giftOnChainPurchaseOfferStateCanceling::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainPurchaseOfferStateCanceling");
+    s.store_class_end();
+  }
+}
+
+giftOnChainPurchaseOfferStateDeclined::giftOnChainPurchaseOfferStateDeclined()
+  : refund_amount_()
+{}
+
+giftOnChainPurchaseOfferStateDeclined::giftOnChainPurchaseOfferStateDeclined(int64 refund_amount_)
+  : refund_amount_(refund_amount_)
+{}
+
+const std::int32_t giftOnChainPurchaseOfferStateDeclined::ID;
+
+void giftOnChainPurchaseOfferStateDeclined::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainPurchaseOfferStateDeclined");
+    s.store_field("refund_amount", refund_amount_);
+    s.store_class_end();
+  }
+}
+
+giftOnChainPurchaseOfferStateCanceled::giftOnChainPurchaseOfferStateCanceled()
+  : refund_amount_()
+  , fine_amount_()
+{}
+
+giftOnChainPurchaseOfferStateCanceled::giftOnChainPurchaseOfferStateCanceled(int64 refund_amount_, int64 fine_amount_)
+  : refund_amount_(refund_amount_)
+  , fine_amount_(fine_amount_)
+{}
+
+const std::int32_t giftOnChainPurchaseOfferStateCanceled::ID;
+
+void giftOnChainPurchaseOfferStateCanceled::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainPurchaseOfferStateCanceled");
+    s.store_field("refund_amount", refund_amount_);
+    s.store_field("fine_amount", fine_amount_);
+    s.store_class_end();
+  }
+}
+
+giftOnChainPurchaseOfferStateExpired::giftOnChainPurchaseOfferStateExpired()
+  : refund_amount_()
+{}
+
+giftOnChainPurchaseOfferStateExpired::giftOnChainPurchaseOfferStateExpired(int64 refund_amount_)
+  : refund_amount_(refund_amount_)
+{}
+
+const std::int32_t giftOnChainPurchaseOfferStateExpired::ID;
+
+void giftOnChainPurchaseOfferStateExpired::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainPurchaseOfferStateExpired");
+    s.store_field("refund_amount", refund_amount_);
+    s.store_class_end();
+  }
+}
+
+giftOnChainPurchaseOfferTransaction::giftOnChainPurchaseOfferTransaction()
+  : offer_address_()
+  , expiration_date_()
+  , message_()
+  , gasless_message_()
+  , rent_budget_amount_()
+  , execution_allowance_amount_()
+  , forward_amount_()
+  , fine_amount_()
+{}
+
+giftOnChainPurchaseOfferTransaction::giftOnChainPurchaseOfferTransaction(string const &offer_address_, int32 expiration_date_, object_ptr<tonWalletMessage> &&message_, object_ptr<tonWalletMessage> &&gasless_message_, int64 rent_budget_amount_, int64 execution_allowance_amount_, int64 forward_amount_, int64 fine_amount_)
+  : offer_address_(offer_address_)
+  , expiration_date_(expiration_date_)
+  , message_(std::move(message_))
+  , gasless_message_(std::move(gasless_message_))
+  , rent_budget_amount_(rent_budget_amount_)
+  , execution_allowance_amount_(execution_allowance_amount_)
+  , forward_amount_(forward_amount_)
+  , fine_amount_(fine_amount_)
+{}
+
+const std::int32_t giftOnChainPurchaseOfferTransaction::ID;
+
+void giftOnChainPurchaseOfferTransaction::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainPurchaseOfferTransaction");
+    s.store_field("offer_address", offer_address_);
+    s.store_field("expiration_date", expiration_date_);
+    s.store_object_field("message", static_cast<const BaseObject *>(message_.get()));
+    s.store_object_field("gasless_message", static_cast<const BaseObject *>(gasless_message_.get()));
+    s.store_field("rent_budget_amount", rent_budget_amount_);
+    s.store_field("execution_allowance_amount", execution_allowance_amount_);
+    s.store_field("forward_amount", forward_amount_);
+    s.store_field("fine_amount", fine_amount_);
+    s.store_class_end();
+  }
+}
+
+giftOnChainSaleTransactionFragment::giftOnChainSaleTransactionFragment()
+  : nft_address_()
+  , payload_()
+  , gram_amount_()
+  , is_gasless_transfer_available_()
+{}
+
+giftOnChainSaleTransactionFragment::giftOnChainSaleTransactionFragment(string const &nft_address_, bytes const &payload_, int64 gram_amount_, bool is_gasless_transfer_available_)
+  : nft_address_(nft_address_)
+  , payload_(std::move(payload_))
+  , gram_amount_(gram_amount_)
+  , is_gasless_transfer_available_(is_gasless_transfer_available_)
+{}
+
+const std::int32_t giftOnChainSaleTransactionFragment::ID;
+
+void giftOnChainSaleTransactionFragment::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainSaleTransactionFragment");
+    s.store_field("nft_address", nft_address_);
+    s.store_bytes_field("payload", payload_);
+    s.store_field("gram_amount", gram_amount_);
+    s.store_field("is_gasless_transfer_available", is_gasless_transfer_available_);
+    s.store_class_end();
+  }
+}
+
+giftOnChainSaleTransactionFixedPrice::giftOnChainSaleTransactionFixedPrice()
+  : sale_address_()
+  , messages_()
+  , gasless_messages_()
+{}
+
+giftOnChainSaleTransactionFixedPrice::giftOnChainSaleTransactionFixedPrice(string const &sale_address_, array<object_ptr<tonWalletMessage>> &&messages_, array<object_ptr<tonWalletMessage>> &&gasless_messages_)
+  : sale_address_(sale_address_)
+  , messages_(std::move(messages_))
+  , gasless_messages_(std::move(gasless_messages_))
+{}
+
+const std::int32_t giftOnChainSaleTransactionFixedPrice::ID;
+
+void giftOnChainSaleTransactionFixedPrice::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "giftOnChainSaleTransactionFixedPrice");
+    s.store_field("sale_address", sale_address_);
+    { s.store_vector_begin("messages", messages_.size()); for (const auto &_value : messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
+    { s.store_vector_begin("gasless_messages", gasless_messages_.size()); for (const auto &_value : gasless_messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
+    s.store_class_end();
+  }
+}
+
 groupCallVideoSourceGroup::groupCallVideoSourceGroup()
   : semantics_()
   , source_ids_()
@@ -2727,6 +2922,24 @@ void messageManagedBotCreated::store(TlStorerToString &s, const char *field_name
   }
 }
 
+messageBotInvite::messageBotInvite()
+  : inviter_user_id_()
+{}
+
+messageBotInvite::messageBotInvite(int53 inviter_user_id_)
+  : inviter_user_id_(inviter_user_id_)
+{}
+
+const std::int32_t messageBotInvite::ID;
+
+void messageBotInvite::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "messageBotInvite");
+    s.store_field("inviter_user_id", inviter_user_id_);
+    s.store_class_end();
+  }
+}
+
 messagePaymentSuccessful::messagePaymentSuccessful()
   : invoice_chat_id_()
   , invoice_message_id_()
@@ -3172,15 +3385,17 @@ messageTonWalletTransfer::messageTonWalletTransfer()
   , amount_()
   , comment_()
   , is_comment_encrypted_()
+  , on_ramp_provider_name_()
 {}
 
-messageTonWalletTransfer::messageTonWalletTransfer(int53 sender_user_id_, string const &transaction_id_, string const &peer_address_, int64 amount_, string const &comment_, bool is_comment_encrypted_)
+messageTonWalletTransfer::messageTonWalletTransfer(int53 sender_user_id_, string const &transaction_id_, string const &peer_address_, int64 amount_, string const &comment_, bool is_comment_encrypted_, string const &on_ramp_provider_name_)
   : sender_user_id_(sender_user_id_)
   , transaction_id_(transaction_id_)
   , peer_address_(peer_address_)
   , amount_(amount_)
   , comment_(comment_)
   , is_comment_encrypted_(is_comment_encrypted_)
+  , on_ramp_provider_name_(on_ramp_provider_name_)
 {}
 
 const std::int32_t messageTonWalletTransfer::ID;
@@ -3194,6 +3409,7 @@ void messageTonWalletTransfer::store(TlStorerToString &s, const char *field_name
     s.store_field("amount", amount_);
     s.store_field("comment", comment_);
     s.store_field("is_comment_encrypted", is_comment_encrypted_);
+    s.store_field("on_ramp_provider_name", on_ramp_provider_name_);
     s.store_class_end();
   }
 }
@@ -3318,11 +3534,11 @@ messageUpgradedGift::messageUpgradedGift()
   , drop_original_details_star_count_()
   , next_transfer_date_()
   , next_resale_date_()
-  , export_date_()
+  , mint_date_()
   , craft_date_()
 {}
 
-messageUpgradedGift::messageUpgradedGift(object_ptr<upgradedGift> &&gift_, object_ptr<MessageSender> &&sender_id_, object_ptr<MessageSender> &&receiver_id_, object_ptr<UpgradedGiftOrigin> &&origin_, string const &received_gift_id_, object_ptr<formattedText> &&text_, bool is_private_, bool is_saved_, bool can_be_transferred_, bool was_transferred_, int53 transfer_star_count_, int53 drop_original_details_star_count_, int32 next_transfer_date_, int32 next_resale_date_, int32 export_date_, int32 craft_date_)
+messageUpgradedGift::messageUpgradedGift(object_ptr<upgradedGift> &&gift_, object_ptr<MessageSender> &&sender_id_, object_ptr<MessageSender> &&receiver_id_, object_ptr<UpgradedGiftOrigin> &&origin_, string const &received_gift_id_, object_ptr<formattedText> &&text_, bool is_private_, bool is_saved_, bool can_be_transferred_, bool was_transferred_, int53 transfer_star_count_, int53 drop_original_details_star_count_, int32 next_transfer_date_, int32 next_resale_date_, int32 mint_date_, int32 craft_date_)
   : gift_(std::move(gift_))
   , sender_id_(std::move(sender_id_))
   , receiver_id_(std::move(receiver_id_))
@@ -3337,7 +3553,7 @@ messageUpgradedGift::messageUpgradedGift(object_ptr<upgradedGift> &&gift_, objec
   , drop_original_details_star_count_(drop_original_details_star_count_)
   , next_transfer_date_(next_transfer_date_)
   , next_resale_date_(next_resale_date_)
-  , export_date_(export_date_)
+  , mint_date_(mint_date_)
   , craft_date_(craft_date_)
 {}
 
@@ -3360,7 +3576,7 @@ void messageUpgradedGift::store(TlStorerToString &s, const char *field_name) con
     s.store_field("drop_original_details_star_count", drop_original_details_star_count_);
     s.store_field("next_transfer_date", next_transfer_date_);
     s.store_field("next_resale_date", next_resale_date_);
-    s.store_field("export_date", export_date_);
+    s.store_field("mint_date", mint_date_);
     s.store_field("craft_date", craft_date_);
     s.store_class_end();
   }
@@ -3443,6 +3659,45 @@ void messageUpgradedGiftPurchaseOfferRejected::store(TlStorerToString &s, const 
     s.store_object_field("price", static_cast<const BaseObject *>(price_.get()));
     s.store_field("offer_message_id", offer_message_id_);
     s.store_field("was_expired", was_expired_);
+    s.store_class_end();
+  }
+}
+
+messageUpgradedGiftOnChainPurchaseOffer::messageUpgradedGiftOnChainPurchaseOffer()
+  : gift_()
+  , is_buyer_()
+  , state_()
+  , offer_address_()
+  , gram_amount_()
+  , fee_basis_points_()
+  , expiration_date_()
+  , offer_message_id_()
+{}
+
+messageUpgradedGiftOnChainPurchaseOffer::messageUpgradedGiftOnChainPurchaseOffer(object_ptr<upgradedGift> &&gift_, bool is_buyer_, object_ptr<GiftOnChainPurchaseOfferState> &&state_, string const &offer_address_, int64 gram_amount_, int32 fee_basis_points_, int32 expiration_date_, int53 offer_message_id_)
+  : gift_(std::move(gift_))
+  , is_buyer_(is_buyer_)
+  , state_(std::move(state_))
+  , offer_address_(offer_address_)
+  , gram_amount_(gram_amount_)
+  , fee_basis_points_(fee_basis_points_)
+  , expiration_date_(expiration_date_)
+  , offer_message_id_(offer_message_id_)
+{}
+
+const std::int32_t messageUpgradedGiftOnChainPurchaseOffer::ID;
+
+void messageUpgradedGiftOnChainPurchaseOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "messageUpgradedGiftOnChainPurchaseOffer");
+    s.store_object_field("gift", static_cast<const BaseObject *>(gift_.get()));
+    s.store_field("is_buyer", is_buyer_);
+    s.store_object_field("state", static_cast<const BaseObject *>(state_.get()));
+    s.store_field("offer_address", offer_address_);
+    s.store_field("gram_amount", gram_amount_);
+    s.store_field("fee_basis_points", fee_basis_points_);
+    s.store_field("expiration_date", expiration_date_);
+    s.store_field("offer_message_id", offer_message_id_);
     s.store_class_end();
   }
 }
@@ -6084,10 +6339,10 @@ upgradeGiftResult::upgradeGiftResult()
   , drop_original_details_star_count_()
   , next_transfer_date_()
   , next_resale_date_()
-  , export_date_()
+  , mint_date_()
 {}
 
-upgradeGiftResult::upgradeGiftResult(object_ptr<upgradedGift> &&gift_, string const &received_gift_id_, bool is_saved_, bool can_be_transferred_, int53 transfer_star_count_, int53 drop_original_details_star_count_, int32 next_transfer_date_, int32 next_resale_date_, int32 export_date_)
+upgradeGiftResult::upgradeGiftResult(object_ptr<upgradedGift> &&gift_, string const &received_gift_id_, bool is_saved_, bool can_be_transferred_, int53 transfer_star_count_, int53 drop_original_details_star_count_, int32 next_transfer_date_, int32 next_resale_date_, int32 mint_date_)
   : gift_(std::move(gift_))
   , received_gift_id_(received_gift_id_)
   , is_saved_(is_saved_)
@@ -6096,7 +6351,7 @@ upgradeGiftResult::upgradeGiftResult(object_ptr<upgradedGift> &&gift_, string co
   , drop_original_details_star_count_(drop_original_details_star_count_)
   , next_transfer_date_(next_transfer_date_)
   , next_resale_date_(next_resale_date_)
-  , export_date_(export_date_)
+  , mint_date_(mint_date_)
 {}
 
 const std::int32_t upgradeGiftResult::ID;
@@ -6112,7 +6367,7 @@ void upgradeGiftResult::store(TlStorerToString &s, const char *field_name) const
     s.store_field("drop_original_details_star_count", drop_original_details_star_count_);
     s.store_field("next_transfer_date", next_transfer_date_);
     s.store_field("next_resale_date", next_resale_date_);
-    s.store_field("export_date", export_date_);
+    s.store_field("mint_date", mint_date_);
     s.store_class_end();
   }
 }
@@ -6561,6 +6816,24 @@ void answerPreCheckoutQuery::store(TlStorerToString &s, const char *field_name) 
   }
 }
 
+cancelGiftOnChainPurchaseOffer::cancelGiftOnChainPurchaseOffer()
+  : message_id_()
+{}
+
+cancelGiftOnChainPurchaseOffer::cancelGiftOnChainPurchaseOffer(int53 message_id_)
+  : message_id_(message_id_)
+{}
+
+const std::int32_t cancelGiftOnChainPurchaseOffer::ID;
+
+void cancelGiftOnChainPurchaseOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "cancelGiftOnChainPurchaseOffer");
+    s.store_field("message_id", message_id_);
+    s.store_class_end();
+  }
+}
+
 clickChatSponsoredMessage::clickChatSponsoredMessage()
   : chat_id_()
   , message_id_()
@@ -6840,6 +7113,33 @@ void getChatInviteLinks::store(TlStorerToString &s, const char *field_name) cons
   }
 }
 
+getChatMessageCounts::getChatMessageCounts()
+  : chat_id_()
+  , topic_id_()
+  , filters_()
+  , return_local_()
+{}
+
+getChatMessageCounts::getChatMessageCounts(int53 chat_id_, object_ptr<MessageTopic> &&topic_id_, array<object_ptr<SearchMessagesFilter>> &&filters_, bool return_local_)
+  : chat_id_(chat_id_)
+  , topic_id_(std::move(topic_id_))
+  , filters_(std::move(filters_))
+  , return_local_(return_local_)
+{}
+
+const std::int32_t getChatMessageCounts::ID;
+
+void getChatMessageCounts::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "getChatMessageCounts");
+    s.store_field("chat_id", chat_id_);
+    s.store_object_field("topic_id", static_cast<const BaseObject *>(topic_id_.get()));
+    { s.store_vector_begin("filters", filters_.size()); for (const auto &_value : filters_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
+    s.store_field("return_local", return_local_);
+    s.store_class_end();
+  }
+}
+
 getChatsForChatFolderInviteLink::getChatsForChatFolderInviteLink()
   : chat_folder_id_()
 {}
@@ -6975,15 +7275,21 @@ void getFile::store(TlStorerToString &s, const char *field_name) const {
 getForumTopics::getForumTopics()
   : chat_id_()
   , query_()
+  , icon_custom_emoji_id_()
+  , exclude_open_()
+  , exclude_closed_()
   , offset_date_()
   , offset_message_id_()
   , offset_forum_topic_id_()
   , limit_()
 {}
 
-getForumTopics::getForumTopics(int53 chat_id_, string const &query_, int32 offset_date_, int53 offset_message_id_, int32 offset_forum_topic_id_, int32 limit_)
+getForumTopics::getForumTopics(int53 chat_id_, string const &query_, int64 icon_custom_emoji_id_, bool exclude_open_, bool exclude_closed_, int32 offset_date_, int53 offset_message_id_, int32 offset_forum_topic_id_, int32 limit_)
   : chat_id_(chat_id_)
   , query_(query_)
+  , icon_custom_emoji_id_(icon_custom_emoji_id_)
+  , exclude_open_(exclude_open_)
+  , exclude_closed_(exclude_closed_)
   , offset_date_(offset_date_)
   , offset_message_id_(offset_message_id_)
   , offset_forum_topic_id_(offset_forum_topic_id_)
@@ -6997,6 +7303,9 @@ void getForumTopics::store(TlStorerToString &s, const char *field_name) const {
     s.store_class_begin(field_name, "getForumTopics");
     s.store_field("chat_id", chat_id_);
     s.store_field("query", query_);
+    s.store_field("icon_custom_emoji_id", icon_custom_emoji_id_);
+    s.store_field("exclude_open", exclude_open_);
+    s.store_field("exclude_closed", exclude_closed_);
     s.store_field("offset_date", offset_date_);
     s.store_field("offset_message_id", offset_message_id_);
     s.store_field("offset_forum_topic_id", offset_forum_topic_id_);
@@ -7496,24 +7805,6 @@ const std::int32_t getTonCenterStreamingApiUrl::ID;
 void getTonCenterStreamingApiUrl::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "getTonCenterStreamingApiUrl");
-    s.store_class_end();
-  }
-}
-
-getUpgradedGiftWithdrawalUrl::getUpgradedGiftWithdrawalUrl()
-  : received_gift_id_()
-{}
-
-getUpgradedGiftWithdrawalUrl::getUpgradedGiftWithdrawalUrl(string const &received_gift_id_)
-  : received_gift_id_(received_gift_id_)
-{}
-
-const std::int32_t getUpgradedGiftWithdrawalUrl::ID;
-
-void getUpgradedGiftWithdrawalUrl::store(TlStorerToString &s, const char *field_name) const {
-  if (!LOG_IS_STRIPPED(ERROR)) {
-    s.store_class_begin(field_name, "getUpgradedGiftWithdrawalUrl");
-    s.store_field("received_gift_id", received_gift_id_);
     s.store_class_end();
   }
 }
@@ -8204,6 +8495,27 @@ void setChatAffiliateProgram::store(TlStorerToString &s, const char *field_name)
     s.store_class_begin(field_name, "setChatAffiliateProgram");
     s.store_field("chat_id", chat_id_);
     s.store_object_field("parameters", static_cast<const BaseObject *>(parameters_.get()));
+    s.store_class_end();
+  }
+}
+
+setChatTextCompositionParameters::setChatTextCompositionParameters()
+  : chat_id_()
+  , text_composition_parameters_()
+{}
+
+setChatTextCompositionParameters::setChatTextCompositionParameters(int53 chat_id_, object_ptr<textCompositionParameters> &&text_composition_parameters_)
+  : chat_id_(chat_id_)
+  , text_composition_parameters_(std::move(text_composition_parameters_))
+{}
+
+const std::int32_t setChatTextCompositionParameters::ID;
+
+void setChatTextCompositionParameters::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "setChatTextCompositionParameters");
+    s.store_field("chat_id", chat_id_);
+    s.store_object_field("text_composition_parameters", static_cast<const BaseObject *>(text_composition_parameters_.get()));
     s.store_class_end();
   }
 }

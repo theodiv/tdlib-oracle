@@ -1088,6 +1088,24 @@ void chatMemberStatusBanned::store(TlStorerToString &s, const char *field_name) 
   }
 }
 
+chatMessageCounts::chatMessageCounts()
+  : counts_()
+{}
+
+chatMessageCounts::chatMessageCounts(array<int32> &&counts_)
+  : counts_(std::move(counts_))
+{}
+
+const std::int32_t chatMessageCounts::ID;
+
+void chatMessageCounts::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "chatMessageCounts");
+    { s.store_vector_begin("counts", counts_.size()); for (const auto &_value : counts_) { s.store_field("", _value); } s.store_class_end(); }
+    s.store_class_end();
+  }
+}
+
 chatNotificationSettings::chatNotificationSettings()
   : use_default_mute_for_()
   , mute_for_()
@@ -2641,6 +2659,24 @@ void internalLinkTypeBotAddToChannel::store(TlStorerToString &s, const char *fie
     s.store_class_begin(field_name, "internalLinkTypeBotAddToChannel");
     s.store_field("bot_username", bot_username_);
     s.store_object_field("administrator_rights", static_cast<const BaseObject *>(administrator_rights_.get()));
+    s.store_class_end();
+  }
+}
+
+internalLinkTypeBotInvite::internalLinkTypeBotInvite()
+  : bot_username_()
+{}
+
+internalLinkTypeBotInvite::internalLinkTypeBotInvite(string const &bot_username_)
+  : bot_username_(bot_username_)
+{}
+
+const std::int32_t internalLinkTypeBotInvite::ID;
+
+void internalLinkTypeBotInvite::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "internalLinkTypeBotInvite");
+    s.store_field("bot_username", bot_username_);
     s.store_class_end();
   }
 }
@@ -4504,6 +4540,30 @@ void sharedChat::store(TlStorerToString &s, const char *field_name) const {
     s.store_field("title", title_);
     s.store_field("username", username_);
     s.store_object_field("photo", static_cast<const BaseObject *>(photo_.get()));
+    s.store_class_end();
+  }
+}
+
+speechRecognitionModel::speechRecognitionModel()
+  : document_()
+  , language_codes_()
+  , version_()
+{}
+
+speechRecognitionModel::speechRecognitionModel(object_ptr<document> &&document_, array<string> &&language_codes_, int32 version_)
+  : document_(std::move(document_))
+  , language_codes_(std::move(language_codes_))
+  , version_(version_)
+{}
+
+const std::int32_t speechRecognitionModel::ID;
+
+void speechRecognitionModel::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "speechRecognitionModel");
+    s.store_object_field("document", static_cast<const BaseObject *>(document_.get()));
+    { s.store_vector_begin("language_codes", language_codes_.size()); for (const auto &_value : language_codes_) { s.store_field("", _value); } s.store_class_end(); }
+    s.store_field("version", version_);
     s.store_class_end();
   }
 }

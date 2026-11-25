@@ -2048,6 +2048,10 @@ object_ptr<MessageAction> MessageAction::fetch(TlBufferParser &p) {
       return messageActionWalletTonConnectRequest::fetch(p);
     case messageActionNoPaidMessagesTokenUsed::ID:
       return messageActionNoPaidMessagesTokenUsed::fetch(p);
+    case messageActionStarGiftOnchainOffer::ID:
+      return messageActionStarGiftOnchainOffer::fetch(p);
+    case messageActionBotInvite::ID:
+      return messageActionBotInvite::fetch(p);
     default:
       FAIL(PSTRING() << "Unknown constructor found " << format::as_hex(constructor));
   }
@@ -3926,6 +3930,7 @@ messageActionGramTransfer::messageActionGramTransfer()
   , peer_address_()
   , transaction_id_()
   , comment_()
+  , onramp_provider_name_()
 {}
 
 const std::int32_t messageActionGramTransfer::ID;
@@ -3940,6 +3945,7 @@ object_ptr<MessageAction> messageActionGramTransfer::fetch(TlBufferParser &p) {
   res->peer_address_ = TlFetchString<string>::parse(p);
   res->transaction_id_ = TlFetchString<string>::parse(p);
   if (var0 & 1) { res->comment_ = TlFetchString<string>::parse(p); }
+  if (var0 & 4) { res->onramp_provider_name_ = TlFetchString<string>::parse(p); }
   if (p.get_error()) { FAIL(""); }
   return std::move(res);
 #undef FAIL
@@ -3949,12 +3955,13 @@ void messageActionGramTransfer::store(TlStorerToString &s, const char *field_nam
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "messageActionGramTransfer");
   int32 var0;
-    s.store_field("flags", (var0 = flags_ | (comment_encrypted_ << 1) | ((!comment_.empty()) << 0)));
+    s.store_field("flags", (var0 = flags_ | (comment_encrypted_ << 1) | ((!comment_.empty()) << 0) | ((!onramp_provider_name_.empty()) << 2)));
     if (var0 & 2) { s.store_field("comment_encrypted", true); }
     s.store_field("amount", amount_);
     s.store_field("peer_address", peer_address_);
     s.store_field("transaction_id", transaction_id_);
     if (var0 & 1) { s.store_field("comment", comment_); }
+    if (var0 & 4) { s.store_field("onramp_provider_name", onramp_provider_name_); }
     s.store_class_end();
   }
 }
@@ -4014,6 +4021,94 @@ object_ptr<MessageAction> messageActionNoPaidMessagesTokenUsed::fetch(TlBufferPa
 void messageActionNoPaidMessagesTokenUsed::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "messageActionNoPaidMessagesTokenUsed");
+    s.store_class_end();
+  }
+}
+
+messageActionStarGiftOnchainOffer::messageActionStarGiftOnchainOffer()
+  : flags_()
+  , accepted_()
+  , declined_()
+  , cancelled_()
+  , expired_()
+  , settled_()
+  , buyer_()
+  , cancelling_()
+  , offer_id_()
+  , gift_()
+  , amount_()
+  , fee_bps_()
+  , expires_at_()
+  , offer_address_()
+  , buyer_refund_()
+  , fine_()
+{}
+
+const std::int32_t messageActionStarGiftOnchainOffer::ID;
+
+object_ptr<MessageAction> messageActionStarGiftOnchainOffer::fetch(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<messageActionStarGiftOnchainOffer> res = make_tl_object<messageActionStarGiftOnchainOffer>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->accepted_ = (var0 & 1) != 0;
+  res->declined_ = (var0 & 2) != 0;
+  res->cancelled_ = (var0 & 4) != 0;
+  res->expired_ = (var0 & 8) != 0;
+  res->settled_ = (var0 & 64) != 0;
+  res->buyer_ = (var0 & 128) != 0;
+  res->cancelling_ = (var0 & 256) != 0;
+  res->offer_id_ = TlFetchLong::parse(p);
+  res->gift_ = TlFetchObject<StarGift>::parse(p);
+  res->amount_ = TlFetchLong::parse(p);
+  res->fee_bps_ = TlFetchInt::parse(p);
+  res->expires_at_ = TlFetchInt::parse(p);
+  res->offer_address_ = TlFetchString<string>::parse(p);
+  if (var0 & 16) { res->buyer_refund_ = TlFetchLong::parse(p); }
+  if (var0 & 32) { res->fine_ = TlFetchLong::parse(p); }
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
+}
+
+void messageActionStarGiftOnchainOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "messageActionStarGiftOnchainOffer");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | (accepted_ << 0) | (declined_ << 1) | (cancelled_ << 2) | (expired_ << 3) | (settled_ << 6) | (buyer_ << 7) | (cancelling_ << 8)));
+    if (var0 & 1) { s.store_field("accepted", true); }
+    if (var0 & 2) { s.store_field("declined", true); }
+    if (var0 & 4) { s.store_field("cancelled", true); }
+    if (var0 & 8) { s.store_field("expired", true); }
+    if (var0 & 64) { s.store_field("settled", true); }
+    if (var0 & 128) { s.store_field("buyer", true); }
+    if (var0 & 256) { s.store_field("cancelling", true); }
+    s.store_field("offer_id", offer_id_);
+    s.store_object_field("gift", static_cast<const BaseObject *>(gift_.get()));
+    s.store_field("amount", amount_);
+    s.store_field("fee_bps", fee_bps_);
+    s.store_field("expires_at", expires_at_);
+    s.store_field("offer_address", offer_address_);
+    if (var0 & 16) { s.store_field("buyer_refund", buyer_refund_); }
+    if (var0 & 32) { s.store_field("fine", fine_); }
+    s.store_class_end();
+  }
+}
+
+const std::int32_t messageActionBotInvite::ID;
+
+object_ptr<MessageAction> messageActionBotInvite::fetch(TlBufferParser &p) {
+  return make_tl_object<messageActionBotInvite>(p);
+}
+
+messageActionBotInvite::messageActionBotInvite(TlBufferParser &p)
+  : inviter_id_(TlFetchLong::parse(p))
+{}
+
+void messageActionBotInvite::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "messageActionBotInvite");
+    s.store_field("inviter_id", inviter_id_);
     s.store_class_end();
   }
 }
@@ -5720,6 +5815,8 @@ object_ptr<WalletTransactionPeer> WalletTransactionPeer::fetch(TlBufferParser &p
       return walletTransactionPeerChannel::fetch(p);
     case walletTransactionPeerTelegramGift::ID:
       return walletTransactionPeerTelegramGift::fetch(p);
+    case walletTransactionPeerOnchainGift::ID:
+      return walletTransactionPeerOnchainGift::fetch(p);
     default:
       FAIL(PSTRING() << "Unknown constructor found " << format::as_hex(constructor));
   }
@@ -5896,6 +5993,24 @@ void walletTransactionPeerTelegramGift::store(TlStorerToString &s, const char *f
   int32 var0;
     s.store_field("flags", (var0 = flags_ | (own_profile_ << 0)));
     if (var0 & 1) { s.store_field("own_profile", true); }
+    s.store_class_end();
+  }
+}
+
+const std::int32_t walletTransactionPeerOnchainGift::ID;
+
+object_ptr<WalletTransactionPeer> walletTransactionPeerOnchainGift::fetch(TlBufferParser &p) {
+  return make_tl_object<walletTransactionPeerOnchainGift>(p);
+}
+
+walletTransactionPeerOnchainGift::walletTransactionPeerOnchainGift(TlBufferParser &p)
+  : action_(TlFetchObject<WalletOnchainGiftAction>::parse(p))
+{}
+
+void walletTransactionPeerOnchainGift::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "walletTransactionPeerOnchainGift");
+    s.store_object_field("action", static_cast<const BaseObject *>(action_.get()));
     s.store_class_end();
   }
 }
@@ -6544,23 +6659,40 @@ void messages_highScores::store(TlStorerToString &s, const char *field_name) con
   }
 }
 
+messages_peerDialogs::messages_peerDialogs()
+  : flags_()
+  , topics_()
+  , dialogs_()
+  , messages_()
+  , chats_()
+  , users_()
+  , state_()
+{}
+
 const std::int32_t messages_peerDialogs::ID;
 
 object_ptr<messages_peerDialogs> messages_peerDialogs::fetch(TlBufferParser &p) {
-  return make_tl_object<messages_peerDialogs>(p);
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<messages_peerDialogs> res = make_tl_object<messages_peerDialogs>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  if (var0 & 1) { res->topics_ = TlFetchBoxed<TlFetchVector<TlFetchObject<ForumTopic>>, 481674261>::parse(p); }
+  res->dialogs_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Dialog>>, 481674261>::parse(p);
+  res->messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p);
+  res->chats_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p);
+  res->users_ = TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p);
+  res->state_ = TlFetchBoxed<TlFetchObject<updates_state>, -1519637954>::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return res;
+#undef FAIL
 }
-
-messages_peerDialogs::messages_peerDialogs(TlBufferParser &p)
-  : dialogs_(TlFetchBoxed<TlFetchVector<TlFetchObject<Dialog>>, 481674261>::parse(p))
-  , messages_(TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p))
-  , chats_(TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p))
-  , users_(TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p))
-  , state_(TlFetchBoxed<TlFetchObject<updates_state>, -1519637954>::parse(p))
-{}
 
 void messages_peerDialogs::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "messages.peerDialogs");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!topics_.empty()) << 0)));
+    if (var0 & 1) { { s.store_vector_begin("topics", topics_.size()); for (const auto &_value : topics_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); } }
     { s.store_vector_begin("dialogs", dialogs_.size()); for (const auto &_value : dialogs_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("messages", messages_.size()); for (const auto &_value : messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("chats", chats_.size()); for (const auto &_value : chats_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
@@ -6774,24 +6906,42 @@ void updates_differenceEmpty::store(TlStorerToString &s, const char *field_name)
   }
 }
 
+updates_difference::updates_difference()
+  : flags_()
+  , topics_()
+  , new_messages_()
+  , new_encrypted_messages_()
+  , other_updates_()
+  , chats_()
+  , users_()
+  , state_()
+{}
+
 const std::int32_t updates_difference::ID;
 
 object_ptr<updates_Difference> updates_difference::fetch(TlBufferParser &p) {
-  return make_tl_object<updates_difference>(p);
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<updates_difference> res = make_tl_object<updates_difference>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  if (var0 & 1) { res->topics_ = TlFetchBoxed<TlFetchVector<TlFetchObject<ForumTopic>>, 481674261>::parse(p); }
+  res->new_messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p);
+  res->new_encrypted_messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<EncryptedMessage>>, 481674261>::parse(p);
+  res->other_updates_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Update>>, 481674261>::parse(p);
+  res->chats_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p);
+  res->users_ = TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p);
+  res->state_ = TlFetchBoxed<TlFetchObject<updates_state>, -1519637954>::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
 }
-
-updates_difference::updates_difference(TlBufferParser &p)
-  : new_messages_(TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p))
-  , new_encrypted_messages_(TlFetchBoxed<TlFetchVector<TlFetchObject<EncryptedMessage>>, 481674261>::parse(p))
-  , other_updates_(TlFetchBoxed<TlFetchVector<TlFetchObject<Update>>, 481674261>::parse(p))
-  , chats_(TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p))
-  , users_(TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p))
-  , state_(TlFetchBoxed<TlFetchObject<updates_state>, -1519637954>::parse(p))
-{}
 
 void updates_difference::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "updates.difference");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!topics_.empty()) << 0)));
+    if (var0 & 1) { { s.store_vector_begin("topics", topics_.size()); for (const auto &_value : topics_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); } }
     { s.store_vector_begin("new_messages", new_messages_.size()); for (const auto &_value : new_messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("new_encrypted_messages", new_encrypted_messages_.size()); for (const auto &_value : new_encrypted_messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("other_updates", other_updates_.size()); for (const auto &_value : other_updates_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
@@ -6802,8 +6952,21 @@ void updates_difference::store(TlStorerToString &s, const char *field_name) cons
   }
 }
 
-updates_differenceSlice::updates_differenceSlice(array<object_ptr<Message>> &&new_messages_, array<object_ptr<EncryptedMessage>> &&new_encrypted_messages_, array<object_ptr<Update>> &&other_updates_, array<object_ptr<Chat>> &&chats_, array<object_ptr<User>> &&users_, object_ptr<updates_state> &&intermediate_state_)
-  : new_messages_(std::move(new_messages_))
+updates_differenceSlice::updates_differenceSlice()
+  : flags_()
+  , topics_()
+  , new_messages_()
+  , new_encrypted_messages_()
+  , other_updates_()
+  , chats_()
+  , users_()
+  , intermediate_state_()
+{}
+
+updates_differenceSlice::updates_differenceSlice(int32 flags_, array<object_ptr<ForumTopic>> &&topics_, array<object_ptr<Message>> &&new_messages_, array<object_ptr<EncryptedMessage>> &&new_encrypted_messages_, array<object_ptr<Update>> &&other_updates_, array<object_ptr<Chat>> &&chats_, array<object_ptr<User>> &&users_, object_ptr<updates_state> &&intermediate_state_)
+  : flags_(flags_)
+  , topics_(std::move(topics_))
+  , new_messages_(std::move(new_messages_))
   , new_encrypted_messages_(std::move(new_encrypted_messages_))
   , other_updates_(std::move(other_updates_))
   , chats_(std::move(chats_))
@@ -6814,21 +6977,28 @@ updates_differenceSlice::updates_differenceSlice(array<object_ptr<Message>> &&ne
 const std::int32_t updates_differenceSlice::ID;
 
 object_ptr<updates_Difference> updates_differenceSlice::fetch(TlBufferParser &p) {
-  return make_tl_object<updates_differenceSlice>(p);
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<updates_differenceSlice> res = make_tl_object<updates_differenceSlice>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  if (var0 & 1) { res->topics_ = TlFetchBoxed<TlFetchVector<TlFetchObject<ForumTopic>>, 481674261>::parse(p); }
+  res->new_messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p);
+  res->new_encrypted_messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<EncryptedMessage>>, 481674261>::parse(p);
+  res->other_updates_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Update>>, 481674261>::parse(p);
+  res->chats_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p);
+  res->users_ = TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p);
+  res->intermediate_state_ = TlFetchBoxed<TlFetchObject<updates_state>, -1519637954>::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
 }
-
-updates_differenceSlice::updates_differenceSlice(TlBufferParser &p)
-  : new_messages_(TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p))
-  , new_encrypted_messages_(TlFetchBoxed<TlFetchVector<TlFetchObject<EncryptedMessage>>, 481674261>::parse(p))
-  , other_updates_(TlFetchBoxed<TlFetchVector<TlFetchObject<Update>>, 481674261>::parse(p))
-  , chats_(TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p))
-  , users_(TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p))
-  , intermediate_state_(TlFetchBoxed<TlFetchObject<updates_state>, -1519637954>::parse(p))
-{}
 
 void updates_differenceSlice::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "updates.differenceSlice");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!topics_.empty()) << 0)));
+    if (var0 & 1) { { s.store_vector_begin("topics", topics_.size()); for (const auto &_value : topics_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); } }
     { s.store_vector_begin("new_messages", new_messages_.size()); for (const auto &_value : new_messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("new_encrypted_messages", new_encrypted_messages_.size()); for (const auto &_value : new_encrypted_messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("other_updates", other_updates_.size()); for (const auto &_value : other_updates_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
@@ -9125,6 +9295,42 @@ payments_transferStarGift::ReturnType payments_transferStarGift::fetch_result(Tl
 #undef FAIL
 }
 
+payments_updateStarGiftOnchainPrice::payments_updateStarGiftOnchainPrice(string const &slug_, int64 amount_)
+  : slug_(slug_)
+  , amount_(amount_)
+{}
+
+const std::int32_t payments_updateStarGiftOnchainPrice::ID;
+
+void payments_updateStarGiftOnchainPrice::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(-1035934769);
+  TlStoreString::store(slug_, s);
+  TlStoreBinary::store(amount_, s);
+}
+
+void payments_updateStarGiftOnchainPrice::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(-1035934769);
+  TlStoreString::store(slug_, s);
+  TlStoreBinary::store(amount_, s);
+}
+
+void payments_updateStarGiftOnchainPrice::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.updateStarGiftOnchainPrice");
+    s.store_field("slug", slug_);
+    s.store_field("amount", amount_);
+    s.store_class_end();
+  }
+}
+
+payments_updateStarGiftOnchainPrice::ReturnType payments_updateStarGiftOnchainPrice::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchObject<payments_StarGiftOnchainSalePayload>::parse(p);
+#undef FAIL
+}
+
 phone_discardGroupCall::phone_discardGroupCall(object_ptr<InputGroupCall> &&call_)
   : call_(std::move(call_))
 {}
@@ -10367,6 +10573,16 @@ object_ptr<Object> Object::fetch(TlBufferParser &p) {
       return inlineQueryPeerTypeBroadcast::fetch(p);
     case inlineQueryPeerTypeBotPM::ID:
       return inlineQueryPeerTypeBotPM::fetch(p);
+    case inputAiComposeStyle::ID:
+      return inputAiComposeStyle::fetch(p);
+    case inputAiComposeToneDefault::ID:
+      return inputAiComposeToneDefault::fetch(p);
+    case inputAiComposeToneID::ID:
+      return inputAiComposeToneID::fetch(p);
+    case inputAiComposeToneSlug::ID:
+      return inputAiComposeToneSlug::fetch(p);
+    case inputAiComposeToneSingleUse::ID:
+      return inputAiComposeToneSingleUse::fetch(p);
     case inputAppEvent::ID:
       return inputAppEvent::fetch(p);
     case inputBotInlineMessageID::ID:
@@ -10745,6 +10961,10 @@ object_ptr<Object> Object::fetch(TlBufferParser &p) {
       return messageActionWalletTonConnectRequest::fetch(p);
     case messageActionNoPaidMessagesTokenUsed::ID:
       return messageActionNoPaidMessagesTokenUsed::fetch(p);
+    case messageActionStarGiftOnchainOffer::ID:
+      return messageActionStarGiftOnchainOffer::fetch(p);
+    case messageActionBotInvite::ID:
+      return messageActionBotInvite::fetch(p);
     case messageEntityUnknown::ID:
       return messageEntityUnknown::fetch(p);
     case messageEntityMention::ID:
@@ -11725,6 +11945,8 @@ object_ptr<Object> Object::fetch(TlBufferParser &p) {
       return topPeerCategoryBotsGuestChat::fetch(p);
     case topPeerCategoryPeers::ID:
       return topPeerCategoryPeers::fetch(p);
+    case transcriptionModel::ID:
+      return transcriptionModel::fetch(p);
     case updateNewMessage::ID:
       return updateNewMessage::fetch(p);
     case updateMessageID::ID:
@@ -12135,6 +12357,22 @@ object_ptr<Object> Object::fetch(TlBufferParser &p) {
       return wallPaperNoFile::fetch(p);
     case wallPaperSettings::ID:
       return wallPaperSettings::fetch(p);
+    case walletOnchainGiftActionBuy::ID:
+      return walletOnchainGiftActionBuy::fetch(p);
+    case walletOnchainGiftActionDelist::ID:
+      return walletOnchainGiftActionDelist::fetch(p);
+    case walletOnchainGiftActionChangePrice::ID:
+      return walletOnchainGiftActionChangePrice::fetch(p);
+    case walletOnchainGiftActionOfferCreate::ID:
+      return walletOnchainGiftActionOfferCreate::fetch(p);
+    case walletOnchainGiftActionOfferAccept::ID:
+      return walletOnchainGiftActionOfferAccept::fetch(p);
+    case walletOnchainGiftActionOfferCancel::ID:
+      return walletOnchainGiftActionOfferCancel::fetch(p);
+    case walletOnchainGiftActionOfferDecline::ID:
+      return walletOnchainGiftActionOfferDecline::fetch(p);
+    case walletOnchainGiftActionOfferExpire::ID:
+      return walletOnchainGiftActionOfferExpire::fetch(p);
     case walletStateEmpty::ID:
       return walletStateEmpty::fetch(p);
     case walletState::ID:
@@ -12153,6 +12391,8 @@ object_ptr<Object> Object::fetch(TlBufferParser &p) {
       return walletTransactionPeerChannel::fetch(p);
     case walletTransactionPeerTelegramGift::ID:
       return walletTransactionPeerTelegramGift::fetch(p);
+    case walletTransactionPeerOnchainGift::ID:
+      return walletTransactionPeerOnchainGift::fetch(p);
     case walletUserAddress::ID:
       return walletUserAddress::fetch(p);
     case webAuthorization::ID:
@@ -12723,6 +12963,16 @@ object_ptr<Object> Object::fetch(TlBufferParser &p) {
       return payments_starGiftCollections::fetch(p);
     case payments_starGiftDepositPayload::ID:
       return payments_starGiftDepositPayload::fetch(p);
+    case payments_starGiftOnchainOfferTx::ID:
+      return payments_starGiftOnchainOfferTx::fetch(p);
+    case payments_starGiftOnchainOfferTxInitState::ID:
+      return payments_starGiftOnchainOfferTxInitState::fetch(p);
+    case payments_starGiftOnchainOfferTxMessage::ID:
+      return payments_starGiftOnchainOfferTxMessage::fetch(p);
+    case payments_starGiftOnchainSalePayload::ID:
+      return payments_starGiftOnchainSalePayload::fetch(p);
+    case payments_starGiftOnchainFixedSalePayload::ID:
+      return payments_starGiftOnchainFixedSalePayload::fetch(p);
     case payments_starGiftUpgradeAttributes::ID:
       return payments_starGiftUpgradeAttributes::fetch(p);
     case payments_starGiftUpgradePreview::ID:

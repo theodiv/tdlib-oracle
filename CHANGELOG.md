@@ -14,6 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   the markup names its byte offset when its description does. Previously, both
   raised `ValueError`.
 
+### Changed
+
+- Move the pin to Bot API 10.5: `BOT_API_VERSION` reads `10.5` instead of
+  `10.4`, and `BOT_API_COMMIT` and `TDLIB_COMMIT` name the server's commit and
+  the TDLib commit it builds; every verdict stays the same.
+
 ### Fixed
 
 - Show a `pre` entity without a `language` when cleaning removes every character

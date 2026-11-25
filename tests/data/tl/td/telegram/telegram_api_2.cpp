@@ -5079,6 +5079,8 @@ peerSettings::peerSettings()
   , phone_country_()
   , name_change_date_()
   , photo_change_date_()
+  , bot_inviter_id_()
+  , bot_owner_id_()
 {}
 
 const std::int32_t peerSettings::ID;
@@ -5109,6 +5111,8 @@ object_ptr<peerSettings> peerSettings::fetch(TlBufferParser &p) {
   if (var0 & 65536) { res->phone_country_ = TlFetchString<string>::parse(p); }
   if (var0 & 131072) { res->name_change_date_ = TlFetchInt::parse(p); }
   if (var0 & 262144) { res->photo_change_date_ = TlFetchInt::parse(p); }
+  if (var0 & 524288) { res->bot_inviter_id_ = TlFetchLong::parse(p); }
+  if (var0 & 1048576) { res->bot_owner_id_ = TlFetchLong::parse(p); }
   if (p.get_error()) { FAIL(""); }
   return res;
 #undef FAIL
@@ -5140,6 +5144,8 @@ void peerSettings::store(TlStorerToString &s, const char *field_name) const {
     if (var0 & 65536) { s.store_field("phone_country", phone_country_); }
     if (var0 & 131072) { s.store_field("name_change_date", name_change_date_); }
     if (var0 & 262144) { s.store_field("photo_change_date", photo_change_date_); }
+    if (var0 & 524288) { s.store_field("bot_inviter_id", bot_inviter_id_); }
+    if (var0 & 1048576) { s.store_field("bot_owner_id", bot_owner_id_); }
     s.store_class_end();
   }
 }
@@ -7778,22 +7784,38 @@ object_ptr<messages_Dialogs> messages_Dialogs::fetch(TlBufferParser &p) {
 #undef FAIL
 }
 
+messages_dialogs::messages_dialogs()
+  : flags_()
+  , topics_()
+  , dialogs_()
+  , messages_()
+  , chats_()
+  , users_()
+{}
+
 const std::int32_t messages_dialogs::ID;
 
 object_ptr<messages_Dialogs> messages_dialogs::fetch(TlBufferParser &p) {
-  return make_tl_object<messages_dialogs>(p);
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<messages_dialogs> res = make_tl_object<messages_dialogs>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  if (var0 & 1) { res->topics_ = TlFetchBoxed<TlFetchVector<TlFetchObject<ForumTopic>>, 481674261>::parse(p); }
+  res->dialogs_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Dialog>>, 481674261>::parse(p);
+  res->messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p);
+  res->chats_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p);
+  res->users_ = TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
 }
-
-messages_dialogs::messages_dialogs(TlBufferParser &p)
-  : dialogs_(TlFetchBoxed<TlFetchVector<TlFetchObject<Dialog>>, 481674261>::parse(p))
-  , messages_(TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p))
-  , chats_(TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p))
-  , users_(TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p))
-{}
 
 void messages_dialogs::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "messages.dialogs");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!topics_.empty()) << 0)));
+    if (var0 & 1) { { s.store_vector_begin("topics", topics_.size()); for (const auto &_value : topics_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); } }
     { s.store_vector_begin("dialogs", dialogs_.size()); for (const auto &_value : dialogs_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("messages", messages_.size()); for (const auto &_value : messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("chats", chats_.size()); for (const auto &_value : chats_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
@@ -7802,24 +7824,41 @@ void messages_dialogs::store(TlStorerToString &s, const char *field_name) const 
   }
 }
 
+messages_dialogsSlice::messages_dialogsSlice()
+  : flags_()
+  , count_()
+  , topics_()
+  , dialogs_()
+  , messages_()
+  , chats_()
+  , users_()
+{}
+
 const std::int32_t messages_dialogsSlice::ID;
 
 object_ptr<messages_Dialogs> messages_dialogsSlice::fetch(TlBufferParser &p) {
-  return make_tl_object<messages_dialogsSlice>(p);
+#define FAIL(error) p.set_error(error); return nullptr;
+  object_ptr<messages_dialogsSlice> res = make_tl_object<messages_dialogsSlice>();
+  int32 var0;
+  if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
+  res->count_ = TlFetchInt::parse(p);
+  if (var0 & 1) { res->topics_ = TlFetchBoxed<TlFetchVector<TlFetchObject<ForumTopic>>, 481674261>::parse(p); }
+  res->dialogs_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Dialog>>, 481674261>::parse(p);
+  res->messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p);
+  res->chats_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p);
+  res->users_ = TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p);
+  if (p.get_error()) { FAIL(""); }
+  return std::move(res);
+#undef FAIL
 }
-
-messages_dialogsSlice::messages_dialogsSlice(TlBufferParser &p)
-  : count_(TlFetchInt::parse(p))
-  , dialogs_(TlFetchBoxed<TlFetchVector<TlFetchObject<Dialog>>, 481674261>::parse(p))
-  , messages_(TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p))
-  , chats_(TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p))
-  , users_(TlFetchBoxed<TlFetchVector<TlFetchObject<User>>, 481674261>::parse(p))
-{}
 
 void messages_dialogsSlice::store(TlStorerToString &s, const char *field_name) const {
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "messages.dialogsSlice");
+  int32 var0;
+    s.store_field("flags", (var0 = flags_ | ((!topics_.empty()) << 0)));
     s.store_field("count", count_);
+    if (var0 & 1) { { s.store_vector_begin("topics", topics_.size()); for (const auto &_value : topics_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); } }
     { s.store_vector_begin("dialogs", dialogs_.size()); for (const auto &_value : dialogs_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("messages", messages_.size()); for (const auto &_value : messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("chats", chats_.size()); for (const auto &_value : chats_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
@@ -7849,6 +7888,7 @@ void messages_dialogsNotModified::store(TlStorerToString &s, const char *field_n
 messages_forumTopics::messages_forumTopics()
   : flags_()
   , order_by_create_date_()
+  , top_icons_()
   , count_()
   , topics_()
   , messages_()
@@ -7865,6 +7905,7 @@ object_ptr<messages_forumTopics> messages_forumTopics::fetch(TlBufferParser &p) 
   int32 var0;
   if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
   res->order_by_create_date_ = (var0 & 1) != 0;
+  if (var0 & 2) { res->top_icons_ = TlFetchBoxed<TlFetchVector<TlFetchLong>, 481674261>::parse(p); }
   res->count_ = TlFetchInt::parse(p);
   res->topics_ = TlFetchBoxed<TlFetchVector<TlFetchObject<ForumTopic>>, 481674261>::parse(p);
   res->messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p);
@@ -7880,8 +7921,9 @@ void messages_forumTopics::store(TlStorerToString &s, const char *field_name) co
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "messages.forumTopics");
   int32 var0;
-    s.store_field("flags", (var0 = flags_ | (order_by_create_date_ << 0)));
+    s.store_field("flags", (var0 = flags_ | (order_by_create_date_ << 0) | ((!top_icons_.empty()) << 1)));
     if (var0 & 1) { s.store_field("order_by_create_date", true); }
+    if (var0 & 2) { { s.store_vector_begin("top_icons", top_icons_.size()); for (const auto &_value : top_icons_) { s.store_field("", _value); } s.store_class_end(); } }
     s.store_field("count", count_);
     { s.store_vector_begin("topics", topics_.size()); for (const auto &_value : topics_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("messages", messages_.size()); for (const auto &_value : messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
@@ -8169,6 +8211,7 @@ updates_channelDifferenceTooLong::updates_channelDifferenceTooLong()
   : flags_()
   , final_()
   , timeout_()
+  , topics_()
   , dialog_()
   , messages_()
   , chats_()
@@ -8184,6 +8227,7 @@ object_ptr<updates_ChannelDifference> updates_channelDifferenceTooLong::fetch(Tl
   if ((var0 = res->flags_ = TlFetchInt::parse(p)) < 0) { FAIL("Variable of type # can't be negative"); }
   res->final_ = (var0 & 1) != 0;
   if (var0 & 2) { res->timeout_ = TlFetchInt::parse(p); }
+  if (var0 & 4) { res->topics_ = TlFetchBoxed<TlFetchVector<TlFetchObject<ForumTopic>>, 481674261>::parse(p); }
   res->dialog_ = TlFetchObject<Dialog>::parse(p);
   res->messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p);
   res->chats_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p);
@@ -8197,9 +8241,10 @@ void updates_channelDifferenceTooLong::store(TlStorerToString &s, const char *fi
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "updates.channelDifferenceTooLong");
   int32 var0;
-    s.store_field("flags", (var0 = flags_ | (final_ << 0)));
+    s.store_field("flags", (var0 = flags_ | (final_ << 0) | ((!topics_.empty()) << 2)));
     if (var0 & 1) { s.store_field("final", true); }
     if (var0 & 2) { s.store_field("timeout", timeout_); }
+    if (var0 & 4) { { s.store_vector_begin("topics", topics_.size()); for (const auto &_value : topics_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); } }
     s.store_object_field("dialog", static_cast<const BaseObject *>(dialog_.get()));
     { s.store_vector_begin("messages", messages_.size()); for (const auto &_value : messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("chats", chats_.size()); for (const auto &_value : chats_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
@@ -8213,6 +8258,7 @@ updates_channelDifference::updates_channelDifference()
   , final_()
   , pts_()
   , timeout_()
+  , topics_()
   , new_messages_()
   , other_updates_()
   , chats_()
@@ -8229,6 +8275,7 @@ object_ptr<updates_ChannelDifference> updates_channelDifference::fetch(TlBufferP
   res->final_ = (var0 & 1) != 0;
   res->pts_ = TlFetchInt::parse(p);
   if (var0 & 2) { res->timeout_ = TlFetchInt::parse(p); }
+  if (var0 & 4) { res->topics_ = TlFetchBoxed<TlFetchVector<TlFetchObject<ForumTopic>>, 481674261>::parse(p); }
   res->new_messages_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Message>>, 481674261>::parse(p);
   res->other_updates_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Update>>, 481674261>::parse(p);
   res->chats_ = TlFetchBoxed<TlFetchVector<TlFetchObject<Chat>>, 481674261>::parse(p);
@@ -8242,10 +8289,11 @@ void updates_channelDifference::store(TlStorerToString &s, const char *field_nam
   if (!LOG_IS_STRIPPED(ERROR)) {
     s.store_class_begin(field_name, "updates.channelDifference");
   int32 var0;
-    s.store_field("flags", (var0 = flags_ | (final_ << 0)));
+    s.store_field("flags", (var0 = flags_ | (final_ << 0) | ((!topics_.empty()) << 2)));
     if (var0 & 1) { s.store_field("final", true); }
     s.store_field("pts", pts_);
     if (var0 & 2) { s.store_field("timeout", timeout_); }
+    if (var0 & 4) { { s.store_vector_begin("topics", topics_.size()); for (const auto &_value : topics_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); } }
     { s.store_vector_begin("new_messages", new_messages_.size()); for (const auto &_value : new_messages_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("other_updates", other_updates_.size()); for (const auto &_value : other_updates_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
     { s.store_vector_begin("chats", chats_.size()); for (const auto &_value : chats_) { s.store_object_field("", static_cast<const BaseObject *>(_value.get())); } s.store_class_end(); }
@@ -11210,6 +11258,50 @@ void payments_getStarsSubscriptions::store(TlStorerToString &s, const char *fiel
 payments_getStarsSubscriptions::ReturnType payments_getStarsSubscriptions::fetch_result(TlBufferParser &p) {
 #define FAIL(error) p.set_error(error); return ReturnType()
   return TlFetchBoxed<TlFetchObject<payments_starsStatus>, 1822222573>::parse(p);
+#undef FAIL
+}
+
+payments_sendStarGiftOnchainOffer::payments_sendStarGiftOnchainOffer(string const &slug_, int64 amount_, int32 duration_, int64 random_id_)
+  : slug_(slug_)
+  , amount_(amount_)
+  , duration_(duration_)
+  , random_id_(random_id_)
+{}
+
+const std::int32_t payments_sendStarGiftOnchainOffer::ID;
+
+void payments_sendStarGiftOnchainOffer::store(TlStorerCalcLength &s) const {
+  (void)sizeof(s);
+  s.store_binary(-1250062274);
+  TlStoreString::store(slug_, s);
+  TlStoreBinary::store(amount_, s);
+  TlStoreBinary::store(duration_, s);
+  TlStoreBinary::store(random_id_, s);
+}
+
+void payments_sendStarGiftOnchainOffer::store(TlStorerUnsafe &s) const {
+  (void)sizeof(s);
+  s.store_binary(-1250062274);
+  TlStoreString::store(slug_, s);
+  TlStoreBinary::store(amount_, s);
+  TlStoreBinary::store(duration_, s);
+  TlStoreBinary::store(random_id_, s);
+}
+
+void payments_sendStarGiftOnchainOffer::store(TlStorerToString &s, const char *field_name) const {
+  if (!LOG_IS_STRIPPED(ERROR)) {
+    s.store_class_begin(field_name, "payments.sendStarGiftOnchainOffer");
+    s.store_field("slug", slug_);
+    s.store_field("amount", amount_);
+    s.store_field("duration", duration_);
+    s.store_field("random_id", random_id_);
+    s.store_class_end();
+  }
+}
+
+payments_sendStarGiftOnchainOffer::ReturnType payments_sendStarGiftOnchainOffer::fetch_result(TlBufferParser &p) {
+#define FAIL(error) p.set_error(error); return ReturnType()
+  return TlFetchBoxed<TlFetchObject<payments_starGiftOnchainOfferTx>, -27885105>::parse(p);
 #undef FAIL
 }
 
