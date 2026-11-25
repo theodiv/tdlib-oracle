@@ -9,7 +9,7 @@
 from typing import Final
 
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib import td_api
+from tdlib_oracle.tdlib import td_api, telegram_api
 
 
 # Ported from td/telegram/FormattedDate.h, FormattedDate::DateFlags.
@@ -22,6 +22,41 @@ class DATE_FLAG:
     SHORT_DATE: Final = 8
     LONG_DATE: Final = 16
     DAY_OF_WEEK: Final = 32
+
+
+# Ported from td/telegram/FormattedDate.cpp, FormattedDate::FormattedDate(int32 date,
+# bool relative, bool short_time, bool long_time, bool short_date, bool long_date, bool
+# day_of_week), without its log of a date that is not positive.
+def make_formatted_date(
+    date: int,
+    *,
+    relative: bool,
+    short_time: bool,
+    long_time: bool,
+    short_date: bool,
+    long_date: bool,
+    day_of_week: bool,
+) -> tuple[int, int]:
+    """Return the date and the flags of a formatted date that shows the parts named.
+
+    A relative date shows no other part, and of a short and a long time, or of a short
+    and a long date, only the short one shows. The date stays as it is, valid or not.
+    """
+    date_flags = 0
+    if relative:
+        date_flags = DATE_FLAG.RELATIVE
+    else:
+        if short_time:
+            date_flags |= DATE_FLAG.SHORT_TIME
+        elif long_time:
+            date_flags |= DATE_FLAG.LONG_TIME
+        if short_date:
+            date_flags |= DATE_FLAG.SHORT_DATE
+        elif long_date:
+            date_flags |= DATE_FLAG.LONG_DATE
+        if day_of_week:
+            date_flags |= DATE_FLAG.DAY_OF_WEEK
+    return date, date_flags
 
 
 # Ported from td/telegram/FormattedDate.cpp, FormattedDate::get_formatted_date(int32
@@ -123,6 +158,30 @@ def get_date_time_formatting_type_object(
     show_day_of_week = (date_flags & DATE_FLAG.DAY_OF_WEEK) != 0
     return td_api.DateTimeFormattingTypeAbsolute(
         time_precision, date_precision, show_day_of_week
+    )
+
+
+# Ported from td/telegram/FormattedDate.cpp,
+# FormattedDate::get_input_message_entity_formatted_date().
+def get_input_message_entity_formatted_date(
+    date: int, date_flags: int, offset: int, length: int
+) -> telegram_api.MessageEntityFormattedDate:
+    """Return the object TDLib sends the date in, with a field for each of its flags.
+
+    The object stands from `offset` for `length` UTF-16 code units, and shows the parts
+    of `date` that `date_flags` names.
+    """
+    return telegram_api.MessageEntityFormattedDate(
+        0,
+        (date_flags & DATE_FLAG.RELATIVE) != 0,
+        (date_flags & DATE_FLAG.SHORT_TIME) != 0,
+        (date_flags & DATE_FLAG.LONG_TIME) != 0,
+        (date_flags & DATE_FLAG.SHORT_DATE) != 0,
+        (date_flags & DATE_FLAG.LONG_DATE) != 0,
+        (date_flags & DATE_FLAG.DAY_OF_WEEK) != 0,
+        offset,
+        length,
+        date,
     )
 
 

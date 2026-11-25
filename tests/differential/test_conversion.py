@@ -1,3 +1,4 @@
+import itertools
 import random
 from collections.abc import Callable, Sequence
 from dataclasses import replace
@@ -5,12 +6,13 @@ from dataclasses import replace
 import pytest
 
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib import td_api
+from tdlib_oracle.tdlib import td_api, telegram_api
 from tdlib_oracle.tdlib.message_entity import (
     TYPE,
     MessageEntity,
     get_input_message_entities,
     get_message_entities,
+    get_server_message_entities,
     get_text_entities_object,
     order,
 )
@@ -44,6 +46,16 @@ _PLAIN_TYPES = (
     td_api.TextEntityTypeExpandableBlockQuote(),
 )
 
+# The constructors of Telegram's API that the port reads back and that take no value.
+_PLAIN_OBJECTS: tuple[Callable[[int, int], telegram_api.MessageEntity], ...] = (
+    telegram_api.MessageEntityBold,
+    telegram_api.MessageEntityItalic,
+    telegram_api.MessageEntityUnderline,
+    telegram_api.MessageEntityStrike,
+    telegram_api.MessageEntitySpoiler,
+    telegram_api.MessageEntityCode,
+)
+
 # Languages to keep, empty, cleaned, and not UTF-8.
 _LANGUAGES = (
     b"python",
@@ -58,6 +70,10 @@ _LANGUAGES = (
 # Users a mention names: valid ones only, since the harness passes no user manager,
 # which differs from a bot's on the others alone.
 _USER_IDS = (1, 5, (1 << 40) - 1)
+
+# Users a mention Telegram returns names: valid ones, and invalid ones on each side of
+# the range of user IDs.
+_RETURNED_USER_IDS = (5, 5, 1, (1 << 40) - 1, 0, -1, 1 << 40)
 
 # Custom emoji IDs, valid and not, up to the 18 digits the harness reads.
 _CUSTOM_EMOJI_IDS = (5, 5, 1, -1, 10**18 - 1, 0)
@@ -147,6 +163,69 @@ def _draw_text_entities(
     return lists
 
 
+def _formatted_date(
+    parts: Sequence[bool], date: int, offset: int = 0, length: int = 1
+) -> telegram_api.MessageEntityFormattedDate:
+    relative, short_time, long_time, short_date, long_date, day_of_week = parts
+    return telegram_api.MessageEntityFormattedDate(
+        0,
+        relative,
+        short_time,
+        long_time,
+        short_date,
+        long_date,
+        day_of_week,
+        offset,
+        length,
+        date,
+    )
+
+
+def _draw_returned_entity(
+    rng: random.Random, links: Sequence[bytes]
+) -> telegram_api.MessageEntity:
+    offset = rng.choice(_BOUNDS)
+    length = rng.choice(_BOUNDS)
+    kind = rng.randrange(len(_PLAIN_OBJECTS) + 6)
+    if kind < len(_PLAIN_OBJECTS):
+        return _PLAIN_OBJECTS[kind](offset, length)
+    match kind - len(_PLAIN_OBJECTS):
+        case 0:
+            return telegram_api.MessageEntityPre(offset, length, rng.choice(_LANGUAGES))
+        case 1:
+            return telegram_api.MessageEntityTextUrl(offset, length, rng.choice(links))
+        case 2:
+            user_id = rng.choice(_RETURNED_USER_IDS)
+            return telegram_api.MessageEntityMentionName(offset, length, user_id)
+        case 3:
+            document_id = rng.choice(_CUSTOM_EMOJI_IDS)
+            return telegram_api.MessageEntityCustomEmoji(offset, length, document_id)
+        case 4:
+            collapsed = rng.random() < 0.5
+            return telegram_api.MessageEntityBlockquote(0, collapsed, offset, length)
+        case _:
+            parts = [rng.random() < 0.5 for _ in range(6)]
+            return _formatted_date(parts, rng.choice(_UNIX_TIMES), offset, length)
+
+
+def _draw_returned_entities(
+    seed: int, count: int
+) -> list[tuple[telegram_api.MessageEntity, ...]]:
+    """Return `count` lists of the objects Telegram may return, drawn from `seed`.
+
+    Every constructor the port reads back comes up, with values valid and invalid: links
+    from `tests.support.links`, users on each side of the range of user IDs, dates on
+    each side of zero with every set of flags, and languages and custom emoji of
+    each kind.
+    """
+    rng = random.Random(f"{seed} returned entities")
+    links = [b"".join(units) for units in draw_links(seed, 100)] + list(FIXED_LINKS)
+    return [
+        tuple(_draw_returned_entity(rng, links) for _ in range(rng.randint(0, 8)))
+        for _ in range(count)
+    ]
+
+
 def _draw_entities_to_send(rng: random.Random) -> tuple[MessageEntity, ...]:
     """Return drawn entities as TDLib holds them when it sends them: sorted and bounded.
 
@@ -179,9 +258,17 @@ def _get_message_entities(
     return (b"0", b""), result
 
 
+def _get_server_message_entities(
+    text: bytes,
+    args: tuple[int, ...],
+    entities: tuple[telegram_api.MessageEntity, ...],
+) -> tuple[tuple[bytes, ...], tuple[MessageEntity, ...]]:
+    return (), get_server_message_entities(entities)
+
+
 def _get_input_message_entities(
     text: bytes, args: tuple[int, ...], entities: tuple[MessageEntity, ...]
-) -> tuple[tuple[bytes, ...], tuple[MessageEntity, ...]]:
+) -> tuple[tuple[bytes, ...], tuple[telegram_api.MessageEntity, ...]]:
     return (), get_input_message_entities(entities)
 
 
@@ -245,6 +332,57 @@ def test_get_message_entities_gives_the_pinned_entities_for_each_type_and_value(
         seed=None,
         by_bytes=False,
         requests="api",
+    )
+
+
+def test_get_server_message_entities_gives_the_pinned_entities(
+    compare_entities: Compare, seeds: tuple[int, ...], count: int
+) -> None:
+    for seed in seeds:
+        drawn = _draw_returned_entities(seed, count)
+        cases = [((), (), entities) for entities in drawn]
+        compare_entities(
+            "get_message_entities(telegram_api)",
+            _get_server_message_entities,
+            cases,
+            seed=seed,
+            by_bytes=False,
+            requests="sent",
+        )
+
+
+def test_get_server_message_entities_gives_the_pinned_entities_for_each_object(
+    compare_entities: Compare,
+) -> None:
+    links = [*FIXED_LINKS, b"t.me/a", b"tg://user?id=5", b"ftp://t.me", b"\xff", b""]
+    objects: list[telegram_api.MessageEntity] = [
+        *(constructor(0, 1) for constructor in _PLAIN_OBJECTS),
+        *(telegram_api.MessageEntityPre(0, 1, language) for language in _LANGUAGES),
+        *(telegram_api.MessageEntityTextUrl(0, 1, link) for link in links),
+        *(
+            telegram_api.MessageEntityMentionName(0, 1, user_id)
+            for user_id in _RETURNED_USER_IDS
+        ),
+        *(
+            telegram_api.MessageEntityCustomEmoji(0, 1, document_id)
+            for document_id in _CUSTOM_EMOJI_IDS
+        ),
+        telegram_api.MessageEntityBlockquote(0, False, 0, 1),
+        telegram_api.MessageEntityBlockquote(0, True, 0, 1),
+        *(
+            _formatted_date(parts, date)
+            for parts in itertools.product((False, True), repeat=6)
+            for date in (1_700_000_000, 1, 0, -1)
+        ),
+    ]
+    cases = [((), (), (entity,)) for entity in objects]
+    compare_entities(
+        "get_message_entities(telegram_api)",
+        _get_server_message_entities,
+        cases,
+        seed=None,
+        by_bytes=False,
+        requests="sent",
     )
 
 

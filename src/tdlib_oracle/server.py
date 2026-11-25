@@ -2,7 +2,8 @@
 
 `check` runs a text through the server's call order: the Bot API server's checks and the
 parsing of the markup, then TDLib's processing, up to the entities TDLib sends with the
-text. `Verdict`, `Refusal`, and `Entity`, the types of its result, are defined here too.
+text, which TDLib reads back as it reads those Telegram returns. `Verdict`, `Refusal`,
+and `Entity`, the types of its result, are defined here too.
 """
 
 import re
@@ -15,12 +16,11 @@ from tdlib_oracle.botapi.client import (
     get_input_message_text,
 )
 from tdlib_oracle.runtime.failure import Failure
-from tdlib_oracle.tdlib import td_api
+from tdlib_oracle.tdlib import td_api, telegram_api
 from tdlib_oracle.tdlib.message_content import get_input_message_content
 from tdlib_oracle.tdlib.message_entity import (
-    TYPE,
-    MessageEntity,
     get_input_message_entities,
+    get_server_message_entities,
     get_text_entities_object,
 )
 from tdlib_oracle.tdlib.synchronous_requests import run_request
@@ -161,22 +161,26 @@ def _integer(members: Mapping[str, bytes | int], name: str) -> int | None:
     return value if isinstance(value, int) else None
 
 
-def _as_sent(entity: MessageEntity) -> MessageEntity:
-    """Return `entity` as TDLib sends it.
+def _as_returned(entity: telegram_api.MessageEntity) -> telegram_api.MessageEntity:
+    """Return the object Telegram's backend returns for `entity` when it keeps it.
 
-    TDLib sends a pre block in `messageEntityPre`, whose empty language stands for none,
-    so a pre block whose language is empty goes as one without a language, which is how
-    TDLib reads it back.
+    A mention returns with the ID of its user alone, as `messageEntityMentionName`, and
+    every other object as TDLib sent it. The objects of its tie return the same way.
     """
-    # Stands in for td/telegram/MessageEntity.cpp, get_input_message_entities(const
-    # UserManager *user_manager, const vector<MessageEntity> &entities, const char
-    # *source), the object it sends a pre block in.
-    # Stands in for td/telegram/MessageEntity.cpp, get_message_entities(const
-    # UserManager *user_manager, vector<tl_object_ptr<telegram_api::MessageEntity>>
-    # &&server_entities, const char *source), its read of that object.
-    if entity.type == TYPE.PRE_CODE and not entity.argument:
-        return replace(entity, type=TYPE.PRE)
-    return entity
+    # TDLib reads a mention back only as messageEntityMentionName, and stops at
+    # UNREACHABLE() for the form it sends (td/telegram/MessageEntity.cpp,
+    # get_message_entities(const UserManager *user_manager,
+    # vector<tl_object_ptr<telegram_api::MessageEntity>> &&server_entities, const
+    # char *source)).
+    ties = tuple(_as_returned(tie) for tie in entity.ties)
+    match entity:
+        case telegram_api.InputMessageEntityMentionName(
+            user_id=telegram_api.InputUser(user_id=user_id)
+        ):
+            return telegram_api.MessageEntityMentionName(
+                entity.offset, entity.length, user_id, ties
+            )
+    return replace(entity, ties=ties) if ties else entity
 
 
 def _entity(text_entity: td_api.TextEntity) -> Entity:
@@ -243,11 +247,16 @@ def check(text: str | bytes, *, parse_mode: str | None = None) -> Verdict:
             depends_on_backend=False,
         )
 
-    # The entities TDLib sends with the text, once the message goes out.
+    # The entities TDLib sends with the text, once the message goes out, read back as
+    # TDLib reads the ones Telegram returns; TDLib then fixes the text again, and what
+    # that gives rests on what Telegram's backend returns.
     # Stands in for td/telegram/MessagesManager.cpp, SendMessageQuery::send().
+    # Stands in for td/telegram/MessageEntity.cpp, get_message_text().
     sending = get_input_message_entities(result.entities)
-    sent = get_text_entities_object(tuple(_as_sent(entity) for entity in sending))
-    entities = tuple(_entity(entity) for entity in sent)
+    returned = get_server_message_entities(
+        tuple(_as_returned(entity) for entity in sending)
+    )
+    entities = tuple(_entity(entity) for entity in get_text_entities_object(returned))
     return Verdict(
         accepted=True,
         text=result.text.decode("utf-8", "replace"),
