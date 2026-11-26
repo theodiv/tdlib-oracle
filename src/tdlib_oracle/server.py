@@ -170,8 +170,8 @@ def _as_returned(entity: telegram_api.MessageEntity) -> telegram_api.MessageEnti
     # TDLib reads a mention back only as messageEntityMentionName, and stops at
     # UNREACHABLE() for the form it sends (td/telegram/MessageEntity.cpp,
     # get_message_entities(const UserManager *user_manager,
-    # vector<tl_object_ptr<telegram_api::MessageEntity>> &&server_entities, const
-    # char *source)).
+    #     vector<tl_object_ptr<telegram_api::MessageEntity>> &&server_entities,
+    #     const char *source)).
     ties = tuple(_as_returned(tie) for tie in entity.ties)
     match entity:
         case telegram_api.InputMessageEntityMentionName(

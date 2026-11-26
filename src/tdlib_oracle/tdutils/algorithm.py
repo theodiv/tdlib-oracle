@@ -9,13 +9,13 @@
 from collections.abc import Sequence
 from typing import TypeVar
 
-# Ported from tdutils/td/utils/algorithm.h, T in combine(vector<T> &destination,
-# vector<T> &&source).
+# Ported from tdutils/td/utils/algorithm.h,
+# T in combine(vector<T> &destination, vector<T> &&source).
 _T = TypeVar("_T")
 
 
-# Ported from tdutils/td/utils/algorithm.h, combine(vector<T> &destination, vector<T>
-# &&source).
+# Ported from tdutils/td/utils/algorithm.h,
+# combine(vector<T> &destination, vector<T> &&source).
 def combine(destination: Sequence[_T], source: Sequence[_T]) -> list[_T]:
     """Return both lists as one: the longer first, or `destination` when as long.
 
