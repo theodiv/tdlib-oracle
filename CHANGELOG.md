@@ -19,6 +19,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Move the pin to Bot API 10.5: `BOT_API_VERSION` reads `10.5` instead of
   `10.4`, and `BOT_API_COMMIT` and `TDLIB_COMMIT` name the server's commit and
   the TDLib commit it builds; every verdict stays the same.
+- Point a release's docs links, in its PyPI description and its `Documentation`
+  URL, at its own tag; the installed code and every other link stay the same.
+  Previously, they opened the docs on `main`, which can describe features the
+  release lacks.
 
 ### Fixed
 
