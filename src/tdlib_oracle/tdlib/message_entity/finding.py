@@ -909,8 +909,8 @@ def _fix_url(url: bytes) -> bytes:
     return full_url
 
 
-# Ported from td/telegram/MessageEntity.cpp, valid_usernames in
-# get_valid_short_usernames().
+# Ported from td/telegram/MessageEntity.cpp,
+# valid_usernames in get_valid_short_usernames().
 _VALID_SHORT_USERNAMES = frozenset((b"gif", b"nft", b"pic", b"ufc", b"vid"))
 
 

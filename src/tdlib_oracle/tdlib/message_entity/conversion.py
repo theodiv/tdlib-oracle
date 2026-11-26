@@ -138,10 +138,10 @@ def get_text_entities_object(
     return tuple(get_text_entity_object(entity) for entity in entities)
 
 
-# Ported from td/telegram/MessageEntity.cpp, get_message_entities(const UserManager
-# *user_manager, vector<tl_object_ptr<td_api::textEntity>> &&input_entities, bool
-# allow_all), with a bot's user manager and allow_all false, as get_formatted_text()
-# calls it.
+# Ported from td/telegram/MessageEntity.cpp,
+# get_message_entities(const UserManager *user_manager,
+#     vector<tl_object_ptr<td_api::textEntity>> &&input_entities, bool allow_all),
+# with a bot's user manager and allow_all false, as get_formatted_text() calls it.
 def get_message_entities(
     input_entities: Sequence[td_api.TextEntity | None],
 ) -> tuple[MessageEntity, ...] | Failure:
@@ -276,11 +276,12 @@ def get_message_entities(
     return tuple(entities)
 
 
-# Ported from td/telegram/MessageEntity.cpp, get_message_entities(const UserManager
-# *user_manager, vector<tl_object_ptr<telegram_api::MessageEntity>> &&server_entities,
-# const char *source), for the objects get_input_message_entities() sends and
-# messageEntityMentionName, with a user manager that has met each user a mention names,
-# and without its log.
+# Ported from td/telegram/MessageEntity.cpp,
+# get_message_entities(const UserManager *user_manager,
+#     vector<tl_object_ptr<telegram_api::MessageEntity>> &&server_entities,
+#     const char *source),
+# for the objects get_input_message_entities() sends and messageEntityMentionName, with
+# a user manager that has met each user a mention names, and without its log.
 def get_server_message_entities(
     server_entities: Sequence[telegram_api.MessageEntity],
 ) -> tuple[MessageEntity, ...]:
@@ -411,13 +412,14 @@ def get_formatted_text(
     )
 
 
-# Ported from td/telegram/MessageEntity.cpp, MAX_USER_ENTITY_COUNT
-# in get_input_message_entities().
+# Ported from td/telegram/MessageEntity.cpp,
+# MAX_USER_ENTITY_COUNT in get_input_message_entities().
 _MAX_USER_ENTITY_COUNT = 100
 
 
-# Ported from td/telegram/MessageEntity.cpp, get_input_message_entities(const
-# UserManager *user_manager, const vector<MessageEntity> &entities, const char *source),
+# Ported from td/telegram/MessageEntity.cpp,
+# get_input_message_entities(const UserManager *user_manager,
+#     const vector<MessageEntity> &entities, const char *source),
 # with a bot's user manager.
 def get_input_message_entities(
     entities: Sequence[MessageEntity],

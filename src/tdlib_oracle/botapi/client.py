@@ -64,9 +64,9 @@ def get_formatted_text(
     return td_api.FormattedText(text, ())
 
 
-# Ported from telegram-bot-api/Client.cpp, Client::get_input_message_text(td::string
-# text, ...), for a text without link preview options or entities, as the formatted
-# text of the inputMessageText it makes.
+# Ported from telegram-bot-api/Client.cpp,
+# Client::get_input_message_text(td::string text, ...), for a text without link preview
+# options or entities, as the formatted text of the inputMessageText it makes.
 def get_input_message_text(
     text: bytes, parse_mode: bytes, *, execute: Execute
 ) -> td_api.FormattedText | Failure:

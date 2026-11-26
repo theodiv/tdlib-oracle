@@ -24,9 +24,10 @@ class DATE_FLAG:
     DAY_OF_WEEK: Final = 32
 
 
-# Ported from td/telegram/FormattedDate.cpp, FormattedDate::FormattedDate(int32 date,
-# bool relative, bool short_time, bool long_time, bool short_date, bool long_date, bool
-# day_of_week), without its log of a date that is not positive.
+# Ported from td/telegram/FormattedDate.cpp,
+# FormattedDate::FormattedDate(int32 date, bool relative, bool short_time,
+#     bool long_time, bool short_date, bool long_date, bool day_of_week),
+# without its log of a date that is not positive.
 def make_formatted_date(
     date: int,
     *,
@@ -59,8 +60,9 @@ def make_formatted_date(
     return date, date_flags
 
 
-# Ported from td/telegram/FormattedDate.cpp, FormattedDate::get_formatted_date(int32
-# date, const td_api::object_ptr<td_api::DateTimeFormattingType> &type_ptr).
+# Ported from td/telegram/FormattedDate.cpp,
+# FormattedDate::get_formatted_date(int32 date,
+#     const td_api::object_ptr<td_api::DateTimeFormattingType> &type_ptr).
 def get_formatted_date(
     date: int, formatting_type: td_api.DateTimeFormattingType | None
 ) -> tuple[int, int] | Failure:

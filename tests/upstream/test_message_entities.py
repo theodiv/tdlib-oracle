@@ -941,8 +941,9 @@ def test_url() -> None:
     _check_url(b"_.test.com", [b"_.test.com"])
 
 
-# Ported from test/message_entities.cpp, check_fix_formatted_text(td::string str,
-# td::vector<td::MessageEntity> entities, const td::string &expected_str, ...).
+# Ported from test/message_entities.cpp,
+# check_fix_formatted_text(td::string str, td::vector<td::MessageEntity> entities,
+#     const td::string &expected_str, ...).
 def _check_fix_formatted_text(
     text: bytes,
     entities: tuple[MessageEntity, ...],
@@ -965,8 +966,9 @@ def _check_fix_formatted_text(
     assert result == FormattedText(expected_text, expected_entities)
 
 
-# Ported from test/message_entities.cpp, check_fix_formatted_text(td::string str,
-# td::vector<td::MessageEntity> entities, bool allow_empty, ...).
+# Ported from test/message_entities.cpp,
+# check_fix_formatted_text(td::string str, td::vector<td::MessageEntity> entities,
+#     bool allow_empty, ...).
 def _check_fix_formatted_text_fails(
     text: bytes,
     entities: tuple[MessageEntity, ...],
@@ -1726,16 +1728,16 @@ def test_fix_formatted_text() -> None:
     )
 
 
-# Ported from test/message_entities.cpp, check_parse_html(td::string text, const
-# td::string &result, ...).
+# Ported from test/message_entities.cpp,
+# check_parse_html(td::string text, const td::string &result, ...).
 def _check_parse_html(
     text: bytes, result: bytes, entities: tuple[MessageEntity, ...]
 ) -> None:
     assert parse_html(text) == FormattedText(result, entities), text
 
 
-# Ported from test/message_entities.cpp, check_parse_html(td::string text, td::Slice
-# error_message).
+# Ported from test/message_entities.cpp,
+# check_parse_html(td::string text, td::Slice error_message).
 def _check_parse_html_fails(text: bytes, error_message: str) -> None:
     assert parse_html(text) == Failure(400, error_message), text
 
@@ -2382,16 +2384,16 @@ def test_parse_html() -> None:
     )
 
 
-# Ported from test/message_entities.cpp, check_parse_markdown(td::string text, const
-# td::string &result, ...).
+# Ported from test/message_entities.cpp,
+# check_parse_markdown(td::string text, const td::string &result, ...).
 def _check_parse_markdown(
     text: bytes, result: bytes, entities: tuple[MessageEntity, ...]
 ) -> None:
     assert parse_markdown_v2(text) == FormattedText(result, entities), text
 
 
-# Ported from test/message_entities.cpp, check_parse_markdown(td::string text,
-# td::Slice error_message).
+# Ported from test/message_entities.cpp,
+# check_parse_markdown(td::string text, td::Slice error_message).
 def _check_parse_markdown_fails(text: bytes, error_message: str) -> None:
     assert parse_markdown_v2(text) == Failure(400, error_message), text
 

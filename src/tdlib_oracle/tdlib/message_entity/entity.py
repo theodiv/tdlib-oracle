@@ -53,8 +53,8 @@ class TYPE:
     SIZE: Final = 24
 
 
-# Ported from td/telegram/MessageEntity.cpp, priorities in
-# MessageEntity::get_type_priority().
+# Ported from td/telegram/MessageEntity.cpp,
+# priorities in MessageEntity::get_type_priority().
 _PRIORITIES = (
     50,  # MENTION
     50,  # HASHTAG
@@ -82,8 +82,10 @@ _PRIORITIES = (
     50,  # TON_ADDRESS
 )
 
-# Ported from td/telegram/MessageEntity.cpp, operator<<(StringBuilder &string_builder,
-# const MessageEntity::Type &message_entity_type), the names it writes.
+# Ported from td/telegram/MessageEntity.cpp,
+# operator<<(StringBuilder &string_builder,
+#     const MessageEntity::Type &message_entity_type),
+# the names it writes.
 _TYPE_NAMES = (
     "Mention",
     "Hashtag",
@@ -163,8 +165,9 @@ class FormattedText:
     entities: tuple[MessageEntity, ...] = ()
 
 
-# Ported from td/telegram/MessageEntity.cpp, operator<<(StringBuilder &string_builder,
-# const MessageEntity::Type &message_entity_type).
+# Ported from td/telegram/MessageEntity.cpp,
+# operator<<(StringBuilder &string_builder,
+#     const MessageEntity::Type &message_entity_type).
 def type_name(entity_type: int) -> str:
     """Return the name TDLib's messages give `entity_type`, one of `TYPE`.
 

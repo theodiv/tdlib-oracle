@@ -13,8 +13,8 @@ from tdlib_oracle.tdutils.http_url import HttpUrl, parse_url
 _QUERIES = (b"", b"/.com", b"#", b"?t=1")
 
 
-# Ported from tdutils/test/HttpUrl.cpp, test_parse_url(const td::string &url, td::string
-# userinfo, ...).
+# Ported from tdutils/test/HttpUrl.cpp,
+# test_parse_url(const td::string &url, td::string userinfo, ...).
 def _test_parse_url(
     url: bytes,
     userinfo: bytes,
@@ -33,8 +33,8 @@ def _test_parse_url(
         assert http_url.port == port
 
 
-# Ported from tdutils/test/HttpUrl.cpp, test_parse_url(const td::string &url, td::Slice
-# error_message).
+# Ported from tdutils/test/HttpUrl.cpp,
+# test_parse_url(const td::string &url, td::Slice error_message).
 def _test_parse_url_error(url: bytes, error_message: str) -> None:
     for query in _QUERIES:
         error = parse_url(url + query)
