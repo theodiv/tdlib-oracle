@@ -23,7 +23,6 @@ A formatting entity of the kept text, in the Bot API's `MessageEntity` form.
 - `depends_on_build` — whether the C++ library the server is built with decides
   which of the entities that tie in TDLib's sort survives here, so another build
   may keep another entity with these bounds; default `False`.
-  *Added in 0.2.0.*
 
 ## `Refusal`
 
@@ -43,14 +42,12 @@ it keeps.
 - `text` — the text the server keeps, or `None` when it refuses the text.
 - `entities` — the formatting entities TDLib sends with the kept text, as
   `Entity` values, in the order it sends them; empty for a plain text.
-  *Changed in 0.2.0: holds the entities of an HTML text.*
 - `refusal` — the server's refusal as a `Refusal`, or `None` when it accepts
   the text.
 - `depends_on_backend` — whether Telegram's backend decides if an entity of the
   kept text survives.
 - `depends_on_build` — whether the C++ library the server is built with decides
   which entity survives somewhere in the text; default `False`.
-  *Added in 0.2.0.*
 
 ## `check`
 
@@ -68,8 +65,6 @@ TDLib's processing.
   any letter case parses it, and `None`, an empty string, or `none` in any
   letter case parses nothing; any other name gets the server's refusal;
   default `None`.
-  *Added in 0.2.0.* *Changed in the next release: parses `MarkdownV2`
-  and `Markdown`.*
 
 Returns the `Verdict`. Raises `TypeError` when `text` is neither `str` nor
 `bytes`, or `parse_mode` is neither `str` nor `None`.
