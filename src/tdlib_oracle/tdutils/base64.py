@@ -85,21 +85,13 @@ def _base64_decode_impl(base64: bytes, *, is_url: bool) -> bytes | Failure:
 
 # Ported from tdutils/td/utils/base64.cpp, base64_decode(Slice base64).
 def base64_decode(base64: bytes) -> bytes | Failure:
-    """Return what `base64` encodes in the standard alphabet, or its `Failure`.
-
-    `base64` needs `=` padding to a multiple of 4 characters, two `=` at most, and a
-    last group that leaves no bits over.
-    """
+    """Return what `base64` encodes in the standard alphabet, or its `Failure`."""
     return _base64_decode_impl(base64, is_url=False)
 
 
 # Ported from tdutils/td/utils/base64.cpp, base64url_decode(Slice base64).
 def base64url_decode(base64: bytes) -> bytes | Failure:
-    """Return what `base64` encodes in the URL-safe alphabet, or its `Failure`.
-
-    Padding is optional, but `=` must then fill the last group to 4 characters; a last
-    group of one character, or one that leaves bits over, refuses `base64`.
-    """
+    """Return what `base64` encodes in the URL-safe alphabet, or its `Failure`."""
     return _base64_decode_impl(base64, is_url=True)
 
 

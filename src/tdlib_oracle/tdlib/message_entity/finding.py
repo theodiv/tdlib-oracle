@@ -6,9 +6,8 @@
 # see LICENSES/BSL-1.0.txt.
 """TDLib's search of a text for the entities it adds on its own.
 
-TDLib runs the search only on text it has checked, so every function here takes valid
-UTF-8. Each kind of entity is found as the byte offsets `(begin, end)` of its matches,
-and `find_entities` gathers them all as entities, in UTF-16 code units.
+TDLib runs the search only on text it has checked, so every function here takes
+valid UTF-8.
 """
 
 from collections.abc import Iterable, Sequence
@@ -424,12 +423,10 @@ def _is_domain_symbol(c: int) -> bool:
 
 # Ported from td/telegram/MessageEntity.cpp, match_urls().
 def _match_urls(text: bytes) -> list[Span]:
-    """Return the spans that may be links or email addresses, for checks to follow.
-
-    The C++ moves the start of the text it searches past each candidate; `begin` holds
-    where that text starts now.
-    """
+    """Return the spans that may be links or email addresses, for checks to follow."""
     result = []
+    # The C++ moves the start of the text it searches past each candidate, and `begin`
+    # is where that text starts now.
     begin = 0
     end = len(text)
     while True:
@@ -567,8 +564,8 @@ def _match_urls(text: bytes) -> list[Span]:
 def _is_valid_bank_card(text: bytes) -> bool:
     """Return whether the digits of `text` form a bank card number TDLib accepts.
 
-    `text` holds 13 to 19 digits, as `_match_bank_card_numbers` finds them. The Luhn
-    check comes first, then the length that the card brand of the first digits takes.
+    `text` must hold 13 to 19 digits, since the pinned code stops at a failed check on
+    any other.
     """
     digits = [c - 0x30 for c in text if is_digit(c)]
     digit_count = len(digits)
@@ -608,13 +605,7 @@ def _is_valid_bank_card(text: bytes) -> bool:
 
 # Ported from td/telegram/MessageEntity.cpp, is_email_address().
 def is_email_address(text: bytes) -> bool:
-    """Return whether `text` is an email address, as TDLib reads one.
-
-    Before the `@`, up to 11 parts split by `.` or `+`: letters, digits, `_`, and `-`,
-    at most 26 a part and 1 to 35 in the last. After it, 2 to 7 labels split by `.`:
-    letters, digits, `_`, and `-`, under 31 a label, starting and ending with a letter
-    or digit, and last a label of 2 to 8 letters.
-    """
+    """Return whether `text` is an email address, as TDLib reads one."""
     userdata, _, domain = text.partition(b"@")
     if not domain:
         return False
@@ -781,14 +772,7 @@ def _is_common_tld(text: bytes) -> bool:
 
 # Ported from td/telegram/MessageEntity.cpp, fix_url().
 def _fix_url(url: bytes) -> bytes:
-    """Return `url` cut to the link TDLib keeps of it, or empty if it keeps none.
-
-    A path stops before a bracket that closes more than it opened and before trailing
-    punctuation. The domain needs two or more labels, a `teiegram.org` lookalike is
-    refused, and an IPv4 address is kept; otherwise the domain needs a letter, a top
-    level domain of two or more characters, and, without a protocol, one of TDLib's
-    common top level domains.
-    """
+    """Return `url` cut to the link TDLib keeps of it, or empty if it keeps none."""
     full_url = url
     rest = url
 
@@ -916,11 +900,7 @@ _VALID_SHORT_USERNAMES = frozenset((b"gif", b"nft", b"pic", b"ufc", b"vid"))
 
 # Ported from td/telegram/MessageEntity.cpp, find_mentions().
 def find_mentions(text: bytes) -> tuple[Span, ...]:
-    """Return the mentions in `text`, such as `@username`.
-
-    A mention is `@` and 2 to 32 letters, digits, and underscores, outside a word, and
-    one of 2 or 3 characters only when TDLib lists it as a valid short username.
-    """
+    """Return the mentions in `text`, such as `@username`."""
     return tuple(
         (begin, end)
         for begin, end in _match_mentions(text)
@@ -931,42 +911,25 @@ def find_mentions(text: bytes) -> tuple[Span, ...]:
 
 # Ported from td/telegram/MessageEntity.cpp, find_bot_commands().
 def find_bot_commands(text: bytes) -> tuple[Span, ...]:
-    """Return the bot commands in `text`, such as `/start` or `/start@bot`.
-
-    A command is `/` and 1 to 64 letters, digits, and underscores, then optionally `@`
-    and a username of 3 to 32 of them, outside a word and next to no `/`, `<`, or `>`.
-    """
+    """Return the bot commands in `text`, such as `/start` or `/start@bot`."""
     return tuple(_match_bot_commands(text))
 
 
 # Ported from td/telegram/MessageEntity.cpp, find_hashtags().
 def find_hashtags(text: bytes) -> tuple[Span, ...]:
-    """Return the hashtags in `text`, such as `#tag` or `#tag@channel`.
-
-    A hashtag is `#` and the first 256 of its hashtag letters, with a letter among them,
-    then optionally `@` and a username of 3 to 32 characters; it starts after no
-    hashtag letter and ends before no `#`.
-    """
+    """Return the hashtags in `text`, such as `#tag` or `#tag@channel`."""
     return tuple(_match_hashtags(text))
 
 
 # Ported from td/telegram/MessageEntity.cpp, find_cashtags().
 def find_cashtags(text: bytes) -> tuple[Span, ...]:
-    """Return the cashtags in `text`, such as `$USD` or `$USD@exchange`.
-
-    A cashtag is `$` and 1 to 8 capital letters or `1INCH`, then optionally `@` and a
-    username of 3 to 32 characters, with no hashtag letter or `$` on either side.
-    """
+    """Return the cashtags in `text`, such as `$USD` or `$USD@exchange`."""
     return tuple(_match_cashtags(text))
 
 
 # Ported from td/telegram/MessageEntity.cpp, find_bank_card_numbers().
 def find_bank_card_numbers(text: bytes) -> tuple[Span, ...]:
-    """Return the bank card numbers in `text`.
-
-    A number is 13 to 19 digits that spaces and hyphens may separate, which pass the
-    Luhn check and the length rules of the card brand its first digits name.
-    """
+    """Return the bank card numbers in `text`."""
     return tuple(
         span
         for span in _match_bank_card_numbers(text)
@@ -988,11 +951,7 @@ def find_tg_urls(text: bytes) -> tuple[Span, ...]:
 
 # Ported from td/telegram/MessageEntity.cpp, find_urls().
 def find_urls(text: bytes) -> tuple[tuple[Span, bool], ...]:
-    """Return the links and email addresses in `text`, each with whether it is an email.
-
-    An email address may follow `mailto:`, which its span leaves out, and a link keeps
-    what `fix_url()` leaves of it.
-    """
+    """Return the links and email addresses in `text`, with whether each is an email."""
     result = []
     for begin, end in _match_urls(text):
         url = text[begin:end]
@@ -1056,8 +1015,7 @@ def find_entities(text: bytes, *, skip_bot_commands: bool) -> tuple[MessageEntit
     """Return the entities TDLib adds to `text` on its own, in UTF-16 code units.
 
     The entities come sorted, and one that intersects an entity before it in TDLib's
-    order is dropped. A bot skips media timestamps, so none is looked for, and
-    `skip_bot_commands` skips bot commands. `text` must be valid UTF-8.
+    order is dropped. A bot skips media timestamps, so none is looked for.
     """
     entities: list[MessageEntity] = []
 

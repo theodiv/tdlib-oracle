@@ -121,6 +121,12 @@ extend-select = ["D401", "D404", "TRY002"]
 ignore = ["D105", "D107", "PLR2004"]
 
 [tool.ruff.lint.per-file-ignores]
+"src/tdlib_oracle/{botapi,tdlib,tdutils}/**" = [
+  "PLR0911",
+  "PLR0912",
+  "PLR0913",
+  "PLR0915",
+]
 "tests/*" = [
   "D100",
   "D101",
@@ -137,13 +143,7 @@ ignore = ["D105", "D107", "PLR2004"]
   "S603",
 ]
 "tests/**/test_*.py" = ["D103"]
-# Ported code follows the structure of the upstream functions it cites.
-"{src/tdlib_oracle/{botapi,tdlib,tdutils},tests/upstream}/**" = [
-  "PLR0911",
-  "PLR0912",
-  "PLR0913",
-  "PLR0915",
-]
+"tests/upstream/*" = ["PLR0911", "PLR0912", "PLR0915"]
 
 [tool.ruff.lint.flake8-tidy-imports]
 ban-relative-imports = "all"

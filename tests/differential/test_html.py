@@ -293,12 +293,7 @@ def _code_block(rng: random.Random, palette: Sequence[bytes]) -> list[bytes]:
 
 
 def _draw_html(seed: int, count: int) -> list[tuple[bytes, ...]]:
-    """Return `count` HTML texts drawn from `seed`, each split into tags and text.
-
-    Each text opens tags and closes the innermost one, mostly by its own name, between
-    units of text from a few of `_CONTENT` and now and then a code block, and closes the
-    tags left open at its end, mostly. Half the texts hold eight units or fewer.
-    """
+    """Return `count` HTML texts drawn from `seed`, each split into tags and text."""
     rng = random.Random(f"{seed} html")
     texts = []
     for _ in range(count):
@@ -327,12 +322,7 @@ def _draw_html(seed: int, count: int) -> list[tuple[bytes, ...]]:
 
 
 def _draw_broken_html(seed: int, count: int) -> list[tuple[bytes, ...]]:
-    """Return `count` HTML texts drawn from `seed`, each with up to three bytes broken.
-
-    A text of `_draw_html` loses a byte, gains one of `_BREAKS`, or has one replaced by
-    one, up to three times, so its tags and references break at any byte. The bytes come
-    back one per unit.
-    """
+    """Return `count` HTML texts from `seed`, each with up to three bytes broken."""
     rng = random.Random(f"{seed} broken html")
     texts = []
     for units in _draw_html(seed, count):

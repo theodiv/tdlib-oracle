@@ -50,11 +50,7 @@ def _address(rng: random.Random) -> bytes:
 
 
 def _draw_addresses(seed: int, count: int) -> list[tuple[bytes, ...]]:
-    """Return `count` addresses drawn from `seed`, each split into its characters.
-
-    Half are valid; the others are valid ones with a character replaced from either
-    alphabet, cut short, lengthened, or random characters of either alphabet or both.
-    """
+    """Return `count` addresses drawn from `seed`, each split into its characters."""
     rng = random.Random(f"{seed} addresses")
     addresses = []
     for _ in range(count):

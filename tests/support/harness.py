@@ -1,11 +1,4 @@
-"""The pinned TDLib functions compiled into one program, and runs of that program.
-
-The pinned sources in `tests/data/` and `harness.cpp` leave many symbols undefined. Each
-undefined function becomes a stub that aborts with its name when called. A stand-in
-value for a data symbol would change what the code does without a sign, so each
-undefined data symbol gets the value upstream gives it, from `DATA_SYMBOLS`, and one
-missing there stops the build.
-"""
+"""The pinned TDLib functions compiled into one program, and runs of that program."""
 
 import hashlib
 import os
@@ -27,15 +20,7 @@ class HarnessError(Exception):
 
 @dataclass(frozen=True)
 class DataSymbol:
-    """The upstream definition of a data symbol the compiled sources leave undefined.
-
-    Attributes:
-        symbol: The mangled name of the symbol.
-        ctype: The C++ type of the symbol.
-        value: The value upstream gives the symbol, as a C++ expression.
-        source: The file of tdlib/td that defines the symbol.
-        line: The line of `source` that defines the symbol, as upstream writes it.
-    """
+    """The upstream definition of a data symbol the compiled sources leave undefined."""
 
     symbol: str
     ctype: str
@@ -133,9 +118,7 @@ _FUNCTION = re.compile(r"\)(?: const| volatile| &&| &| noexcept)*$")
 def compile_jobs(flags: Sequence[str], meminfo: str) -> int:
     """Return how many sources a build with `flags` compiles at once.
 
-    One per core, but no more than the available memory that `meminfo`, the text of
-    `/proc/meminfo`, reports holds compiles of the heaviest source, and at least one.
-    Without a `MemAvailable` line, the cores alone decide.
+    It gives at least one, and without a `MemAvailable` line the cores alone decide.
     """
     cores = os.cpu_count() or 1
     match = re.search(r"^MemAvailable:\s+(\d+) kB$", meminfo, re.MULTILINE)
@@ -202,11 +185,9 @@ def _quote(text: str) -> str:
 def _stubs(symbols: Sequence[str], env: dict[str, str]) -> str:
     """Return C++ source that defines each of `symbols` as a stub or as its entry.
 
-    A symbol that the demangler cannot read as a function counts as data, so it needs an
-    entry in `DATA_SYMBOLS`.
-
-    Raises:
-        HarnessError: If a data symbol has no entry in `DATA_SYMBOLS`.
+    A stand-in value for a data symbol would change what the code does without a sign,
+    so a symbol that the demangler cannot read as a function takes the value of its
+    entry in `DATA_SYMBOLS`, and one without an entry stops the build.
     """
     demangler = shutil.which("c++filt")
     if demangler is None:
@@ -253,18 +234,8 @@ def build(
 ) -> Path:
     """Compile `sources` into one program in `directory`, and return its path.
 
-    The sources compile in parallel with TDLib's Release flags and `-fsigned-char`, then
-    `flags`, such as `--coverage`; tdutils' `crypto.cpp` and `Slice.cpp` compile without
-    OpenSSL. They compile `jobs` at a time, or as many as `compile_jobs` gives for this
-    machine. A first link names the symbols they leave undefined, and their stubs join
-    the second.
     The compiler gets only `PATH`, to find the assembler and the linker, and `TMPDIR`,
     so that its temporary files stay in `directory`.
-
-    Raises:
-        HarnessError: If the system is not Linux, `c++` is not on `PATH`, a source does
-            not compile, the link fails, or a data symbol has no entry in
-            `DATA_SYMBOLS`.
     """
     compiler = _find_compiler()
     env = {"PATH": os.environ.get("PATH", os.defpath), "TMPDIR": str(directory)}
@@ -332,9 +303,6 @@ def _fingerprint(
 
     The tools run with `PATH` alone, as `build` runs the compiler, so a version text
     translated for the caller's locale leaves the key as it is.
-
-    Raises:
-        HarnessError: If `ld` or `ldd` is not on `PATH`.
     """
     digest = hashlib.sha256()
 
@@ -389,17 +357,10 @@ def cached_build(
     """Return the program `build` makes of `sources`, from `cache` when it holds one.
 
     A build takes minutes, yet the program changes only with its inputs, so `cache`
-    keeps it under a key over this module, the machine, the versions of `c++`, `ld`, and
-    the C library, the order of `sources` and of `include_dirs`, and the path and bytes
-    of each source and of each file under `include_dirs`. A miss builds in `scratch` and
-    moves the program into `cache`, replacing the one there. A build with `flags` is
-    always fresh and leaves `cache` alone, since a coverage build writes its counts
-    beside its objects, which a cached program no longer has. `jobs` passes to `build`
-    and stays out of the key, since the program does not depend on it.
-
-    Raises:
-        HarnessError: If the system is not Linux, `c++`, `ld`, or `ldd` is not on
-            `PATH`, or the build fails.
+    keeps it under a key over them, which leaves out `jobs`, since the program does not
+    depend on it. A build with `flags` is always fresh and leaves `cache` alone, since a
+    coverage build writes its counts beside its objects, which a cached program no
+    longer has.
     """
     if flags:
         return build(sources, include_dirs, scratch, flags=flags, jobs=jobs)
@@ -488,12 +449,8 @@ def run(
 ) -> list[tuple[bytes, ...]]:
     """Run `function` of `program` on each of `requests`, and return each response.
 
-    The program runs with an empty environment. It flushes each response before it
-    reads the next request, so a failure names the request it gave no response to.
-
-    Raises:
-        HarnessError: If the program crashes, runs past `timeout` seconds, or exits with
-            an error.
+    The program flushes each response before it reads the next request, so a failure
+    names the request it gave no response to.
     """
     payload = b"".join(_encode(request) for request in requests)
     try:

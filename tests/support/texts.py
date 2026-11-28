@@ -1,9 +1,4 @@
-"""Texts for the differential tests: drawn from a seed, and shrunk.
-
-A text is a tuple of units, each one character in UTF-8, a piece of valid UTF-8, or one
-byte sequence that UTF-8 refuses, so a text of valid units stays valid UTF-8 as it
-shrinks.
-"""
+"""Texts for the differential tests: drawn from a seed, and shrunk."""
 
 import random
 from collections.abc import Callable, Sequence
@@ -388,8 +383,7 @@ def draw_texts(
     """Return `count` texts of up to `max_units` units, drawn from `units` with `seed`.
 
     Each text draws from a few of `units` only, so texts of blank characters alone, or
-    of one character repeated, come up as often as mixed ones, and half the texts hold
-    four units or fewer.
+    of one character repeated, come up as often as mixed ones.
     """
     rng = random.Random(seed)
     texts = []
@@ -433,10 +427,10 @@ def shrink(
 ) -> tuple[bytes, ...]:
     """Return the shortest text found from `text` that `fails` still flags.
 
-    `fails` flags a whole batch of candidate texts at once, so a caller can run the
-    compiled code on each batch in one process. Whole units go first, which keeps a
-    text of characters valid UTF-8; with `by_bytes`, the units left are split into
-    bytes, and those go too.
+    It passes `fails` a whole batch of candidate texts at once, so a caller can run the
+    compiled code on each batch in one process. Whole units go first, which keeps a text
+    of characters valid UTF-8; with `by_bytes`, the units left are split into bytes, and
+    those go too.
     """
     text = _remove_runs(text, fails)
     if by_bytes:

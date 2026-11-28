@@ -62,12 +62,7 @@ def _get_formatted_date(text: bytes, args: tuple[int, ...]) -> tuple[bytes, ...]
 def _formatting_type(
     args: tuple[int, ...],
 ) -> td_api.DateTimeFormattingType | None:
-    """Return the formatting type that `args` name, as the harness reads them.
-
-    The first names no type, a relative one, or an absolute one, whose precisions of the
-    time and of the date the next two name in `_PRECISIONS`, and the last whether the
-    day of the week shows.
-    """
+    """Return the formatting type that `args` name, as the harness reads them."""
     kind, time_precision, date_precision, show_day_of_week = args
     match kind:
         case 1:

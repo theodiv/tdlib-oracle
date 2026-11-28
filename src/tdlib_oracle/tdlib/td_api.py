@@ -6,9 +6,8 @@
 # see LICENSES/BSL-1.0.txt.
 """TDLib's API objects that the ports exchange: formatted texts, requests, and errors.
 
-Each class stands for the constructor of its name, first letter aside, and each union
-for an abstract type, of the constructors ported. A `string` is `bytes`, as TDLib takes
-it, and a field that holds an object may also hold `None`, as a null pointer.
+A `string` is `bytes`, as TDLib takes it, and a field that holds an object may also hold
+`None`, as a null pointer.
 """
 
 from dataclasses import dataclass
@@ -47,13 +46,7 @@ class DateTimeFormattingTypeRelative:
 # Ported from td/generate/scheme/td_api.tl, dateTimeFormattingTypeAbsolute.
 @dataclass(frozen=True)
 class DateTimeFormattingTypeAbsolute:
-    """A date and time shown as they are, each part with its precision.
-
-    Attributes:
-        time_precision: How the time of day shows, or `None`.
-        date_precision: How the date shows, or `None`.
-        show_day_of_week: Whether the day of the week shows.
-    """
+    """A date and time shown as they are, each part with its precision."""
 
     time_precision: DateTimePartPrecision | None
     date_precision: DateTimePartPrecision | None
@@ -163,11 +156,7 @@ class TextEntityTypePre:
 # Ported from td/generate/scheme/td_api.tl, textEntityTypePreCode.
 @dataclass(frozen=True)
 class TextEntityTypePreCode:
-    """A block of code in a programming language.
-
-    Attributes:
-        language: The programming language, as the sender names it.
-    """
+    """A block of code in a programming language."""
 
     language: bytes
 
@@ -187,11 +176,7 @@ class TextEntityTypeExpandableBlockQuote:
 # Ported from td/generate/scheme/td_api.tl, textEntityTypeTextUrl.
 @dataclass(frozen=True)
 class TextEntityTypeTextUrl:
-    """A text that opens a link.
-
-    Attributes:
-        url: The link it opens.
-    """
+    """A text that opens a link."""
 
     url: bytes
 
@@ -199,11 +184,7 @@ class TextEntityTypeTextUrl:
 # Ported from td/generate/scheme/td_api.tl, textEntityTypeMentionName.
 @dataclass(frozen=True)
 class TextEntityTypeMentionName:
-    """A text that mentions a user by ID.
-
-    Attributes:
-        user_id: The user it mentions.
-    """
+    """A text that mentions a user by ID."""
 
     user_id: int
 
@@ -211,11 +192,7 @@ class TextEntityTypeMentionName:
 # Ported from td/generate/scheme/td_api.tl, textEntityTypeCustomEmoji.
 @dataclass(frozen=True)
 class TextEntityTypeCustomEmoji:
-    """A custom emoji shown in place of the emoji it covers.
-
-    Attributes:
-        custom_emoji_id: The custom emoji it shows.
-    """
+    """A custom emoji shown in place of the emoji it covers."""
 
     custom_emoji_id: int
 
@@ -223,11 +200,7 @@ class TextEntityTypeCustomEmoji:
 # Ported from td/generate/scheme/td_api.tl, textEntityTypeMediaTimestamp.
 @dataclass(frozen=True)
 class TextEntityTypeMediaTimestamp:
-    """A point of a video or audio to play from.
-
-    Attributes:
-        media_timestamp: The point to play from, in seconds.
-    """
+    """A point of a video or audio to play from."""
 
     media_timestamp: int
 
@@ -235,13 +208,7 @@ class TextEntityTypeMediaTimestamp:
 # Ported from td/generate/scheme/td_api.tl, textEntityTypeDateTime.
 @dataclass(frozen=True)
 class TextEntityTypeDateTime:
-    """A date and time shown in the reader's own form.
-
-    Attributes:
-        unix_time: The date and time, as a Unix time.
-        formatting_type: How the date and time show, or `None` to leave the text as
-            it is.
-    """
+    """A date and time shown in the reader's own form."""
 
     unix_time: int
     formatting_type: DateTimeFormattingType | None
@@ -279,36 +246,22 @@ TextEntityType = (
 # Ported from td/generate/scheme/td_api.tl, textEntity.
 @dataclass(frozen=True)
 class TextEntity:
-    """A part of a text formatted in some way.
-
-    `ties` is the port's own: it carries the tie of the entity the object was made from,
-    as `MessageEntity.ties` does, so that a tie survives the conversion to TDLib's API
-    objects and back.
-
-    Attributes:
-        offset: Where the entity starts, in UTF-16 code units.
-        length: The length of the entity, in UTF-16 code units.
-        type: The type of the entity, or `None`.
-        ties: When the entity was made from one in a tie with entities that differ from
-            it, the objects of that tie, each once; the pinned code may hold any of them
-            in this object's place. Empty otherwise.
-    """
+    """A part of a text formatted in some way."""
 
     offset: int
     length: int
     type: TextEntityType | None
+    # The port's own: the objects the tie of the entity the object was made from
+    # converts to, each once, any of which the pinned code may hold in this object's
+    # place, or empty when they are fewer than two, so that a tie survives the
+    # conversion to TDLib's API objects and back.
     ties: tuple["TextEntity", ...] = ()
 
 
 # Ported from td/generate/scheme/td_api.tl, formattedText.
 @dataclass(frozen=True)
 class FormattedText:
-    """A text and its formatting entities.
-
-    Attributes:
-        text: The text, in UTF-8.
-        entities: The formatting entities of `text`, each of which may be `None`.
-    """
+    """A text and its formatting entities."""
 
     text: bytes
     entities: tuple[TextEntity | None, ...]
@@ -317,12 +270,7 @@ class FormattedText:
 # Ported from td/generate/scheme/td_api.tl, textParseModeMarkdown.
 @dataclass(frozen=True)
 class TextParseModeMarkdown:
-    """The Bot API's Markdown parse modes, by the version of the parser.
-
-    Attributes:
-        version: The version of the parser: 0 or 1 for the Bot API's `Markdown` parse
-            mode, and 2 for `MarkdownV2`.
-    """
+    """The Bot API's Markdown parse modes, by the version of the parser."""
 
     version: int
 
@@ -340,12 +288,7 @@ TextParseMode = TextParseModeMarkdown | TextParseModeHTML
 # Ported from td/generate/scheme/td_api.tl, parseTextEntities.
 @dataclass(frozen=True)
 class ParseTextEntities:
-    """A request for the entities that the markup of a text gives.
-
-    Attributes:
-        text: The marked-up text.
-        parse_mode: The markup the text is written in, or `None`.
-    """
+    """A request for the entities that the markup of a text gives."""
 
     text: bytes
     parse_mode: TextParseMode | None
@@ -354,12 +297,7 @@ class ParseTextEntities:
 # Ported from td/generate/scheme/td_api.tl, error.
 @dataclass(frozen=True)
 class Error:
-    """The error TDLib answers a request with.
-
-    Attributes:
-        code: The error code, such as `400`.
-        message: The error message.
-    """
+    """The error TDLib answers a request with."""
 
     code: int
     message: bytes

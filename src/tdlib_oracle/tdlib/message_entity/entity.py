@@ -6,14 +6,8 @@
 # see LICENSES/BSL-1.0.txt.
 """TDLib's message entities: their types, type names and classes, and their order.
 
-The pinned code sorts entities with `std::sort`, which leaves the order of entities that
-compare equal to the C++ library, so a server built with another library can keep
-another entity of such a tie. The port sorts as `sorted()` does and records on its
-entities each tie between entities that differ.
-
-Finding, fixing, and parsing sort entities, finding and fixing drop entities that
-intersect, and fixing and conversion test the classes of entity types and split the
-splittable entities, so those operations live here.
+The package's other modules import private names from this one alone, so a helper that
+two of them share lives here.
 """
 
 from collections.abc import Iterable, Sequence
@@ -120,24 +114,7 @@ _TYPE_NAMES = (
 class MessageEntity:
     """A formatting entity of a text, as TDLib keeps it.
 
-    A type that takes a value keeps it in the field for its kind: a string in
-    `argument`, a user in `user_id`, a custom emoji in `custom_emoji_id`, a date in
-    `date` and `date_flags`. Two entities are equal when all their fields are, as in
-    TDLib, `ties` included.
-
-    Attributes:
-        type: The entity type, one of `TYPE`.
-        offset: Where the entity starts, in UTF-16 code units.
-        length: The length of the entity, in UTF-16 code units.
-        argument: The string value, such as the URL of a `TEXT_URL` or the language of a
-            `PRE_CODE`.
-        user_id: The user a `MENTION_NAME` names.
-        custom_emoji_id: The custom emoji a `CUSTOM_EMOJI` shows.
-        date: The Unix time a `FORMATTED_DATE` shows.
-        date_flags: The parts of the date a `FORMATTED_DATE` shows, as TDLib's flags.
-        ties: When a sort met this entity in a tie with entities that differ from it,
-            the entities of that tie as they were then, each once; the pinned code may
-            keep any of them in this entity's place. Empty otherwise.
+    Two entities are equal when all their fields are, as in TDLib, `ties` included.
     """
 
     type: int
@@ -148,18 +125,16 @@ class MessageEntity:
     custom_emoji_id: int = 0
     date: int = 0
     date_flags: int = 0
+    # The port's own: the entities of the tie a sort met the entity in, as they were
+    # then, each once, any of which the pinned code may keep in this entity's place, or
+    # empty when they are fewer than two.
     ties: tuple["MessageEntity", ...] = ()
 
 
 # Ported from td/telegram/MessageEntity.h, FormattedText.
 @dataclass(frozen=True)
 class FormattedText:
-    """A text and its formatting entities, as TDLib keeps them.
-
-    Attributes:
-        text: The text, in UTF-8.
-        entities: The formatting entities of `text`.
-    """
+    """A text and its formatting entities, as TDLib keeps them."""
 
     text: bytes
     entities: tuple[MessageEntity, ...] = ()
@@ -169,26 +144,23 @@ class FormattedText:
 # operator<<(StringBuilder &string_builder,
 #     const MessageEntity::Type &message_entity_type).
 def type_name(entity_type: int) -> str:
-    """Return the name TDLib's messages give `entity_type`, one of `TYPE`.
-
-    Each type goes by its own name in PascalCase, but a formatted date is a `Date`.
-    """
+    """Return the name TDLib's messages give `entity_type`, one of `TYPE`."""
     return _TYPE_NAMES[entity_type]
 
 
 # Ported from td/telegram/MessageEntity.h, MessageEntity::operator<(), as a sort key.
 def order(entity: MessageEntity) -> tuple[int, int, int]:
-    """Return the key that puts `entity` in TDLib's order of entities.
-
-    Entities sort by offset, then the longer one first, then by the priority of their
-    type, so a blockquote, at priority 0, comes before the entities it starts with.
-    """
+    """Return the key that puts `entity` in TDLib's order of entities."""
     return entity.offset, -entity.length, _PRIORITIES[entity.type]
 
 
 # Ported from td/telegram/MessageEntity.cpp, sort_entities().
 def _sort_entities(entities: Sequence[MessageEntity]) -> tuple[MessageEntity, ...]:
     """Return `entities` in TDLib's order, marking each tie of entities that differ.
+
+    The pinned code sorts with `std::sort`, which leaves the order of entities that
+    compare equal to the C++ library, so a server built with another library can keep
+    another entity of such a tie.
 
     Entities already in order come back unchanged, since the pinned code sorts only
     entities out of order. Others come back sorted as `sorted()` sorts them, so entities
@@ -347,9 +319,7 @@ def _split_entities(
 ) -> tuple[MessageEntity, ...]:
     """Return the splittable `entities` merged where they meet, split by the others.
 
-    Both lists must be sorted. Entities of one type that overlap or touch become one,
-    each entity is cut where an entity of `other_entities` starts or ends, and the parts
-    inside a pre entity are dropped.
+    Both lists must be sorted.
     """
     begin_pos = [0] * _SPLITTABLE_ENTITY_TYPE_COUNT
     end_pos = [0] * _SPLITTABLE_ENTITY_TYPE_COUNT

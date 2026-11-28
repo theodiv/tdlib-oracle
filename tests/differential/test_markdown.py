@@ -121,13 +121,7 @@ def _parse_markdown_v2(
 def _draw_broken_markdown(
     seed: int, count: int, *, legacy: bool = False
 ) -> list[tuple[bytes, ...]]:
-    """Return `count` Markdown texts drawn from `seed`, with up to three bytes broken.
-
-    A text of `draw_markdown` loses a byte, gains one of `_BREAKS`, or has one replaced
-    by one, up to three times, so its entities and escapes break at any byte. The bytes
-    come back one per unit. With `legacy`, the texts are legacy Markdown, broken
-    with `_LEGACY_BREAKS`.
-    """
+    """Return `count` Markdown texts from `seed`, with up to three bytes broken."""
     rng = random.Random(f"{seed} broken {'legacy ' if legacy else ''}markdown")
     breaks = _LEGACY_BREAKS if legacy else _BREAKS
     texts = []

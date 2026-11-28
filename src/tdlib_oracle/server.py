@@ -1,9 +1,6 @@
 """The pinned Bot API server's handling of a message text, and the verdict it gives.
 
-`check` runs a text through the server's call order: the Bot API server's checks and the
-parsing of the markup, then TDLib's processing, up to the entities TDLib sends with the
-text, which TDLib reads back as it reads those Telegram returns. `Verdict`, `Refusal`,
-and `Entity`, the types of its result, are defined here too.
+Only this module turns a `Failure` into a `Refusal`.
 """
 
 import re
@@ -93,9 +90,6 @@ class Entity:
 class Verdict:
     """The pinned Bot API server's verdict on a text: its refusal or the text it keeps.
 
-    `text` is `None` exactly when `accepted` is false, which is also exactly when
-    `refusal` is set.
-
     Attributes:
         accepted: Whether the server accepts the text.
         text: The text the server keeps, or `None` when it refuses the text.
@@ -103,8 +97,8 @@ class Verdict:
             it sends them.
         refusal: The server's refusal, or `None` when it accepts the text.
         depends_on_backend: Whether Telegram's backend decides if an entity survives.
-        depends_on_build: Whether the C++ library the server is built with decides
-            which entity survives somewhere.
+        depends_on_build: Whether the C++ library the server is built with decides which
+            entity survives somewhere.
     """
 
     accepted: bool
@@ -116,11 +110,7 @@ class Verdict:
 
 
 def _encode(text: object) -> bytes:
-    """Return `text` as the bytes the server receives.
-
-    Raises:
-        TypeError: If `text` is neither `str` nor `bytes`.
-    """
+    """Return `text` as the bytes the server receives."""
     if isinstance(text, str):
         return text.encode("utf-8", "surrogatepass")
     if isinstance(text, bytes):
@@ -129,11 +119,7 @@ def _encode(text: object) -> bytes:
 
 
 def _encode_parse_mode(parse_mode: object) -> bytes:
-    """Return `parse_mode` as the bytes the server receives, empty for `None`.
-
-    Raises:
-        TypeError: If `parse_mode` is neither `str` nor `None`.
-    """
+    """Return `parse_mode` as the bytes the server receives, empty for `None`."""
     if parse_mode is None:
         return b""
     if not isinstance(parse_mode, str):
@@ -162,11 +148,7 @@ def _integer(members: Mapping[str, bytes | int], name: str) -> int | None:
 
 
 def _as_returned(entity: telegram_api.MessageEntity) -> telegram_api.MessageEntity:
-    """Return the object Telegram's backend returns for `entity` when it keeps it.
-
-    A mention returns with the ID of its user alone, as `messageEntityMentionName`, and
-    every other object as TDLib sent it. The objects of its tie return the same way.
-    """
+    """Return the object Telegram's backend returns for `entity` when it keeps it."""
     # TDLib reads a mention back only as messageEntityMentionName, and stops at
     # UNREACHABLE() for the form it sends (td/telegram/MessageEntity.cpp,
     # get_message_entities(const UserManager *user_manager,
@@ -184,11 +166,7 @@ def _as_returned(entity: telegram_api.MessageEntity) -> telegram_api.MessageEnti
 
 
 def _entity(text_entity: td_api.TextEntity) -> Entity:
-    """Return the API object `text_entity` as the Bot API server writes it, marked.
-
-    The server writes the user a mention names as an object of the user's details, of
-    which only the ID is certain, so the ID stands for it.
-    """
+    """Return the API object `text_entity` as the Bot API server writes it, marked."""
     members = dict(JsonEntity(text_entity).store())
     entity_type = _string(members, "type") or ""
     return Entity(
@@ -209,13 +187,14 @@ def _entity(text_entity: td_api.TextEntity) -> Entity:
 def check(text: str | bytes, *, parse_mode: str | None = None) -> Verdict:
     """Return the pinned Bot API server's verdict on a bot's message text.
 
-    A `str` stands for what a client sends: it is encoded as UTF-8, and a surrogate code
-    point keeps its 3-byte form, which the server refuses as invalid UTF-8. `bytes`
-    stand for the field as the server receives it. Options are keyword-only, so a new
-    option never changes the meaning of an existing call.
+    Options are keyword-only, so a new option never changes the meaning of an
+    existing call.
 
     Args:
-        text: The message text.
+        text: The message text. A `str` stands for what a client sends: it is encoded as
+            UTF-8, and a surrogate code point keeps its 3-byte form, which the server
+            refuses as invalid UTF-8. `bytes` stand for the field as the server
+            receives it.
         parse_mode: The markup of the text: `HTML`, `MarkdownV2`, or `Markdown` in any
             letter case is parsed, and `None`, an empty string, or `none` in any letter
             case parses nothing; any other name gets the server's refusal.

@@ -84,11 +84,7 @@ def _check(text: bytes, args: tuple[int, ...]) -> tuple[bytes, ...]:
 
 
 def _draw_texts(seed: int, count: int) -> list[tuple[bytes, ...]]:
-    """Return `count` texts drawn from `seed`, each split into its units.
-
-    Half are addresses of each form with up to three characters inserted, deleted, or
-    replaced; the others join random units.
-    """
+    """Return `count` texts drawn from `seed`, each split into its units."""
     rng = random.Random(f"{seed} ipv6")
     texts = []
     for _ in range(count):

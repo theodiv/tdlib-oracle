@@ -4,13 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's Markdown parsers: the text without its markup, and the entities they give.
-
-Legacy Markdown nests no entity, so it checks each link once. In MarkdownV2, a link
-without a URL after its text takes that text as its URL, as in the pinned code, so links
-nested that way check the text once per level, in time that grows with the square of the
-length of the text; the Bot API's 32,768-byte cap bounds it.
-"""
+"""TDLib's Markdown parsers: the text without its markup, and the entities they give."""
 
 from dataclasses import dataclass
 
@@ -37,29 +31,7 @@ from tdlib_oracle.tdutils.utf8 import is_utf8_character_first_code_unit
 
 # Ported from td/telegram/MessageEntity.cpp, parse_markdown().
 def parse_markdown(text: bytes) -> FormattedText | Failure:
-    """Return the text and entities `text` gives as legacy Markdown, or its `Failure`.
-
-    A backslash keeps a `_`, `*`, backtick, or `[` after it as text, and stays before
-    any other byte. Each of those four characters opens an entity, which the next of the
-    same character closes, or the next `]` for a `[`, with every byte between kept as
-    text: entities never nest, and nothing inside one escapes. Three backticks open a
-    code block, which the next three close. The bytes after the opening name its
-    language when a space, tab, CR, LF, vertical tab, or NUL ends them before any
-    backtick and before the end of the text, and one line break right after the opening
-    or the language goes. An entity that nothing closes refuses the text, naming the
-    byte offset where it opens.
-
-    A link takes the URL in parentheses after it, up to the next `)` or the end of the
-    text. Without one, it takes its text past the first `n` bytes, followed by the
-    text's last `n` bytes, where `n` counts the bytes the parser has dropped up to and
-    including the `[`; once `n` reaches the text's length, the URL is the text itself.
-    The pinned code reads that URL from the string it parses, after writing the kept
-    text over its start. A `tg://user?id=` link to a valid user gives a mention of that
-    user, and any other link gives a link in the form TDLib's link check keeps, or none
-    when the check refuses it. An entity around no text gives none; after such a link,
-    the URL in parentheses stays as text. The entities come back in the order of
-    the text.
-    """
+    """Return the text and entities `text` gives as legacy Markdown, or a `Failure`."""
     size = len(text)
     # Past the end, the C++ reads the string terminator.
     data = text + b"\x00"
@@ -238,12 +210,8 @@ def _is_end_of_an_entity(
 # Ported from td/telegram/MessageEntity.cpp, parse_markdown_v2(), its loop that reads
 # the URL of a link or a custom emoji up to its `)`.
 def _read_url(data: bytes, i: int) -> tuple[bytes, int]:
-    """Return the URL that starts at `i` of `data`, unescaped, and where it stops.
-
-    `data` ends with the string terminator, and the URL stops at the first `)` that no
-    backslash escapes, or at the end of the text.
-    """
-    size = len(data) - 1
+    """Return the URL that starts at `i` of `data`, unescaped, and where it stops."""
+    size = len(data) - 1  # `data` ends with the string terminator
     url = bytearray()
     while i < size and data[i] != 0x29:  # ')'
         if data[i] == 0x5C and 0 < data[i + 1] <= 126:  # '\\'
@@ -278,17 +246,9 @@ def _unclosed(nested: _EntityInfo) -> Failure:
 def parse_markdown_v2(text: bytes) -> FormattedText | Failure:
     """Return the text and entities `text` gives as MarkdownV2, or its `Failure`.
 
-    A backslash keeps the ASCII character after it as text, NUL and DEL aside. Outside
-    code, each other character MarkdownV2 reserves, such as `_`, `*`, `[`, or `.`, opens
-    or closes an entity or refuses the text; inside code, only a backtick is reserved. A
-    link takes the text it holds as its URL when no URL in parentheses follows, in the
-    form TDLib's link check keeps, and gives no entity when the check refuses it; a
-    `tg://user?id=` link gives a mention of that user instead. A custom emoji gives a
-    custom emoji or a date by its `tg://emoji` or `tg://time` URL. A `>` at the start of
-    a line opens a blockquote, which goes on while each next line starts with `>` and
-    turns expandable when `||` ends it. An entity around no text gives none, though its
-    URL is still checked. The entities come back sorted, each tie between entities that
-    differ recorded in their `ties`.
+    A link without a URL after its text takes that text as its URL, as in the pinned
+    code, so links nested that way check the text once per level, in time that grows
+    with the square of the length of the text; the Bot API's 32,768-byte cap bounds it.
     """
     size = len(text)
     # Past the end, the C++ reads the string terminator.

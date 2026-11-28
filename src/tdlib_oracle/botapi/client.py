@@ -4,12 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""The Bot API server's handling of a text before TDLib, its errors, and its entities.
-
-The server checks a text and parses its markup with TDLib's synchronous
-`parseTextEntities` request, describes each error for the client, and writes each
-entity TDLib gives it as a `MessageEntity` object.
-"""
+"""The Bot API server's text handling before TDLib, its errors, and its entities."""
 
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -32,14 +27,7 @@ _MAX_TEXT_SIZE = 1 << 15  # 32,768 bytes
 def get_formatted_text(
     text: bytes, parse_mode: bytes, *, execute: Execute
 ) -> td_api.FormattedText | Failure:
-    """Return the formatted text the Bot API server passes on, or its `Failure`.
-
-    A text over 32,768 bytes is refused. An empty text, or one whose parse mode is empty
-    or `none` in any letter case, passes on without entities. Otherwise `execute`, the
-    call `Client::execute()` makes, asks TDLib to parse the text: `Markdown` and
-    `MarkdownV2`, in any letter case, as versions 1 and 2 of TDLib's Markdown, and
-    `HTML` as HTML. TDLib's error refuses the text, and any other parse mode is refused.
-    """
+    """Return the formatted text the Bot API server passes on, or its `Failure`."""
     if len(text) > _MAX_TEXT_SIZE:
         return Failure(400, "Text is too long")
 
@@ -72,9 +60,8 @@ def get_input_message_text(
 ) -> td_api.FormattedText | Failure:
     """Return the formatted text the Bot API server sends TDLib, or its `Failure`.
 
-    An empty text is refused first. Without link preview options, the `inputMessageText`
-    the server makes holds nothing else a bot's message depends on, so its formatted
-    text alone comes back.
+    Without link preview options, the `inputMessageText` the server makes holds nothing
+    else a bot's message depends on, so its formatted text alone comes back.
     """
     if not text:
         return Failure(400, "Message text is empty")
@@ -121,12 +108,7 @@ def get_error_description(failure: Failure) -> str:
 def get_date_time_format(
     formatting_type: td_api.DateTimeFormattingType | None,
 ) -> bytes:
-    """Return the Bot API's format of a date shown as `formatting_type` shows it.
-
-    No formatting type gives an empty string, and a relative one gives `r`. An absolute
-    one gives `w` when the day of the week shows, then `d` or `D` for a short or a long
-    date, then `t` or `T` for a short or a long time.
-    """
+    """Return the Bot API's format of a date shown as `formatting_type` shows it."""
     if formatting_type is None:
         return b""
     if isinstance(formatting_type, td_api.DateTimeFormattingTypeRelative):
@@ -152,25 +134,14 @@ def get_date_time_format(
 # which only the details of a mentioned user come from.
 @dataclass(frozen=True)
 class JsonEntity:
-    """An entity as the Bot API server writes it for a client: a `MessageEntity` object.
-
-    Attributes:
-        entity: The API object of the entity, as TDLib gives it.
-    """
+    """An entity as the Bot API server writes it, a `MessageEntity` object."""
 
     entity: td_api.TextEntity
 
     # Ported from telegram-bot-api/Client.cpp, Client::JsonEntity::store(), with the ID
     # of a mentioned user in place of the user's details.
     def store(self) -> tuple[tuple[str, bytes | int], ...]:
-        """Return the members of the object, each a name and its value, in their order.
-
-        Each type takes its name in the Bot API, and a type that holds a value adds it.
-        A string value is `bytes`, as the server holds it. A mentioned user is the ID
-        alone, since the server writes the other details of a user from its own record
-        of the users it has met. An entity of a null type or of a media timestamp, which
-        the server never writes, gives its offset and length alone.
-        """
+        """Return the object's members, each a name and its value, in their order."""
         entity = self.entity
         members: list[tuple[str, bytes | int]] = [
             ("offset", entity.offset),

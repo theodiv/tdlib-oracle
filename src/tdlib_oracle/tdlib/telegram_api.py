@@ -6,16 +6,13 @@
 # see LICENSES/BSL-1.0.txt.
 """Telegram's API objects for the entities TDLib sends with a text and reads back.
 
-Each class stands for the constructor of its name, first letter aside, and the union for
-an abstract type, of the constructors ported; `InputUser`, whose one ported constructor
-shares its name, stands for its type too. A `string` is `bytes`, as TDLib takes it, a
-`flags:#` field is the `int` the C++ holds, and a field that holds an object may also
-hold `None`, as a null pointer. An entity's `offset` and `length` count UTF-16 code
-units. Its last field, `ties`, is the port's own: when the entity was made from one in a
-tie with entities that differ from it, the objects of that tie, each once, any of which
-the pinned code may hold in its place, and empty otherwise. It carries the tie as
-`MessageEntity.ties` does, so that a tie survives the conversions to these objects
-and back.
+A `string` is `bytes`, as TDLib takes it, a field that holds an object may also hold
+`None`, as a null pointer, and a `flags:#` field is the `int` the C++ holds, `0` in each
+object TDLib builds, since writing the object adds the bit of each flag that is set. An
+entity's `offset` and `length` count UTF-16 code units, and its last field, `ties`, is
+the port's own: the objects the tie of the entity it was made from converts to, each
+once, any of which the pinned code may hold in its place, or empty when they are fewer
+than two, so that a tie survives the conversions to these objects and back.
 """
 
 from dataclasses import dataclass
@@ -24,12 +21,7 @@ from dataclasses import dataclass
 # Ported from td/generate/scheme/telegram_api.tl, inputUser.
 @dataclass(frozen=True)
 class InputUser:
-    """A user, by ID and the access hash that lets a client name the user.
-
-    Attributes:
-        user_id: The user.
-        access_hash: The access hash Telegram gave the client for the user, or `0`.
-    """
+    """A user, by ID and the access hash that lets a client name the user."""
 
     user_id: int
     access_hash: int
@@ -68,11 +60,7 @@ class MessageEntityCode:
 # Ported from td/generate/scheme/telegram_api.tl, messageEntityPre.
 @dataclass(frozen=True)
 class MessageEntityPre:
-    """A preformatted block, of code in a programming language when it names one.
-
-    Attributes:
-        language: The programming language, or empty for none.
-    """
+    """A preformatted block, of code in a programming language when it names one."""
 
     offset: int
     length: int
@@ -83,11 +71,7 @@ class MessageEntityPre:
 # Ported from td/generate/scheme/telegram_api.tl, messageEntityTextUrl.
 @dataclass(frozen=True)
 class MessageEntityTextUrl:
-    """A text that opens a link.
-
-    Attributes:
-        url: The link it opens.
-    """
+    """A text that opens a link."""
 
     offset: int
     length: int
@@ -98,11 +82,7 @@ class MessageEntityTextUrl:
 # Ported from td/generate/scheme/telegram_api.tl, messageEntityMentionName.
 @dataclass(frozen=True)
 class MessageEntityMentionName:
-    """A text that mentions a user by ID, as Telegram returns it.
-
-    Attributes:
-        user_id: The user it mentions.
-    """
+    """A text that mentions a user by ID, as Telegram returns it."""
 
     offset: int
     length: int
@@ -113,11 +93,7 @@ class MessageEntityMentionName:
 # Ported from td/generate/scheme/telegram_api.tl, inputMessageEntityMentionName.
 @dataclass(frozen=True)
 class InputMessageEntityMentionName:
-    """A text that mentions a user, as a client sends it.
-
-    Attributes:
-        user_id: The user it mentions, or `None`.
-    """
+    """A text that mentions a user, as a client sends it."""
 
     offset: int
     length: int
@@ -158,11 +134,7 @@ class MessageEntitySpoiler:
 # Ported from td/generate/scheme/telegram_api.tl, messageEntityCustomEmoji.
 @dataclass(frozen=True)
 class MessageEntityCustomEmoji:
-    """A custom emoji shown in place of the emoji it covers.
-
-    Attributes:
-        document_id: The custom emoji it shows.
-    """
+    """A custom emoji shown in place of the emoji it covers."""
 
     offset: int
     length: int
@@ -173,13 +145,7 @@ class MessageEntityCustomEmoji:
 # Ported from td/generate/scheme/telegram_api.tl, messageEntityBlockquote.
 @dataclass(frozen=True)
 class MessageEntityBlockquote:
-    """A blockquote, which a collapsed one shows in three lines until expanded.
-
-    Attributes:
-        flags: The `flags:#` field as the object holds it, `0` in each one TDLib builds;
-            writing the object adds the bit of `collapsed`.
-        collapsed: Whether the blockquote shows collapsed.
-    """
+    """A blockquote, which a collapsed one shows in three lines until expanded."""
 
     flags: int
     collapsed: bool
@@ -191,19 +157,7 @@ class MessageEntityBlockquote:
 # Ported from td/generate/scheme/telegram_api.tl, messageEntityFormattedDate.
 @dataclass(frozen=True)
 class MessageEntityFormattedDate:
-    """A date and time shown in the reader's own form, in the parts its flags name.
-
-    Attributes:
-        flags: The `flags:#` field as the object holds it, `0` in each one TDLib builds;
-            writing the object adds the bit of each part it shows.
-        relative: Whether the date shows relative to the present.
-        short_time: Whether the time shows in short.
-        long_time: Whether the time shows in full.
-        short_date: Whether the date shows in short.
-        long_date: Whether the date shows in full.
-        day_of_week: Whether the day of the week shows.
-        date: The date and time, as a Unix time.
-    """
+    """A date and time shown in the reader's own form, in the parts its flags name."""
 
     flags: int
     relative: bool

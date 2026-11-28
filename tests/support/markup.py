@@ -201,11 +201,7 @@ def _draw_markup(rng: random.Random, depth: int) -> list[bytes]:
 
 
 def draw_html(seed: int, count: int) -> list[tuple[bytes, ...]]:
-    """Return `count` HTML texts drawn from `seed`, each split into tags and text.
-
-    Tags nest up to four deep around text, and one text in twenty loses a unit, which
-    leaves a tag unclosed or unopened as often as not.
-    """
+    """Return `count` HTML texts drawn from `seed`, each split into tags and text."""
     rng = random.Random(f"{seed} html requests")
     texts = []
     for _ in range(count):
@@ -221,11 +217,7 @@ def draw_markdown(
 ) -> list[tuple[bytes, ...]]:
     """Return `count` MarkdownV2 texts drawn from `seed`, each split into units.
 
-    Each text opens entities and closes the innermost one between units of text from a
-    few of its content units, opens a blockquote now and then, and closes the entities
-    left open at its end, mostly. Half the texts hold eight units or fewer. With
-    `legacy`, the texts are legacy Markdown, of its own entities and content units,
-    without blockquotes.
+    With `legacy`, the texts are legacy Markdown instead.
     """
     rng = random.Random(f"{seed} {'legacy ' if legacy else ''}markdown")
     pairs, content = (
