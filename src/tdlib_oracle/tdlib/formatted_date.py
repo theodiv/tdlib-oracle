@@ -38,11 +38,7 @@ def make_formatted_date(
     long_date: bool,
     day_of_week: bool,
 ) -> tuple[int, int]:
-    """Return the date and the flags of a formatted date that shows the parts named.
-
-    A relative date shows no other part, and of a short and a long time, or of a short
-    and a long date, only the short one shows. The date stays as it is, valid or not.
-    """
+    """Return the date and the flags of a formatted date that shows the parts named."""
     date_flags = 0
     if relative:
         date_flags = DATE_FLAG.RELATIVE
@@ -66,12 +62,7 @@ def make_formatted_date(
 def get_formatted_date(
     date: int, formatting_type: td_api.DateTimeFormattingType | None
 ) -> tuple[int, int] | Failure:
-    """Return the date and the flags `formatting_type` gives it, or a `Failure`.
-
-    The date must be positive. No formatting type shows no part of the date, a relative
-    one shows the date relative to the present, and an absolute one shows each part its
-    precision names, so a missing precision leaves the part out.
-    """
+    """Return the date and the flags `formatting_type` gives it, or a `Failure`."""
     if date <= 0:
         return Failure(400, "Invalid date specified")
 
@@ -97,13 +88,7 @@ def get_formatted_date(
 
 # Ported from td/telegram/FormattedDate.cpp, FormattedDate::get_date_flags().
 def get_date_flags(date_format: bytes) -> int | Failure:
-    """Return the flags of the parts of a date `date_format` shows, or its `Failure`.
-
-    `r` or `R` alone shows the date relative to the present. Otherwise, each character
-    adds a part: `t` or `T` the time, short or long, `d` or `D` the date, short or long,
-    and `w` or `W` the day of the week, so an empty format shows none. Any other
-    character refuses the format.
-    """
+    """Return the flags of the parts of a date `date_format` shows, or its `Failure`."""
     if date_format in (b"r", b"R"):
         return DATE_FLAG.RELATIVE
 
@@ -130,12 +115,7 @@ def get_date_flags(date_format: bytes) -> int | Failure:
 def get_date_time_formatting_type_object(
     date_flags: int,
 ) -> td_api.DateTimeFormattingType | None:
-    """Return the formatting type that shows the parts of a date `date_flags` name.
-
-    No flag gives `None`, and the flag of a relative date gives a relative type,
-    whatever the others. Of a short and a long time, or of a short and a long date, the
-    short one shows.
-    """
+    """Return the formatting type that shows the parts of a date `date_flags` name."""
     if date_flags == 0:
         return None
     if (date_flags & DATE_FLAG.RELATIVE) != 0:
@@ -168,11 +148,7 @@ def get_date_time_formatting_type_object(
 def get_input_message_entity_formatted_date(
     date: int, date_flags: int, offset: int, length: int
 ) -> telegram_api.MessageEntityFormattedDate:
-    """Return the object TDLib sends the date in, with a field for each of its flags.
-
-    The object stands from `offset` for `length` UTF-16 code units, and shows the parts
-    of `date` that `date_flags` names.
-    """
+    """Return the object TDLib sends the date in, with a field for each of its flags."""
     return telegram_api.MessageEntityFormattedDate(
         0,
         (date_flags & DATE_FLAG.RELATIVE) != 0,

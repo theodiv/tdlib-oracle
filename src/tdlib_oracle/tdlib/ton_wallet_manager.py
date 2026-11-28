@@ -17,10 +17,8 @@ from tdlib_oracle.tdutils.crypto import crc16
 def check_ton_address(address: bytes) -> Failure | None:
     """Return the `Failure` that refuses the TON address `address`, or `None` if valid.
 
-    A valid address is 48 characters of base64url or base64 whose first decoded byte
-    holds 0x11 in its low 6 bits and whose last 2 bytes are the CRC-16 of the 34 before.
-    `address` must not decode with `=` padding: upstream stops at a failed check on such
-    an address, and no run that `find_ton_addresses` checks holds `=`.
+    `address` must not decode with `=` padding, since the pinned code stops at a failed
+    check on such an address.
     """
     if len(address) != 48:
         return Failure(400, "Invalid address length")

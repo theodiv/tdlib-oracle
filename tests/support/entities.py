@@ -34,10 +34,9 @@ def draw_entities(
 
     Each list takes its types, offsets, and lengths from a few of each, so that entities
     nest, overlap, touch, and tie as often as they stand apart, and a fifth of the lists
-    hold more than 16 entities, where libstdc++'s `std::sort` may reorder ties. Every
-    type draws values valid and invalid. Three lists in four keep each entity within
-    the text, since one entity past its end refuses the whole text; in the others,
-    entities may start or end past the end, and now and then a bound falls far outside.
+    hold more than 16 entities, where libstdc++'s `std::sort` may reorder ties. Three
+    lists in four keep each entity within the text, since one entity past its end
+    refuses the whole text.
     """
     types = rng.sample(range(TYPE.SIZE), rng.randint(1, 6))
     leaves = rng.random() < 0.25

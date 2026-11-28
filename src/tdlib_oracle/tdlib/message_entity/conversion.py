@@ -4,14 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's conversions of formatted texts and their entities.
-
-Entities become TDLib's API objects and come back from them, the formatted text a bot
-sends becomes the one TDLib keeps, the entities it keeps become the objects it sends to
-Telegram, and the objects Telegram returns become entities again. The tie an entity is
-in travels with it through each conversion, converted as the entity is, since the pinned
-code may hold any entity of the tie in its place.
-"""
+"""TDLib's conversions of formatted texts and their entities."""
 
 from collections.abc import Sequence
 from dataclasses import replace
@@ -105,11 +98,7 @@ def get_text_entity_type_object(entity: MessageEntity) -> td_api.TextEntityType:
 # Ported from td/telegram/MessageEntity.cpp, MessageEntity::get_text_entity_object(),
 # without a user manager.
 def get_text_entity_object(entity: MessageEntity) -> td_api.TextEntity:
-    """Return the API object of `entity`.
-
-    The entities of the tie `entity` is in become objects the same way, and the tie ends
-    when they all become one object.
-    """
+    """Return the API object of `entity`."""
     ties = tuple(
         dict.fromkeys(
             td_api.TextEntity(tie.offset, tie.length, get_text_entity_type_object(tie))
@@ -132,8 +121,8 @@ def get_text_entities_object(
 ) -> tuple[td_api.TextEntity, ...]:
     """Return the API objects of `entities`, in their order.
 
-    Every entity becomes an object, since the request keeps bot commands and the port's
-    entities carry no media timestamp to leave out.
+    Every entity becomes an object, since the port's entities carry no media timestamp
+    to leave out.
     """
     return tuple(get_text_entity_object(entity) for entity in entities)
 
@@ -145,16 +134,7 @@ def get_text_entities_object(
 def get_message_entities(
     input_entities: Sequence[td_api.TextEntity | None],
 ) -> tuple[MessageEntity, ...] | Failure:
-    """Return the entities that the API objects `input_entities` give, or a `Failure`.
-
-    A null object, or one of a null type, gives nothing, and only the types a user can
-    set stay, but every value is checked first, and the first that fails refuses them
-    all: a language or a link must be UTF-8, and is cleaned; a link to a valid user
-    mentions that user, and any other must pass `check_link()`; a mentioned user must be
-    one a bot can name; a media timestamp must not be negative, a custom emoji ID must
-    be valid, and a date must be positive. The objects of the tie an object is in become
-    entities the same way, and the tie ends when they all become one entity.
-    """
+    """Return the entities the API objects `input_entities` give, or a `Failure`."""
 
     def convert(
         offset: int, length: int, entity_type: td_api.TextEntityType
@@ -285,17 +265,7 @@ def get_message_entities(
 def get_server_message_entities(
     server_entities: Sequence[telegram_api.MessageEntity],
 ) -> tuple[MessageEntity, ...]:
-    """Return the entities that TDLib reads from the objects Telegram returns.
-
-    Each object gives the entity of its type with its value, in their order: a `pre`
-    block without a language stays one without, a collapsed blockquote is an expandable
-    one, and a date keeps the parts its flags name, a relative date alone and the short
-    form of a time or a date over the long one. An object TDLib cannot read is left out:
-    a link that `check_link()` refuses, a mention of an invalid user, a date that is not
-    positive, and a mention in the form TDLib sends, which it never reads back. The
-    objects of the tie an object is in become entities the same way, and the tie ends
-    when they all become one entity.
-    """
+    """Return the entities that TDLib reads from the objects Telegram returns."""
 
     def convert(server_entity: telegram_api.MessageEntity) -> MessageEntity | None:
         match server_entity:
@@ -387,11 +357,10 @@ def get_formatted_text(
 ) -> FormattedText | Failure:
     """Return a bot's `text` as TDLib fixes it, or the `Failure` that refuses it.
 
-    The entities are checked and converted first, then fixed with the text. A bot sends
-    the text, so a text of blank characters is kept exactly when an empty text is
-    allowed. The Bot API server never sets the `always_parse_markdown` option, so no
-    Markdown is parsed. TDLib finds entities of its own in the text of a bot with one
-    session; it sends none of them, and the splits they make in other entities merge
+    A bot sends the text, so a text of blank characters is kept exactly when an empty
+    text is allowed. The Bot API server never sets the `always_parse_markdown` option,
+    so no Markdown is parsed. TDLib finds entities of its own in the text of a bot with
+    one session; it sends none of them, and the splits they make in other entities merge
     again when it sends those, so the port finds none, as TDLib does for a bot with
     more sessions.
     """
@@ -424,16 +393,7 @@ _MAX_USER_ENTITY_COUNT = 100
 def get_input_message_entities(
     entities: Sequence[MessageEntity],
 ) -> tuple[telegram_api.MessageEntity, ...]:
-    """Return the objects TDLib sends to Telegram for the sorted `entities` it keeps.
-
-    Only the types a user can set go. Custom emoji go however many there are, and the
-    other types up to 100 entities in all: first those that are not splittable, in their
-    order, then the splittable ones, merged where they overlap or touch and cut where
-    another splittable type starts. Each goes in the object of its type with the value
-    the type takes, a `pre` block without a language with an empty one, and a mention
-    names its user by ID alone, as a bot names one. The entities of the tie an entity is
-    in become objects the same way, and the tie ends when they all become one object.
-    """
+    """Return the objects TDLib sends to Telegram for the sorted `entities` it keeps."""
 
     def convert(entity: MessageEntity) -> telegram_api.MessageEntity:
         offset = entity.offset

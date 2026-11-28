@@ -48,12 +48,7 @@ _Result = TypeVar("_Result")
 def harness(
     pytestconfig: pytest.Config, tmp_path_factory: pytest.TempPathFactory
 ) -> Path:
-    """Return the compiled pinned TDLib functions.
-
-    A build without `--harness-flags` is kept in `.pytest_cache/` until one of its
-    inputs changes or `pytest --cache-clear` empties the cache, so later sessions
-    skip it.
-    """
+    """Return the compiled pinned TDLib functions."""
     root = pytestconfig.rootpath
     td = root / "tests" / "data" / "td"
     tl = root / "tests" / "data" / "tl"
@@ -221,10 +216,7 @@ def _text_entity_fields(entity: Entity) -> tuple[bytes, ...]:
 
 
 def _text_entity_ties(entity: Entity) -> Sequence[Entity]:
-    """Return `entity`, then each API object its tie lets the pinned code hold instead.
-
-    Each takes the type of an object of the tie, and the bounds of `entity`.
-    """
+    """Return `entity`, then each API object of its tie the pinned code may hold."""
     entity = _text_entity(entity)
     if entity is None:
         return [entity]
@@ -279,11 +271,7 @@ def _sent_entity_fields(entity: Entity) -> tuple[bytes, ...]:
 
 
 def _sent_entity_ties(entity: Entity) -> Sequence[Entity]:
-    """Return `entity`, then each object its tie lets the pinned code hold instead.
-
-    Each takes the constructor and the value of an object of the tie, and the bounds
-    of `entity`.
-    """
+    """Return `entity`, then each object its tie lets the pinned code hold instead."""
     entity = _sent_entity(entity)
     return [entity] + [
         replace(tie, offset=entity.offset, length=entity.length) for tie in entity.ties
@@ -292,14 +280,7 @@ def _sent_entity_ties(entity: Entity) -> Sequence[Entity]:
 
 @dataclass(frozen=True)
 class _Form:
-    """A form the harness writes entities in.
-
-    Attributes:
-        request: The fields of an entity in a request.
-        response: The fields of an entity in a response.
-        size: The number of fields `response` gives.
-        ties: The entity, then each entity its tie lets the pinned code hold instead.
-    """
+    """A form the harness writes entities in."""
 
     request: Callable[[Entity], list[bytes]]
     response: Callable[[Entity], tuple[bytes, ...]]
@@ -439,6 +420,9 @@ def _check(
     for index, (request, result) in enumerate(zip(requests, pinned, strict=True)):
         if matches(port(*request), result):
             continue
+
+        # A differing case is shrunk first, so the failure shows the smallest case found
+        # that still differs.
         small_units, small_args, small_entities = _shrink_case(
             harness, function, port, matches, cases[index], by_bytes=by_bytes, form=form
         )
@@ -457,11 +441,7 @@ def _check(
 
 @pytest.fixture
 def compare(harness: Path) -> Callable[..., None]:
-    """Return a check that the port gives the pinned code's result on each case.
-
-    A differing case is shrunk before it fails the test, its text and then its numeric
-    arguments, so the failure shows the smallest case found that still differs.
-    """
+    """Return a check that the port gives the pinned code's result on each case."""
 
     def check(
         function: str,
@@ -487,15 +467,7 @@ def compare(harness: Path) -> Callable[..., None]:
 
 @pytest.fixture
 def compare_entities(harness: Path) -> Callable[..., None]:
-    """Return a check that the port matches the pinned code on cases with entities.
-
-    The cases hold entities in the form `requests` names, and the port answers with
-    entities in the form `answers` names: `message` for TDLib's own entities, `api` for
-    their API objects, and `sent` for the objects of Telegram's API that TDLib sends and
-    reads back. At an entity the port marks as tied, any entity of its tie matches,
-    since `std::sort` leaves their order to the C++ library. A differing case is shrunk
-    before it fails the test: its text, its entities, and then its numeric arguments.
-    """
+    """Return a check that the port matches the pinned code on cases with entities."""
 
     def check(
         function: str,
@@ -524,12 +496,7 @@ def compare_entities(harness: Path) -> Callable[..., None]:
 
 @pytest.fixture
 def compare_by(harness: Path) -> Callable[..., None]:
-    """Return a check that `matches` finds the port's result in each pinned answer.
-
-    The port's result may take any form, such as a verdict of the public API, and
-    `matches` holds it against the fields the harness answers with. A differing case is
-    shrunk before it fails the test, its text and then its numeric arguments.
-    """
+    """Return a check that `matches` finds the port's result in each pinned answer."""
 
     def check(
         function: str,

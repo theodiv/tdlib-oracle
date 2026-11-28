@@ -3,12 +3,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's cleaning of input strings, and its test for a text of blank characters.
-
-HTML and MarkdownV2 clean the link of each nested link again, so `clean_input_string`
-passes over a string a fixed number of times in bytes methods and regular expressions; a
-Python loop reads 4 of its bytes at most.
-"""
+"""TDLib's cleaning of input strings, and its test for a text of blank characters."""
 
 import re
 
@@ -93,11 +88,9 @@ def replace_offending_characters(text: bytes) -> bytes:
 def clean_input_string(text: bytes) -> bytes | None:
     """Return `text` cleaned as TDLib cleans input strings, or `None` if not UTF-8.
 
-    Control characters become spaces, except line feeds, which stay, and carriage
-    returns, which are dropped along with U+2028 to U+202E and the combining marks
-    U+030A, U+0333, and U+033F. In a run of U+200E and U+200F marks, each but the last
-    becomes U+200C. The string is cut before the first character that starts at offset
-    34,996 or later, so it stays under the 35,000-byte server-side limit.
+    HTML and MarkdownV2 clean the link of each nested link again, so it passes over a
+    string a fixed number of times in bytes methods and regular expressions, and a
+    Python loop reads 4 of its bytes at most.
     """
     if not check_utf8(text):
         return None
@@ -119,12 +112,7 @@ def clean_input_string(text: bytes) -> bytes | None:
 def strip_empty_characters(
     text: bytes, max_length: int, strip_rtlo: bool = False
 ) -> bytes:
-    """Return `text` trimmed and cut to `max_length` code points, or empty if blank.
-
-    Unicode spaces and tag characters become spaces first, and so does U+202E with
-    `strip_rtlo`. The text is blank when nothing but spaces, line feeds, U+200B to
-    U+200F, U+202E, U+FEFF, and U+00A0 is left.
-    """
+    """Return `text` trimmed and cut to `max_length` code points, or empty if blank."""
     replaced = bytearray()
     size = len(text)
     i = 0

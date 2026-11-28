@@ -150,11 +150,7 @@ def _offset(message: bytes) -> int | None:
 
 
 def _date_time_format(flags: int) -> str:
-    """Return the Bot API's format of a date that TDLib sends with `flags`.
-
-    A relative date shows `r`, whatever the other flags; of a short and a long date or
-    time, the short one shows.
-    """
+    """Return the Bot API's format of a date that TDLib sends with `flags`."""
     if flags == 0:
         return ""
     if flags & 1:

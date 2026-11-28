@@ -4,12 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's HTML parser: the text without its tags, and the entities the tags give.
-
-An `<a>` without `href` takes the text it holds as its link, as in the pinned code, so
-links nested that way check that text once per level, in time that grows with the square
-of the length of the text; the Bot API's 32,768-byte cap bounds it.
-"""
+"""TDLib's HTML parser: the text without its tags, and the entities the tags give."""
 
 from dataclasses import dataclass, replace
 
@@ -129,20 +124,9 @@ class _EntityInfo:
 def parse_html(text: bytes) -> FormattedText | Failure:
     """Return the text and entities `text` gives as HTML, or the `Failure` refusing it.
 
-    The tags are removed, and the references `&lt;`, `&gt;`, `&amp;`, and `&quot;` and
-    numeric character references are decoded; any other `&` stays. An element that holds
-    text gives the entity of its tag, and one that holds none gives none and is not
-    checked. An `<a>` gives a link to its `href`, or to the text it holds without one,
-    in the form TDLib's link check keeps, or no entity when the check refuses it; a
-    `tg://user?id=` link gives a mention of that user instead. A `<code>` with a
-    language right inside or around a `<pre>` of the same text gives a code block. A
-    numeric reference to a surrogate refuses the text, except in an attribute. The
-    entities come back sorted, each tie between entities that differ recorded in their
-    `ties`.
-
-    A message quotes a tag name decoded with `surrogateescape`, since only a text that
-    is not UTF-8, which TDLib refuses before parsing, gives one that UTF-8 does
-    not decode.
+    An `<a>` without `href` takes the text it holds as its link, as in the pinned code,
+    so links nested that way check that text once per level, in time that grows with the
+    square of the length of the text; the Bot API's 32,768-byte cap bounds it.
     """
     str_size = len(text)
     # Past the end, the C++ reads the string terminator.

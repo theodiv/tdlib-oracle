@@ -37,13 +37,7 @@ def run_request(
 def do_request(
     request: td_api.ParseTextEntities,
 ) -> td_api.FormattedText | td_api.Error:
-    """Return the text of `request` without markup, with its entities, or the error.
-
-    The text must be UTF-8, and the parse mode set. HTML goes to the HTML parser,
-    Markdown of version 0 or 1 to the legacy Markdown parser, and Markdown of version 2
-    to the MarkdownV2 parser. A text over 65,536 code points, any other version, and the
-    parser's refusal come back with their message after `Can't parse entities: `.
-    """
+    """Return the text of `request` without markup, with its entities, or the error."""
     # A carriage return can separate parts of the text, so it is checked, not cleaned.
     if not check_utf8(request.text):
         return td_api.Error(400, b"Text must be encoded in UTF-8")

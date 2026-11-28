@@ -4,12 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""The URL parser of tdutils: a URL's parts, checked, and the URL they write back.
-
-TDLib's HTML and MarkdownV2 parsers check the text inside each nested link again, so
-`parse_url` passes over a URL a fixed number of times in bytes methods and regular
-expressions; a Python loop reads 20 of its bytes at most.
-"""
+"""The URL parser of tdutils: a URL's parts, checked, and the URL they write back."""
 
 import re
 from dataclasses import dataclass
@@ -59,18 +54,7 @@ class PROTOCOL:
 # Ported from tdutils/td/utils/HttpUrl.h, HttpUrl.
 @dataclass(frozen=True)
 class HttpUrl:
-    """A URL as tdutils parses it.
-
-    Attributes:
-        protocol: The protocol, one of `PROTOCOL`.
-        userinfo: The user information before the host, as the URL writes it.
-        host: The host in lowercase; an IPv6 address keeps its brackets.
-        is_ipv6: Whether the host is an IPv6 address.
-        specified_port: The port the URL names, or `0` when it names none.
-        port: The port the URL names, or else the default port of `protocol`.
-        query: The path, query, and fragment, from a leading `/`, with each byte up to
-            0x20 percent-encoded.
-    """
+    """A URL as tdutils parses it."""
 
     protocol: int
     userinfo: bytes
@@ -105,10 +89,9 @@ def _check_url_part(
 def parse_url(url: bytes) -> HttpUrl | Failure:
     """Return `url` parsed as tdutils parses a URL, or the `Failure` that refuses it.
 
-    A URL without `http://` or `https://` takes HTTP. The host is lowercased and
-    checked, and so is the userinfo, unless the host is an IPv6 address in brackets; a
-    port runs from 1 to 65535; and the query loses its trailing spaces, then has each
-    other byte up to 0x20 percent-encoded.
+    TDLib's HTML and MarkdownV2 parsers check the text inside each nested link again, so
+    it passes over a URL a fixed number of times in bytes methods and regular
+    expressions, and a Python loop reads 20 of its bytes at most.
     """
     # url == [https?://][userinfo@]host[:port]
     begin, pos = read_till_nofail(url, 0, b":/?#@[]")

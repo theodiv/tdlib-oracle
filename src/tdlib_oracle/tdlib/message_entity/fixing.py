@@ -4,11 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's fixing of a formatted text: entities, cleaning, trimming, and emptiness.
-
-Fixing ends with the entities TDLib finds on its own, on the text as trimmed and cut, so
-the splits they make fall where TDLib's do.
-"""
+"""TDLib's fixing of a formatted text: entities, cleaning, trimming, and emptiness."""
 
 from collections.abc import Iterable, Sequence
 from dataclasses import replace
@@ -72,12 +68,7 @@ def _is_empty_entity(entity: MessageEntity) -> bool:
 
 # Ported from td/telegram/MessageEntity.cpp, remove_empty_entities().
 def remove_empty_entities(entities: Iterable[MessageEntity]) -> list[MessageEntity]:
-    """Return `entities` in their order, without the empty ones.
-
-    An entity is empty when its length is not positive, or when it lacks the value its
-    type takes: a link without its URL, a mention of an invalid user, a custom emoji
-    with ID `0`, or a date that is not positive.
-    """
+    """Return `entities` in their order, without the empty ones."""
     return [entity for entity in entities if not _is_empty_entity(entity)]
 
 
@@ -211,12 +202,7 @@ def _resplit_entities(
 
 # Ported from td/telegram/MessageEntity.cpp, fix_entities().
 def fix_entities(entities: Sequence[MessageEntity]) -> tuple[MessageEntity, ...]:
-    """Return `entities` sorted, without those that may not overlap or nest as they do.
-
-    A continuous entity goes when it intersects one kept before it, a blockquote when it
-    intersects another, and a continuous entity when it crosses a blockquote's bounds;
-    splittable entities merge and split around the rest.
-    """
+    """Return `entities` sorted, without those that overlap or nest as TDLib forbids."""
     entities = _sort_entities(entities)
     if _are_entities_valid(entities):
         return entities
@@ -249,11 +235,7 @@ def fix_entities(entities: Sequence[MessageEntity]) -> tuple[MessageEntity, ...]
 def _merge_new_entities(
     entities: Sequence[MessageEntity], new_entities: Sequence[MessageEntity]
 ) -> tuple[MessageEntity, ...]:
-    """Return the sorted `entities` with the `new_entities` TDLib found in their text.
-
-    A new entity goes when it crosses a blockquote's bounds or overlaps a continuous
-    entity, and splittable entities split around the new ones.
-    """
+    """Return the sorted `entities` with the `new_entities` found in their text."""
     if not new_entities:
         # fast path
         return tuple(entities)
@@ -291,10 +273,7 @@ def _clean_input_string_with_entities(
 ) -> tuple[bytes, list[MessageEntity]] | Failure:
     """Return `text` cleaned as `clean_input_string` cleans it, with `entities` moved.
 
-    The text is not cut. Each entity loses the UTF-16 code units dropped within it and
-    moves back by those dropped before it. An entity that starts or ends inside a
-    surrogate pair or past the end refuses the text. The entities must be sorted, and
-    may nest but not intersect.
+    The text is not cut. The entities must be sorted, and may nest but not intersect.
     """
     fixed = list(entities)
     # The entities open at the current position, by index, each with the UTF-16 code
@@ -453,20 +432,7 @@ def fix_formatted_text(
     skip_bot_commands: bool,
     skip_trim: bool,
 ) -> FormattedText | Failure:
-    """Return `text` and `entities` as TDLib fixes them, or the `Failure` refusing them.
-
-    Entities with an offset or length outside 0 to 1,000,000 refuse the text. Empty
-    entities are dropped, and the rest are sorted, without those that may not overlap
-    or nest as they do. The text is cleaned, with the entities moved along, refused
-    when only spaces and line feeds are left, trimmed of them at both ends unless
-    `skip_trim` is set, with the entities cut to match, and refused again when only
-    blank characters are left. `allow_empty` turns both refusals into an empty text, and
-    `allow_empty_string` keeps a text of blank characters. A text over 35,000 bytes is
-    cut there, and the entities that end past the cut are dropped. Last, unless
-    `skip_new_entities` is set, the entities TDLib finds in the text join the others,
-    bot commands only without `skip_bot_commands`, and splittable entities split
-    around them.
-    """
+    """Return `text` and `entities` as TDLib fixes them, or its `Failure`."""
     if not entities:
         # fast path
         cleaned = clean_input_string(text)

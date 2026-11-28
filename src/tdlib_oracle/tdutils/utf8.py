@@ -11,10 +11,7 @@ from tdlib_oracle.tdutils.unicode import unicode_to_lower
 
 # Ported from tdutils/td/utils/utf8.cpp, check_utf8().
 def check_utf8(text: bytes) -> bool:
-    """Return whether `text` is valid UTF-8.
-
-    Overlong encodings, surrogates, and code points past U+10FFFF are invalid.
-    """
+    """Return whether `text` is valid UTF-8."""
     # TDLib runs a DFA built from these transitions; Python's UTF-8 codec refuses
     # exactly the bytes it refuses, in one pass in C, which HTML and MarkdownV2 make for
     # the link of each nested link.
@@ -40,11 +37,7 @@ def utf8_length(text: bytes) -> int:
 
 # Ported from tdutils/td/utils/utf8.cpp, utf8_utf16_length().
 def utf8_utf16_length(text: bytes) -> int:
-    """Return the length of `text` in UTF-16 code units.
-
-    A byte from 0xF0 to 0xF7, which leads a 4-byte sequence, counts twice, for the
-    surrogate pair that sequence takes in UTF-16.
-    """
+    """Return the length of `text` in UTF-16 code units."""
     return sum(
         is_utf8_character_first_code_unit(c) + ((c & 0xF8) == 0xF0) for c in text
     )
@@ -115,8 +108,8 @@ def utf8_substr(text: bytes, offset: int) -> bytes:
 def append_utf8_character(result: bytearray, code: int) -> None:
     """Append the code point `code` to `result` in UTF-8.
 
-    A code point takes 1 to 4 bytes, and a surrogate the 3-byte form that UTF-8 refuses.
-    `code` must be a code point, at most U+10FFFF.
+    A surrogate takes the 3-byte form that UTF-8 refuses, and `code` must be at
+    most U+10FFFF.
     """
     if code <= 0x7F:
         result.append(code)

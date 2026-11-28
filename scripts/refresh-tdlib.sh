@@ -3,8 +3,7 @@
 # Rewrites tests/data/td/ and tests/data/tl/ from a tdlib/td checkout at
 # TDLIB_COMMIT, so the differential tests compile the pinned code: the
 # translation units below, every file they and tests/support/harness.cpp
-# include, and the TL sources that TDLib's generator writes. Run it at each
-# re-pin, from the repository root; it reaches no network.
+# include, and the TL sources that TDLib's generator writes.
 set -euo pipefail
 
 td=${1:?usage: scripts/refresh-tdlib.sh <td checkout>}
@@ -25,13 +24,10 @@ if [ -n "$(git -C "$td" status --porcelain --untracked-files=no)" ]; then
   exit 1
 fi
 
-# The translation units the harness compiles: the code that the plain-text path,
-# entity fixing, entity finding, the link checks, the entity conversions, and
-# the parseTextEntities request run, and every tdutils source that defines a
-# symbol they reference, so no tdutils function they call is ever a stub.
-# Sources that need the OpenSSL headers stay out, except crypto.cpp and
-# Slice.cpp, which the harness compiles without OpenSSL for crc16()
-# and MutableSlice::fill().
+# Every tdutils source that defines a symbol the td/telegram units reference
+# joins them, so no tdutils function they call is ever a stub. Sources that need
+# the OpenSSL headers stay out, except crypto.cpp and Slice.cpp, which the
+# harness compiles without OpenSSL for crc16() and MutableSlice::fill().
 units=(
   td/telegram/FormattedDate.cpp
   td/telegram/LinkManager.cpp

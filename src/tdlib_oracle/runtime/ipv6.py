@@ -1,10 +1,8 @@
 """The text forms of an IPv6 address that RFC 4291 defines.
 
-TDLib checks a host in brackets with the C library's `inet_pton()`
-(tdutils/td/utils/port/IPAddress.cpp, IPAddress::init_ipv6_port()). glibc accepts
-exactly the text forms of RFC 4291, section 2.2, held to the `IPv6address` rule of RFC
-3986, section 3.2.2, so the check follows those, and no C library's code reaches the
-package.
+It stands in for the C library's `inet_pton()`, which TDLib calls on a host in brackets
+(tdutils/td/utils/port/IPAddress.cpp, IPAddress::init_ipv6_port()), and is written from
+the RFCs, so no C library's code reaches the package.
 """
 
 _HEX_DIGITS = frozenset(b"0123456789ABCDEFabcdef")
@@ -15,12 +13,10 @@ _MAX_LENGTH = len(b"ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")
 
 
 def _is_group(text: bytes) -> bool:
-    """Return whether `text` is one 16-bit group: 1 to 4 hex digits."""
     return 1 <= len(text) <= 4 and all(c in _HEX_DIGITS for c in text)
 
 
 def _is_octet(text: bytes) -> bool:
-    """Return whether `text` is a number from 0 to 255 without a leading zero."""
     return (
         1 <= len(text) <= 3
         and text.isdigit()
@@ -30,17 +26,12 @@ def _is_octet(text: bytes) -> bool:
 
 
 def _is_ipv4_address(text: bytes) -> bool:
-    """Return whether `text` is an IPv4 address in dotted decimal."""
     octets = text.split(b".")
     return len(octets) == 4 and all(_is_octet(octet) for octet in octets)
 
 
 def _count_groups(text: bytes, *, allow_ipv4: bool) -> int | None:
-    """Return how many 16-bit groups `text` fills, or `None` if it is malformed.
-
-    `text` is groups separated by single colons; with `allow_ipv4`, an IPv4 address may
-    stand last, for the two groups it fills.
-    """
+    """Return how many 16-bit groups `text` fills, or `None` if it is malformed."""
     if not text:
         return 0
     *groups, last = text.split(b":")
@@ -56,9 +47,8 @@ def _count_groups(text: bytes, *, allow_ipv4: bool) -> int | None:
 def is_ipv6_address(text: bytes) -> bool:
     """Return whether `text` is an IPv6 address in one of RFC 4291's text forms.
 
-    Eight groups of 1 to 4 hex digits are separated by colons; one `::` may stand for
-    one or more groups of zeros; and an IPv4 address in dotted decimal, its numbers
-    without leading zeros, may fill the last two groups.
+    It accepts exactly what glibc's `inet_pton()` accepts: the text forms of RFC 4291,
+    section 2.2, held to the `IPv6address` rule of RFC 3986, section 3.2.2.
     """
     if len(text) > _MAX_LENGTH:
         return False

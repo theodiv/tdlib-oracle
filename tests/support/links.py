@@ -1,8 +1,4 @@
-"""Links for the differential tests of the URL parser and the link checks.
-
-A link is a tuple of parts, such as a scheme, a host, or a port, so a differing link
-shrinks by whole parts before it shrinks by bytes.
-"""
+"""Links for the differential tests of the URL parser and the link checks."""
 
 import random
 
@@ -299,11 +295,7 @@ FIXED_LINKS = (
 
 
 def _draw_links(seed: int, count: int) -> list[tuple[bytes, ...]]:
-    """Return `count` links drawn from `seed`, each split into its parts.
-
-    A link joins a scheme, a userinfo, a host, a port, and a path, then has up to two
-    parts inserted from every unit, deleted, or replaced.
-    """
+    """Return `count` links drawn from `seed`, each split into its parts."""
     rng = random.Random(f"{seed} links")
     links = []
     for _ in range(count):
@@ -359,10 +351,8 @@ def draw_links(seed: int, count: int) -> list[tuple[bytes, ...]]:
     """Return `count` links of each kind drawn from `seed`.
 
     The kinds come in this order: built, `tg://user`, `tg://emoji` and `tg://time`, and
-    random. A built link joins a scheme, a userinfo, a host, a port, and a path, with up
-    to two parts changed; a `tg://user`, `tg://emoji`, or `tg://time` link adds
-    parameters and their values to a right or near-miss start; and a random link joins
-    units of every kind, bytes that UTF-8 refuses among them.
+    random. Each link is a tuple of parts, such as a scheme, a host, or a port, so a
+    differing link shrinks by whole parts before it shrinks by bytes.
     """
     links = _draw_links(seed, count)
     links += _draw_user_links(seed, count)

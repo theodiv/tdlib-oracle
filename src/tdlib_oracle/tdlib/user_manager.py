@@ -4,11 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""TDLib's check of a user a bot names, and the object TDLib names that user by.
-
-TDLib lets a bot name a user it has never met by the user's ID alone, so Telegram's
-backend, not TDLib, decides whether a valid user can be named.
-"""
+"""TDLib's check of a user a bot names, and the object TDLib names that user by."""
 
 from tdlib_oracle.runtime.failure import Failure
 from tdlib_oracle.tdlib import telegram_api

@@ -6,13 +6,10 @@
 # see LICENSES/BSL-1.0.txt.
 """TDLib's checks of a link: whether it survives, in what form, and what it names.
 
-A link survives in the form `check_link()` gives it. A `tg://user?id=` link names the
-user that `get_link_user_id()` reads, and a `tg://emoji` or `tg://time` link the custom
-emoji or the date that `get_link_custom_emoji_id()` or `get_link_formatted_date()`
-reads. HTML and MarkdownV2 check the text inside each nested link again, so
-`check_link()`, `get_checked_link()`, and `get_link_user_id()` pass over a link a fixed
-number of times in bytes methods and regular expressions, and a Python loop in them
-reads 20 of its bytes at most.
+HTML and MarkdownV2 check the text inside each nested link again, so `check_link()`,
+`get_checked_link()`, and `get_link_user_id()` pass over a link a fixed number of times
+in bytes methods and regular expressions, and a Python loop in them reads 20 of its
+bytes at most.
 """
 
 from tdlib_oracle.runtime.cstring import Span
@@ -40,8 +37,7 @@ def _tolower_begins_with(text: bytes, prefix: bytes) -> bool:
 def check_link_impl(link: bytes) -> bytes | Failure:
     """Return `link` in the form TDLib keeps it, or the `Failure` that refuses it.
 
-    The refusal holds the reason alone, with code `0`: `check_link` words it for the
-    caller, and `get_checked_link` drops it.
+    The refusal holds the reason alone, with code `0`.
     """
     is_tg = False
     is_ton = False
@@ -88,13 +84,7 @@ def check_link_impl(link: bytes) -> bytes | Failure:
 # Ported from td/telegram/LinkManager.cpp, LinkManager::check_link(), for http_only and
 # https_only unset, as TDLib checks the link of a formatted text.
 def check_link(link: bytes) -> bytes | Failure:
-    """Return `link` in the form TDLib keeps it, or the `Failure` that refuses it.
-
-    A link starts with `http://`, `https://`, `tg:`, `ton:`, `tonsite:`, or no scheme,
-    which stands for HTTP, and an HTTP link needs a dot in its host unless the host is
-    an IPv6 address. The refusal quotes the link only when it is valid UTF-8, and then
-    only up to its first NUL, where the message ends.
-    """
+    """Return `link` in the form TDLib keeps it, or the `Failure` that refuses it."""
     result = check_link_impl(link)
     if not isinstance(result, Failure):
         return result
@@ -118,8 +108,7 @@ def get_checked_link(link: bytes) -> bytes:
 def get_link_user_id(url: bytes) -> int:
     """Return the user ID that a `tg://user?id=` link names, or `0` if it names none.
 
-    The ID is the first `id` parameter, read as a 64-bit integer; the caller checks that
-    it lies in the range of user IDs, as TDLib's callers do.
+    The ID is not checked against the range of user IDs.
     """
     url = url.lower()
     if not url.startswith(b"tg:"):
@@ -152,14 +141,9 @@ def get_link_user_id(url: bytes) -> int:
 
 # Ported from td/telegram/LinkManager.cpp, LinkManager::check_tg_url_host().
 def check_tg_url_host(url: bytes, host: bytes) -> Span | Failure:
-    """Return where the parameters of the `tg:` link `url` lie, or its `Failure`.
-
-    The link must lead to `host`, which the caller writes in lowercase: the scheme and
-    the host may be in any letter case, and the `//` after the scheme may be left out.
-    The host ends the link or stands before `/`, `?`, or `#`, and the parameters follow
-    a `?` right after it or after one `/` behind it, up to the first `#`.
-    """
-    # The C++ lowercases only as many bytes as `tg://`, the host, and one more take.
+    """Return where the parameters of the `tg:` link `url` lie, or its `Failure`."""
+    # The C++ lowercases only as many bytes as `tg://`, the host, and one more take, and
+    # compares them with `host`, which the caller writes in lowercase.
     lower_cased_url = url[: 3 + 2 + len(host) + 1].lower()
 
     if not lower_cased_url.startswith(b"tg:"):
@@ -186,11 +170,7 @@ def check_tg_url_host(url: bytes, host: bytes) -> Span | Failure:
 
 # Ported from td/telegram/LinkManager.cpp, LinkManager::get_link_custom_emoji_id().
 def get_link_custom_emoji_id(url: bytes) -> int | Failure:
-    """Return the custom emoji ID that a `tg://emoji` link names, or its `Failure`.
-
-    The ID is the first `id` parameter, which must write a 64-bit integer other than `0`
-    in its decimal form.
-    """
+    """Return the custom emoji ID that a `tg://emoji` link names, or its `Failure`."""
     query = check_tg_url_host(url, b"emoji")
     if isinstance(query, Failure):
         return query
@@ -207,12 +187,7 @@ def get_link_custom_emoji_id(url: bytes) -> int | Failure:
 
 # Ported from td/telegram/LinkManager.cpp, LinkManager::get_link_formatted_date().
 def get_link_formatted_date(url: bytes) -> tuple[int, int] | Failure:
-    """Return the date and the flags a `tg://time` link names, or its `Failure`.
-
-    Each `unix` parameter must write a positive 32-bit integer in its decimal form, and
-    the last one gives the date. The last `format` parameter, or an empty format without
-    one, gives the flags as `get_date_flags()` reads them.
-    """
+    """Return the date and the flags a `tg://time` link names, or its `Failure`."""
     query = check_tg_url_host(url, b"time")
     if isinstance(query, Failure):
         return query

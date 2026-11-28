@@ -34,8 +34,7 @@ def _create_input_message_content(
 def get_input_message_content(text: td_api.FormattedText) -> FormattedText | Failure:
     """Return what TDLib keeps of a bot's message text, or the `Failure` refusing it.
 
-    `text` is the formatted text of the `inputMessageText` the Bot API server sends. A
-    message text has no file and no caption, so none of the steps before the content is
-    created applies to it.
+    A message text has no file and no caption, so none of the steps before the content
+    is created applies to it.
     """
     return _create_input_message_content(text)

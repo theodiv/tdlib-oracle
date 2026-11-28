@@ -141,9 +141,8 @@ def _draw_text_entities(
 ) -> list[tuple[td_api.TextEntity | None, ...]]:
     """Return `count` lists of API objects of entities, drawn from `seed`.
 
-    Each type draws values valid and invalid, links among them from
-    `tests.support.links`, and now and then an object or its type is null. Half the
-    lists hold two objects or fewer, so that a list refuses as a whole less often.
+    Half the lists hold two objects or fewer, so that a list refuses as a whole
+    less often.
     """
     rng = random.Random(f"{seed} text entities")
     links = [b"".join(units) for units in draw_links(seed, 100)] + list(FIXED_LINKS)
@@ -211,13 +210,7 @@ def _draw_returned_entity(
 def _draw_returned_entities(
     seed: int, count: int
 ) -> list[tuple[telegram_api.MessageEntity, ...]]:
-    """Return `count` lists of the objects Telegram may return, drawn from `seed`.
-
-    Every constructor the port reads back comes up, with values valid and invalid: links
-    from `tests.support.links`, users on each side of the range of user IDs, dates on
-    each side of zero with every set of flags, and languages and custom emoji of
-    each kind.
-    """
+    """Return `count` lists of the objects Telegram may return, drawn from `seed`."""
     rng = random.Random(f"{seed} returned entities")
     links = [b"".join(units) for units in draw_links(seed, 100)] + list(FIXED_LINKS)
     return [
@@ -227,11 +220,10 @@ def _draw_returned_entities(
 
 
 def _draw_entities_to_send(rng: random.Random) -> tuple[MessageEntity, ...]:
-    """Return drawn entities as TDLib holds them when it sends them: sorted and bounded.
+    """Return drawn entities as TDLib holds them to send: sorted and bounded.
 
     A mention names a valid user, since a bot's user manager refuses the others before,
-    and `UserManager::get_input_user_force()` aborts on them. A fifth of the lists hold
-    more entities than TDLib sends.
+    and `UserManager::get_input_user_force()` aborts on them.
     """
     entities = (
         replace(entity, user_id=5)

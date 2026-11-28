@@ -4,12 +4,7 @@
 # Copyright Aliaksei Levin (levlam@telegram.org), Arseny Smirnov (arseny30@gmail.com)
 # 2014-2026. Distributed under the Boost Software License, Version 1.0;
 # see LICENSES/BSL-1.0.txt.
-"""Character tests, ASCII lowercasing, trimming, and integer conversions of tdutils.
-
-Python's `int()` takes a plus sign, spaces, underscores, and digits of other scripts,
-and keeps a number of any size. tdutils reads only ASCII digits after an optional minus
-sign, into a C++ type whose range a larger number wraps around, and so does the port.
-"""
+"""Character tests, ASCII lowercasing, trimming, and integer conversions of tdutils."""
 
 # Ported from tdutils/td/utils/misc.h, is_space(), the characters it accepts.
 _SPACES = b" \t\r\n\x00\x0b"
@@ -64,9 +59,10 @@ def trim(text: bytes) -> bytes:
 def to_integer(text: bytes, bits: int) -> int:
     """Return the number `text` starts with, in a signed integer type of `bits` bits.
 
-    The digits after an optional minus sign are read up to the first other byte, so a
-    text without them reads 0, and a number outside the type's range wraps around it as
-    in two's complement arithmetic.
+    It reads the ASCII digits after an optional minus sign up to the first other byte,
+    so a text without them reads 0, and a number outside the type's range wraps around
+    it as in two's complement arithmetic. Python's `int()` would also take a plus sign,
+    spaces, underscores, and digits of other scripts, and keep a number of any size.
     """
     mask = (1 << bits) - 1
     maximum = mask >> 1
@@ -89,9 +85,7 @@ def to_integer(text: bytes, bits: int) -> int:
 def to_integer_safe(text: bytes, bits: int) -> int | None:
     """Return the number `text` writes, or `None` unless `text` is its decimal form.
 
-    The number is read as `to_integer` reads it at `bits` bits and printed back, so a
-    plus sign, `-0`, a leading zero, any other byte, and a number past the type's range,
-    which wraps to another value, each give `None` where the C++ returns an error.
+    A number outside the range of a signed integer of `bits` bits also gives `None`.
     """
     # A value prints in at most 20 characters, so a longer text never matches it.
     if len(text) > 20:
